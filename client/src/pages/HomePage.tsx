@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, GripVertical, Loader2 } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +22,6 @@ const EXERCISE_ICONS = {
   "run": Activity,
 };
 
-// Color scheme for custom exercises - cycle through these colors
 const CUSTOM_EXERCISE_COLORS = [
   { bg: "bg-red-500/10", text: "text-red-500", hex: "#ef4444" },
   { bg: "bg-amber-500/10", text: "text-amber-500", hex: "#f59e0b" },
@@ -52,9 +49,12 @@ interface Challenge {
   startDate: number;
   endDate: number;
   participants: Array<{ userId: string; progress: number; avatar: string; username: string }>;
+  participantIds: string[];
   isPublic: boolean;
   colors?: { from: string; to: string };
 }
+
+const HOLD_DELAY = 300;
 
 export default function HomePage() {
   const { toast } = useToast();
@@ -65,7 +65,8 @@ export default function HomePage() {
   const [showChallenges, setShowChallenges] = useState(true);
   const [showRecentLogs, setShowRecentLogs] = useState(true);
   const [sectionOrder, setSectionOrder] = useState(['today', 'challenges', 'logs']);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [readyToDragSection, setReadyToDragSection] = useState<string | null>(null);
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
   const [visibleTiles, setVisibleTiles] = useState<Record<string, boolean>>({
     "pull-up": true,
@@ -75,26 +76,40 @@ export default function HomePage() {
   });
   const [tileOrder, setTileOrder] = useState<string[]>(["pull-up", "push-up", "run", "dip"]);
   const [draggedTile, setDraggedTile] = useState<string | null>(null);
-  const [touchDragItem, setTouchDragItem] = useState<{ type: 'section' | 'tile', id: string } | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number>(0);
-  const [longPressActive, setLongPressActive] = useState(false);
-  const [longPressItem, setLongPressItem] = useState<{ type: 'section' | 'tile', id: string } | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const { currentTheme, setTheme } = useThemeToggle();
-  
-  useEffect(() => {
-    return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-    };
-  }, []);
+  const [readyToDragTile, setReadyToDragTile] = useState<string | null>(null);
+  const { currentTheme } = useThemeToggle();
   const [, setLocation] = useLocation();
   
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(true);
+
+  const sectionHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tileHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const triggerHaptic = useCallback(() => {
+    if ("vibrate" in navigator) {
+      try {
+        navigator.vibrate(10);
+      } catch (e) {}
+    }
+  }, []);
+
+  const clearSectionHoldTimer = useCallback(() => {
+    if (sectionHoldTimer.current) {
+      clearTimeout(sectionHoldTimer.current);
+      sectionHoldTimer.current = null;
+    }
+  }, []);
+
+  const clearTileHoldTimer = useCallback(() => {
+    if (tileHoldTimer.current) {
+      clearTimeout(tileHoldTimer.current);
+      tileHoldTimer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const fetchWorkoutLogs = async () => {
@@ -127,10 +142,15 @@ export default function HomePage() {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.challenges) {
-            setChallenges(data.challenges.filter((c: Challenge) => {
-              const now = Date.now();
-              return now >= c.startDate && now <= c.endDate;
-            }));
+            const now = Date.now();
+            const userChallenges = data.challenges.filter((c: Challenge) => {
+              const isParticipant = c.participantIds?.includes(user.uid);
+              const isActive = now >= c.startDate && now <= c.endDate;
+              const myProgress = c.participants?.find(p => p.userId === user.uid)?.progress || 0;
+              const isNotCompleted = myProgress < c.goal;
+              return isParticipant && isActive && isNotCompleted;
+            });
+            setChallenges(userChallenges);
           }
         }
       } catch (err) {
@@ -144,7 +164,6 @@ export default function HomePage() {
     fetchChallenges();
   }, [user]);
 
-  // Load custom exercises and tile preferences from localStorage on mount
   useEffect(() => {
     const loadTileSettings = () => {
       const saved = localStorage.getItem("customExercises");
@@ -158,12 +177,10 @@ export default function HomePage() {
         }
       }
 
-      // Initialize tile visibility and order with standard tiles + custom exercises
       const standardTiles = ["pull-up", "push-up", "run", "dip"];
       const customTileIds = customExData.map(ex => ex.name);
       const allTiles = [...standardTiles, ...customTileIds];
 
-      // Load saved visibility or use defaults (all visible)
       const savedVisibility = localStorage.getItem("tileVisibility");
       let newVisibility: Record<string, boolean> = {};
       allTiles.forEach(tile => {
@@ -171,24 +188,22 @@ export default function HomePage() {
       });
       if (savedVisibility) {
         try {
-          const saved = JSON.parse(savedVisibility);
-          newVisibility = { ...newVisibility, ...saved };
+          const savedParsed = JSON.parse(savedVisibility);
+          newVisibility = { ...newVisibility, ...savedParsed };
         } catch (e) {
           console.error("Failed to parse tile visibility", e);
         }
       }
       setVisibleTiles(newVisibility);
 
-      // Load saved order or use defaults (standard first, then custom)
       const savedOrder = localStorage.getItem("tileOrder");
       let newOrder: string[] = allTiles;
       
       if (savedOrder) {
         try {
-          const saved = JSON.parse(savedOrder);
-          // Merge saved order with new custom exercises to ensure custom exercises are included
-          const customNotInSaved = allTiles.filter(tile => !saved.includes(tile));
-          newOrder = [...saved, ...customNotInSaved];
+          const savedParsed = JSON.parse(savedOrder);
+          const customNotInSaved = allTiles.filter(tile => !savedParsed.includes(tile));
+          newOrder = [...savedParsed, ...customNotInSaved];
         } catch (e) {
           newOrder = allTiles;
         }
@@ -199,71 +214,223 @@ export default function HomePage() {
     
     loadTileSettings();
     
-    // Listen for storage changes
     window.addEventListener("storage", loadTileSettings);
     return () => window.removeEventListener("storage", loadTileSettings);
   }, []);
 
-  const handleDragStart = (e: React.DragEvent, section: string) => {
-    setDraggedItem(section);
-    e.dataTransfer.effectAllowed = 'move';
+  useEffect(() => {
+    return () => {
+      clearSectionHoldTimer();
+      clearTileHoldTimer();
+    };
+  }, [clearSectionHoldTimer, clearTileHoldTimer]);
+
+  const handleSectionTouchStart = (section: string) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    clearSectionHoldTimer();
+    sectionHoldTimer.current = setTimeout(() => {
+      setReadyToDragSection(section);
+      triggerHaptic();
+    }, HOLD_DELAY);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleSectionTouchMove = (section: string) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touchStartPos.current && !readyToDragSection) {
+      const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+      const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+      if (dx > 10 || dy > 10) {
+        clearSectionHoldTimer();
+        touchStartPos.current = null;
+      }
+    }
+
+    if (readyToDragSection === section || draggedSection === section) {
+      if (!draggedSection) {
+        setDraggedSection(section);
+      }
+      e.preventDefault();
+      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (elemBelow) {
+        const dropTarget = elemBelow.closest("[data-section-id]");
+        if (dropTarget) {
+          const targetId = dropTarget.getAttribute("data-section-id");
+          if (targetId && targetId !== section) {
+            const targetIndex = sectionOrder.indexOf(targetId);
+            const currentIndex = sectionOrder.indexOf(section);
+            if (targetIndex !== -1 && currentIndex !== -1 && targetIndex !== currentIndex) {
+              const newOrder = [...sectionOrder];
+              newOrder.splice(currentIndex, 1);
+              newOrder.splice(targetIndex, 0, section);
+              setSectionOrder(newOrder);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  const handleSectionTouchEnd = () => {
+    clearSectionHoldTimer();
+    setDraggedSection(null);
+    setReadyToDragSection(null);
+    touchStartPos.current = null;
+  };
+
+  const handleSectionMouseDown = (section: string) => () => {
+    clearSectionHoldTimer();
+    sectionHoldTimer.current = setTimeout(() => {
+      setReadyToDragSection(section);
+      triggerHaptic();
+    }, HOLD_DELAY);
+  };
+
+  const handleSectionMouseUp = () => {
+    clearSectionHoldTimer();
+  };
+
+  const handleSectionMouseLeave = () => {
+    if (!draggedSection) {
+      clearSectionHoldTimer();
+      setReadyToDragSection(null);
+    }
+  };
+
+  const handleSectionDragStart = (section: string) => (e: React.DragEvent) => {
+    if (!readyToDragSection) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedSection(section);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData("text/plain", section);
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, targetSection: string) => {
+  const handleSectionDrop = (targetSection: string) => (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggedItem || draggedItem === targetSection) {
-      setDraggedItem(null);
+    if (!draggedSection || draggedSection === targetSection) {
+      setDraggedSection(null);
+      setReadyToDragSection(null);
       return;
     }
 
-    const draggedIndex = sectionOrder.indexOf(draggedItem);
+    const draggedIndex = sectionOrder.indexOf(draggedSection);
     const targetIndex = sectionOrder.indexOf(targetSection);
     
     const newOrder = [...sectionOrder];
     newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedItem);
+    newOrder.splice(targetIndex, 0, draggedSection);
     
     setSectionOrder(newOrder);
-    setDraggedItem(null);
+    setDraggedSection(null);
+    setReadyToDragSection(null);
   };
 
-  const handleDragEnd = () => {
-    setDraggedItem(null);
+  const handleSectionDragEnd = () => {
+    setDraggedSection(null);
+    setReadyToDragSection(null);
+    clearSectionHoldTimer();
   };
 
-  // Move section up/down for touch devices
-  const moveSectionUp = (section: string) => {
-    const idx = sectionOrder.indexOf(section);
-    if (idx > 0) {
-      const newOrder = [...sectionOrder];
-      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
-      setSectionOrder(newOrder);
+  const handleTileTouchStart = (tile: string) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    clearTileHoldTimer();
+    tileHoldTimer.current = setTimeout(() => {
+      setReadyToDragTile(tile);
+      triggerHaptic();
+    }, HOLD_DELAY);
+  };
+
+  const handleTileTouchMove = (tile: string) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touchStartPos.current && !readyToDragTile) {
+      const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+      const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+      if (dx > 10 || dy > 10) {
+        clearTileHoldTimer();
+        touchStartPos.current = null;
+      }
+    }
+
+    if (readyToDragTile === tile || draggedTile === tile) {
+      if (!draggedTile) {
+        setDraggedTile(tile);
+      }
+      e.preventDefault();
+      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (elemBelow) {
+        const dropTarget = elemBelow.closest("[data-tile-id]");
+        if (dropTarget) {
+          const targetId = dropTarget.getAttribute("data-tile-id");
+          if (targetId && targetId !== tile) {
+            const targetIndex = tileOrder.indexOf(targetId);
+            const currentIndex = tileOrder.indexOf(tile);
+            if (targetIndex !== -1 && currentIndex !== -1 && targetIndex !== currentIndex) {
+              const newOrder = [...tileOrder];
+              newOrder.splice(currentIndex, 1);
+              newOrder.splice(targetIndex, 0, tile);
+              setTileOrder(newOrder);
+              localStorage.setItem("tileOrder", JSON.stringify(newOrder));
+            }
+          }
+        }
+      }
     }
   };
 
-  const moveSectionDown = (section: string) => {
-    const idx = sectionOrder.indexOf(section);
-    if (idx < sectionOrder.length - 1) {
-      const newOrder = [...sectionOrder];
-      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-      setSectionOrder(newOrder);
+  const handleTileTouchEnd = () => {
+    clearTileHoldTimer();
+    setDraggedTile(null);
+    setReadyToDragTile(null);
+    touchStartPos.current = null;
+  };
+
+  const handleTileMouseDown = (tile: string) => () => {
+    clearTileHoldTimer();
+    tileHoldTimer.current = setTimeout(() => {
+      setReadyToDragTile(tile);
+      triggerHaptic();
+    }, HOLD_DELAY);
+  };
+
+  const handleTileMouseUp = () => {
+    clearTileHoldTimer();
+  };
+
+  const handleTileMouseLeave = () => {
+    if (!draggedTile) {
+      clearTileHoldTimer();
+      setReadyToDragTile(null);
     }
   };
 
-  const handleTileDragStart = (e: React.DragEvent, tileType: string) => {
-    setDraggedTile(tileType);
+  const handleTileDragStart = (tile: string) => (e: React.DragEvent) => {
+    if (!readyToDragTile) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedTile(tile);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData("text/plain", tile);
+  };
+
+  const handleTileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleTileDrop = (e: React.DragEvent, targetTile: string) => {
+  const handleTileDrop = (targetTile: string) => (e: React.DragEvent) => {
     e.preventDefault();
     if (!draggedTile || draggedTile === targetTile) {
       setDraggedTile(null);
+      setReadyToDragTile(null);
       return;
     }
 
@@ -277,98 +444,19 @@ export default function HomePage() {
     setTileOrder(newOrder);
     localStorage.setItem("tileOrder", JSON.stringify(newOrder));
     setDraggedTile(null);
+    setReadyToDragTile(null);
   };
 
-  const handleTileDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  const handleTileDragEnd = () => {
+    setDraggedTile(null);
+    setReadyToDragTile(null);
+    clearTileHoldTimer();
   };
 
   const handleTileVisibilityChange = (tileType: string) => {
     const newVisibility = { ...visibleTiles, [tileType]: !visibleTiles[tileType] };
     setVisibleTiles(newVisibility);
     localStorage.setItem("tileVisibility", JSON.stringify(newVisibility));
-  };
-
-  // Move tile up/down for touch devices
-  const moveTileUp = (tileType: string) => {
-    const idx = tileOrder.indexOf(tileType);
-    if (idx > 0) {
-      const newOrder = [...tileOrder];
-      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
-      setTileOrder(newOrder);
-      localStorage.setItem("tileOrder", JSON.stringify(newOrder));
-    }
-  };
-
-  const moveTileDown = (tileType: string) => {
-    const idx = tileOrder.indexOf(tileType);
-    if (idx < tileOrder.length - 1) {
-      const newOrder = [...tileOrder];
-      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-      setTileOrder(newOrder);
-      localStorage.setItem("tileOrder", JSON.stringify(newOrder));
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent, type: 'section' | 'tile', id: string) => {
-    setTouchStartY(e.touches[0].clientY);
-    
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-    
-    longPressTimerRef.current = setTimeout(() => {
-      setLongPressActive(true);
-      setLongPressItem({ type, id });
-      setTouchDragItem({ type, id });
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 300);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent, currentId: string, items: string[], type: 'section' | 'tile') => {
-    if (longPressTimerRef.current && !longPressActive) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    
-    if (!longPressActive || !touchDragItem || touchDragItem.id !== items.find(i => i === touchDragItem.id)) return;
-    
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartY;
-    const threshold = 40;
-    
-    if (Math.abs(deltaY) > threshold) {
-      const currentIdx = items.indexOf(touchDragItem.id);
-      
-      if (deltaY < 0 && currentIdx > 0) {
-        if (type === 'section') {
-          moveSectionUp(touchDragItem.id);
-        } else {
-          moveTileUp(touchDragItem.id);
-        }
-        setTouchStartY(currentY);
-      } else if (deltaY > 0 && currentIdx < items.length - 1) {
-        if (type === 'section') {
-          moveSectionDown(touchDragItem.id);
-        } else {
-          moveTileDown(touchDragItem.id);
-        }
-        setTouchStartY(currentY);
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    setTouchDragItem(null);
-    setLongPressActive(false);
-    setLongPressItem(null);
   };
 
   const renderSection = (type: string) => {
@@ -429,7 +517,6 @@ export default function HomePage() {
                     />
                   );
                 } else {
-                  // Custom exercise
                   const customEx = customExercisesData.find(ex => ex.name === tileType);
                   if (customEx) {
                     const customIdx = customExercisesData.indexOf(customEx);
@@ -446,6 +533,7 @@ export default function HomePage() {
                     );
                   }
                 }
+                return null;
               })}
             </div>
           </section>
@@ -558,7 +646,6 @@ export default function HomePage() {
 
   const currentAvatarUrl = userProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.username || 'user'}`;
 
-  // Calculate daily stats from real API data
   const todayLogs = exerciseLogs.filter(e => 
     new Date(e.timestamp).toDateString() === new Date().toDateString()
   );
@@ -570,7 +657,6 @@ export default function HomePage() {
     run: todayLogs.filter(e => e.exerciseType === "run").reduce((acc, curr) => acc + curr.amount, 0),
   };
 
-  // Calculate custom exercise totals for today
   const customExerciseTotals: Record<string, number> = {};
   customExercisesData.forEach(ex => {
     customExerciseTotals[ex.name] = todayLogs
@@ -590,7 +676,6 @@ export default function HomePage() {
 
   return (
     <Layout>
-      {/* Header */}
       <header className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
           <button 
@@ -609,14 +694,13 @@ export default function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-           {/* Sync Status Toggle */}
-           <button 
-             onClick={toggleSync}
-             className={cn(
-               "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors mr-2",
-               isOnline ? "text-secondary bg-secondary/10" : "text-muted-foreground bg-muted"
-             )}
-           >
+          <button 
+            onClick={toggleSync}
+            className={cn(
+              "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors mr-2",
+              isOnline ? "text-secondary bg-secondary/10" : "text-muted-foreground bg-muted"
+            )}
+          >
             {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
             <span className="sr-only">{isOnline ? "Online" : "Offline"}</span>
           </button>
@@ -625,10 +709,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Render sections in custom order */}
       {sectionOrder.map(sectionType => renderSection(sectionType))}
 
-      {/* Customize Homepage Button */}
       <div className="flex justify-center mt-8 mb-4">
         <Dialog open={isCustomizingHome} onOpenChange={setIsCustomizingHome}>
           <DialogTrigger asChild>
@@ -640,15 +722,17 @@ export default function HomePage() {
           <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Customize Homepage</DialogTitle>
-              <DialogDescription>Manage sections and activity tiles.</DialogDescription>
+              <DialogDescription>Hold to drag and reorder sections and tiles.</DialogDescription>
             </DialogHeader>
             
-            {/* Section-level controls */}
             <div className="space-y-2 mt-4">
               <p className="text-xs font-semibold text-foreground mb-2">Sections</p>
-              <p className="text-xs text-muted-foreground mb-3">Drag to reorder sections</p>
+              <p className="text-xs text-muted-foreground mb-3">Hold for 300ms then drag to reorder</p>
               {sectionOrder.map((section) => {
-                let icon, label, checked, onChange;
+                let icon: React.ReactNode;
+                let label: string;
+                let checked: boolean;
+                let onChange: (val: boolean) => void;
                 
                 if (section === 'today') {
                   icon = <Flame className="text-accent fill-accent" size={18} />;
@@ -660,106 +744,108 @@ export default function HomePage() {
                   label = "Active Challenges";
                   checked = showChallenges;
                   onChange = setShowChallenges;
-                } else if (section === 'logs') {
+                } else {
                   icon = <TrendingUp className="text-gray-500" size={18} />;
                   label = "Recent Logs";
                   checked = showRecentLogs;
                   onChange = setShowRecentLogs;
                 }
 
+                const isReady = readyToDragSection === section;
+                const isDragging = draggedSection === section;
+
                 return (
                   <div 
-                    key={section} 
+                    key={section}
+                    data-section-id={section}
+                    onTouchStart={handleSectionTouchStart(section)}
+                    onTouchMove={handleSectionTouchMove(section)}
+                    onTouchEnd={handleSectionTouchEnd}
+                    onMouseDown={handleSectionMouseDown(section)}
+                    onMouseUp={handleSectionMouseUp}
+                    onMouseLeave={handleSectionMouseLeave}
+                    draggable={isReady}
+                    onDragStart={handleSectionDragStart(section)}
+                    onDragOver={handleSectionDragOver}
+                    onDrop={handleSectionDrop(section)}
+                    onDragEnd={handleSectionDragEnd}
                     className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing relative",
-                      longPressItem?.type === 'section' && longPressItem?.id === section && "border-2 border-dashed border-primary bg-primary/10 scale-[1.03] shadow-lg",
-                      draggedItem === section && "opacity-50",
-                      longPressActive && longPressItem?.id !== section && "border border-dashed border-muted-foreground/30"
+                      "flex items-center gap-3 p-3 rounded-lg transition-all select-none",
+                      isDragging
+                        ? "bg-primary/20 opacity-50 scale-[1.02] shadow-lg"
+                        : isReady
+                        ? "border-2 border-dashed border-primary bg-primary/5 cursor-grab"
+                        : draggedSection
+                        ? "bg-muted/50 border-2 border-dashed border-primary/40"
+                        : "bg-muted/30 hover:bg-muted/50 cursor-pointer"
                     )}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, section)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, section)}
-                    onDragEnd={handleDragEnd}
-                    onTouchStart={(e) => handleTouchStart(e, 'section', section)}
-                    onTouchMove={(e) => handleTouchMove(e, section, sectionOrder, 'section')}
-                    onTouchEnd={handleTouchEnd}
                   >
-                    <div className="text-muted-foreground touch-none">
-                      <GripVertical size={18} />
-                    </div>
-                    <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
+                    <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
+                    <div className="flex items-center gap-2 flex-1">
                       {icon}
-                      {label}
-                    </Label>
-                    <Switch 
+                      <Label className="cursor-inherit">{label}</Label>
+                    </div>
+                    <Switch
                       checked={checked}
-                      onCheckedChange={onChange}
+                      onCheckedChange={(val) => onChange(val)}
                     />
                   </div>
                 );
               })}
             </div>
 
-            {/* Tile-level controls */}
-            <div className="space-y-2 mt-6 pt-4 border-t">
-              <p className="text-xs font-semibold text-foreground mb-2">Today's Activity Tiles</p>
-              <p className="text-xs text-muted-foreground mb-3">Drag to reorder, toggle to show/hide</p>
-              {tileOrder.map((tileType) => {
-                let label = "";
-                let icon = null;
+            <div className="space-y-2 mt-6">
+              <p className="text-xs font-semibold text-foreground mb-2">Activity Tiles</p>
+              <p className="text-xs text-muted-foreground mb-3">Hold for 300ms then drag to reorder</p>
+              <div className="space-y-2">
+                {tileOrder.map((tileType) => {
+                  let label = tileType.charAt(0).toUpperCase() + tileType.slice(1).replace('-', ' ');
+                  const customEx = customExercisesData.find(ex => ex.name === tileType);
+                  if (customEx) {
+                    label = customEx.name;
+                  }
 
-                if (tileType === "pull-up") {
-                  label = "Pull-ups";
-                  icon = <ArrowUp size={18} className="text-purple-500" />;
-                } else if (tileType === "push-up") {
-                  label = "Push-ups";
-                  icon = <span className="w-5 h-5 text-blue-500 flex items-center justify-center"><PushupIcon /></span>;
-                } else if (tileType === "run") {
-                  label = "Running";
-                  icon = <Activity size={18} className="text-secondary" />;
-                } else if (tileType === "dip") {
-                  label = "Dips";
-                  icon = <span className="w-5 h-5 text-pink-500 flex items-center justify-center"><DipsIcon /></span>;
-                } else {
-                  const customIdx = customExercisesData.findIndex(ex => ex.name === tileType);
-                  const colorScheme = CUSTOM_EXERCISE_COLORS[Math.max(0, customIdx) % CUSTOM_EXERCISE_COLORS.length];
-                  label = tileType;
-                  icon = <span className={`w-5 h-5 ${colorScheme.text} flex items-center justify-center`}>⚙</span>;
-                }
+                  const isReady = readyToDragTile === tileType;
+                  const isDragging = draggedTile === tileType;
 
-                return (
-                  <div
-                    key={tileType}
-                    className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing relative",
-                      longPressItem?.type === 'tile' && longPressItem?.id === tileType && "border-2 border-dashed border-primary bg-primary/10 scale-[1.03] shadow-lg",
-                      draggedTile === tileType && "opacity-50",
-                      longPressActive && longPressItem?.id !== tileType && "border border-dashed border-muted-foreground/30"
-                    )}
-                    draggable
-                    onDragStart={(e) => handleTileDragStart(e, tileType)}
-                    onDragOver={handleTileDragOver}
-                    onDrop={(e) => handleTileDrop(e, tileType)}
-                    onDragEnd={() => setDraggedTile(null)}
-                    onTouchStart={(e) => handleTouchStart(e, 'tile', tileType)}
-                    onTouchMove={(e) => handleTouchMove(e, tileType, tileOrder, 'tile')}
-                    onTouchEnd={handleTouchEnd}
-                  >
-                    <div className="text-muted-foreground touch-none">
-                      <GripVertical size={18} />
+                  return (
+                    <div 
+                      key={tileType}
+                      data-tile-id={tileType}
+                      onTouchStart={handleTileTouchStart(tileType)}
+                      onTouchMove={handleTileTouchMove(tileType)}
+                      onTouchEnd={handleTileTouchEnd}
+                      onMouseDown={handleTileMouseDown(tileType)}
+                      onMouseUp={handleTileMouseUp}
+                      onMouseLeave={handleTileMouseLeave}
+                      draggable={isReady}
+                      onDragStart={handleTileDragStart(tileType)}
+                      onDragOver={handleTileDragOver}
+                      onDrop={handleTileDrop(tileType)}
+                      onDragEnd={handleTileDragEnd}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg transition-all select-none",
+                        isDragging
+                          ? "bg-primary/20 opacity-50 scale-[1.02] shadow-lg"
+                          : isReady
+                          ? "border-2 border-dashed border-primary bg-primary/5 cursor-grab"
+                          : draggedTile
+                          ? "bg-muted/50 border-2 border-dashed border-primary/40"
+                          : "bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                      )}
+                    >
+                      <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
+                      <div className="flex items-center gap-2 flex-1">
+                        <Label className="cursor-inherit">{label}</Label>
+                      </div>
+                      <Switch
+                        checked={visibleTiles[tileType] ?? true}
+                        onCheckedChange={() => handleTileVisibilityChange(tileType)}
+                      />
                     </div>
-                    <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                      {icon}
-                      {label}
-                    </Label>
-                    <Switch 
-                      checked={visibleTiles[tileType] ?? true}
-                      onCheckedChange={() => handleTileVisibilityChange(tileType)}
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -768,14 +854,24 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ title, value, unit, color, bgColor }: { title: string, value: number, unit: string, color: string, bgColor: string }) {
+function StatCard({ title, value, unit, color, bgColor }: { 
+  title: string; 
+  value: number; 
+  unit: string; 
+  color: string; 
+  bgColor: string;
+}) {
   return (
-    <div className={cn("rounded-2xl p-4 flex flex-col justify-between h-28 transition-transform hover:scale-[1.02]", bgColor)}>
-      <span className={cn("font-semibold text-xs opacity-90", color)}>{title}</span>
-      <div>
-        <span className={cn("text-5xl font-black font-heading", color)}>{value}</span>
-        <span className={cn("text-xs ml-1 opacity-70", color)}>{unit}</span>
-      </div>
-    </div>
-  )
+    <Card className="border-none shadow-md dark:bg-zinc-900 overflow-hidden">
+      <CardContent className="p-4">
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", bgColor)}>
+          <Activity className={color} size={20} />
+        </div>
+        <p className="text-xs text-muted-foreground mb-1">{title}</p>
+        <p className={cn("text-2xl font-bold", color)}>
+          {value} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+        </p>
+      </CardContent>
+    </Card>
+  );
 }

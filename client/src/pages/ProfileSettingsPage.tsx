@@ -41,6 +41,7 @@ export default function ProfileSettingsPage() {
   const [loadingCodes, setLoadingCodes] = useState(true);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const { currentTheme, setTheme } = useThemeToggle();
 
   useEffect(() => {
@@ -81,16 +82,62 @@ export default function ProfileSettingsPage() {
 
   const currentAvatarUrl = customAvatarUrl || (hasGeneratedNewAvatar ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}` : userProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`);
 
-  const generateNewAvatar = () => {
+  const saveAvatarToBackend = async (avatarUrl: string) => {
+    if (!user) return false;
+    setSavingAvatar(true);
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch(getApiUrl("/api/users"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, avatar: avatarUrl }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Avatar Saved!",
+          description: "Your avatar has been updated.",
+        });
+        setHasGeneratedNewAvatar(false);
+        return true;
+      } else {
+        toast({
+          title: "Failed to Save",
+          description: data.error || "Could not save avatar.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (err) {
+      console.error("Save avatar error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to save avatar.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
+  const generateNewAvatar = async () => {
     setPreviousAvatarSeed(avatarSeed);
     const randomSeed = `avatar-${Math.random().toString(36).substring(7)}`;
     setAvatarSeed(randomSeed);
     setCustomAvatarUrl(null);
     setHasGeneratedNewAvatar(true);
-    toast({
-      title: "Avatar Generated!",
-      description: "Your new avatar is ready.",
-    });
+    
+    const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}`;
+    const saved = await saveAvatarToBackend(newAvatarUrl);
+    if (!saved) {
+      toast({
+        title: "Avatar Generated!",
+        description: "Click Save Avatar to keep this avatar.",
+      });
+    }
   };
 
   const revertToPreviousAvatar = () => {
@@ -176,9 +223,19 @@ export default function ProfileSettingsPage() {
           setIsCropping(false);
           setCroppingImage(null);
           setIsAvatarCustomizing(false);
-          toast({
-            title: "Avatar Updated!",
-            description: "Your custom avatar has been set.",
+          
+          saveAvatarToBackend(croppedUrl).then(saved => {
+            if (saved) {
+              toast({
+                title: "Avatar Saved!",
+                description: "Your custom avatar has been saved.",
+              });
+            } else {
+              toast({
+                title: "Avatar Updated!",
+                description: "Your custom avatar has been set locally.",
+              });
+            }
           });
         };
         img.src = croppingImage;
@@ -428,6 +485,18 @@ export default function ProfileSettingsPage() {
                       className="hidden"
                     />
                   </label>
+                  {(hasGeneratedNewAvatar || customAvatarUrl) && (
+                    <button
+                      onClick={() => saveAvatarToBackend(currentAvatarUrl)}
+                      disabled={savingAvatar}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50"
+                    >
+                      {savingAvatar ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : null}
+                      Save Avatar
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -399,13 +399,62 @@ export default function ChallengesPage() {
     );
   };
 
-  const myChallenges = challenges.filter(c => 
-    c.participantIds?.includes(user?.uid || "")
-  );
+  const now = Date.now();
+  
+  const myChallenges = challenges.filter(c => {
+    const isParticipant = c.participantIds?.includes(user?.uid || "");
+    const isActive = now >= c.startDate && now <= c.endDate;
+    const myProgress = c.participants?.find(p => p.userId === user?.uid)?.progress || 0;
+    const isNotCompleted = myProgress < c.goal;
+    return isParticipant && isActive && isNotCompleted;
+  });
+
+  const doneChallenges = challenges.filter(c => {
+    const isParticipant = c.participantIds?.includes(user?.uid || "");
+    const hasEnded = now > c.endDate;
+    const myProgress = c.participants?.find(p => p.userId === user?.uid)?.progress || 0;
+    const isCompleted = myProgress >= c.goal;
+    return isParticipant && (hasEnded || isCompleted);
+  });
 
   const discoverChallenges = challenges.filter(c => 
     c.isPublic && !c.participantIds?.includes(user?.uid || "")
   );
+
+  const handleInviteToChallenge = async (challengeId: string, inviteeId: string) => {
+    if (!user) return;
+    
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch(getApiUrl(`/api/challenges?action=invite&id=${challengeId}`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, inviteeId }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Invite Sent!",
+          description: "The user has been invited to the challenge.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to send invite",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error inviting to challenge:", err);
+      toast({
+        title: "Error",
+        description: "Failed to send invite",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isCreating) {
     return (
@@ -648,8 +697,9 @@ export default function ChallengesPage() {
         </div>
       ) : (
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
             <TabsTrigger value="active" className="rounded-lg">Active</TabsTrigger>
+            <TabsTrigger value="done" className="rounded-lg">Done</TabsTrigger>
             <TabsTrigger value="discover" className="rounded-lg">Discover</TabsTrigger>
           </TabsList>
           
@@ -716,6 +766,27 @@ export default function ChallengesPage() {
                   challenge={challenge} 
                   currentUserId={user?.uid || ""} 
                   isParticipant={true}
+                  allUsers={allUsers}
+                  onInvite={handleInviteToChallenge}
+                />
+              ))
+            )}
+          </TabsContent>
+          
+          <TabsContent value="done" className="space-y-4">
+            {doneChallenges.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Trophy className="mx-auto mb-4 opacity-20" size={48} />
+                <p>No completed challenges yet. Keep going!</p>
+              </div>
+            ) : (
+              doneChallenges.map(challenge => (
+                <ChallengeCard 
+                  key={challenge.id} 
+                  challenge={challenge} 
+                  currentUserId={user?.uid || ""} 
+                  isParticipant={true}
+                  isDone={true}
                 />
               ))
             )}
@@ -751,12 +822,18 @@ function ChallengeCard({
   challenge, 
   currentUserId, 
   isParticipant,
-  onJoin 
+  onJoin,
+  isDone = false,
+  allUsers = [],
+  onInvite
 }: { 
   challenge: Challenge; 
   currentUserId: string;
   isParticipant: boolean;
   onJoin?: () => void;
+  isDone?: boolean;
+  allUsers?: AppUser[];
+  onInvite?: (challengeId: string, inviteeId: string) => void;
 }) {
   const myParticipant = challenge.participants?.find((p) => p.userId === currentUserId);
   const myProgress = myParticipant?.progress || 0;
@@ -857,6 +934,14 @@ function ChallengeCard({
                 <p className="text-xs text-muted-foreground">Complete</p>
               </div>
             </div>
+
+            {!isDone && onInvite && allUsers.length > 0 && (
+              <InviteUsersSection 
+                challenge={challenge}
+                allUsers={allUsers}
+                onInvite={onInvite}
+              />
+            )}
           </>
         ) : (
           <div className="flex items-center justify-between">
@@ -876,5 +961,84 @@ function ChallengeCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function InviteUsersSection({
+  challenge,
+  allUsers,
+  onInvite,
+}: {
+  challenge: Challenge;
+  allUsers: AppUser[];
+  onInvite: (challengeId: string, inviteeId: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [invitingUser, setInvitingUser] = useState<string | null>(null);
+
+  const availableUsers = allUsers.filter(
+    u => !challenge.participantIds?.includes(u.id)
+  );
+
+  if (availableUsers.length === 0) return null;
+
+  const handleInvite = async (userId: string) => {
+    setInvitingUser(userId);
+    await onInvite(challenge.id, userId);
+    setInvitingUser(null);
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border/50">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full gap-2">
+            <UserPlus size={14} />
+            Invite More People
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Invite to Challenge</DialogTitle>
+            <DialogDescription>
+              Select users to invite to "{challenge.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {availableUsers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                All users are already participants
+              </p>
+            ) : (
+              availableUsers.map(appUser => (
+                <div
+                  key={appUser.id}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                >
+                  <img
+                    src={appUser.avatar}
+                    alt={appUser.username}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <span className="flex-1 font-medium">{appUser.username}</span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={invitingUser === appUser.id}
+                    onClick={() => handleInvite(appUser.id)}
+                  >
+                    {invitingUser === appUser.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      "Invite"
+                    )}
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
