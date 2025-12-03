@@ -83,7 +83,13 @@ export default function AuthPage() {
       setLocation("/");
     } catch (error: any) {
       console.error("Sign up error:", error);
-      toast.error(error.message || "Sign up failed");
+      let errorMessage = "Sign up failed";
+      if (error.message?.includes("did not match") || error.code === "auth/invalid-api-key") {
+        errorMessage = "Server configuration error. Please contact support.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -110,9 +116,14 @@ export default function AuthPage() {
       setLocation("/");
     } catch (error: any) {
       console.error("Sign in error:", error);
-      const errorMessage = error.code === "auth/user-not-found" || error.code === "auth/invalid-credential"
-        ? "Username or password is incorrect"
-        : error.message || "Login failed";
+      let errorMessage = "Login failed";
+      if (error.message?.includes("did not match") || error.code === "auth/invalid-api-key") {
+        errorMessage = "Server configuration error. Please contact support.";
+      } else if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+        errorMessage = "Username or password is incorrect";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
       toast.error(errorMessage);
     } finally {
       setLoading(false);

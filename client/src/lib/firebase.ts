@@ -15,7 +15,13 @@ export async function initializeFirebase() {
 
   try {
     const response = await fetch(getApiUrl("/api/config"));
+    if (!response.ok) {
+      throw new Error("Failed to load configuration");
+    }
     const data = await response.json();
+    if (data.error) {
+      throw new Error(data.details || data.error);
+    }
     const firebaseConfig = data.firebase;
 
     appInstance = initializeApp(firebaseConfig);
