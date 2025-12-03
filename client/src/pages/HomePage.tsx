@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2, GripVertical } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -54,8 +55,6 @@ interface Challenge {
   colors?: { from: string; to: string };
 }
 
-const HOLD_DELAY = 300;
-
 export default function HomePage() {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
@@ -65,8 +64,7 @@ export default function HomePage() {
   const [showChallenges, setShowChallenges] = useState(true);
   const [showRecentLogs, setShowRecentLogs] = useState(true);
   const [sectionOrder, setSectionOrder] = useState(['today', 'challenges', 'logs']);
-  const [draggedSection, setDraggedSection] = useState<string | null>(null);
-  const [readyToDragSection, setReadyToDragSection] = useState<string | null>(null);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
   const [visibleTiles, setVisibleTiles] = useState<Record<string, boolean>>({
     "pull-up": true,
@@ -76,40 +74,13 @@ export default function HomePage() {
   });
   const [tileOrder, setTileOrder] = useState<string[]>(["pull-up", "push-up", "run", "dip"]);
   const [draggedTile, setDraggedTile] = useState<string | null>(null);
-  const [readyToDragTile, setReadyToDragTile] = useState<string | null>(null);
-  const { currentTheme } = useThemeToggle();
+  const { currentTheme, setTheme } = useThemeToggle();
   const [, setLocation] = useLocation();
   
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(true);
-
-  const sectionHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tileHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
-
-  const triggerHaptic = useCallback(() => {
-    if ("vibrate" in navigator) {
-      try {
-        navigator.vibrate(10);
-      } catch (e) {}
-    }
-  }, []);
-
-  const clearSectionHoldTimer = useCallback(() => {
-    if (sectionHoldTimer.current) {
-      clearTimeout(sectionHoldTimer.current);
-      sectionHoldTimer.current = null;
-    }
-  }, []);
-
-  const clearTileHoldTimer = useCallback(() => {
-    if (tileHoldTimer.current) {
-      clearTimeout(tileHoldTimer.current);
-      tileHoldTimer.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     const fetchWorkoutLogs = async () => {
@@ -188,8 +159,8 @@ export default function HomePage() {
       });
       if (savedVisibility) {
         try {
-          const savedParsed = JSON.parse(savedVisibility);
-          newVisibility = { ...newVisibility, ...savedParsed };
+          const saved = JSON.parse(savedVisibility);
+          newVisibility = { ...newVisibility, ...saved };
         } catch (e) {
           console.error("Failed to parse tile visibility", e);
         }
@@ -201,9 +172,9 @@ export default function HomePage() {
       
       if (savedOrder) {
         try {
-          const savedParsed = JSON.parse(savedOrder);
-          const customNotInSaved = allTiles.filter(tile => !savedParsed.includes(tile));
-          newOrder = [...savedParsed, ...customNotInSaved];
+          const saved = JSON.parse(savedOrder);
+          const customNotInSaved = allTiles.filter(tile => !saved.includes(tile));
+          newOrder = [...saved, ...customNotInSaved];
         } catch (e) {
           newOrder = allTiles;
         }
@@ -218,219 +189,47 @@ export default function HomePage() {
     return () => window.removeEventListener("storage", loadTileSettings);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      clearSectionHoldTimer();
-      clearTileHoldTimer();
-    };
-  }, [clearSectionHoldTimer, clearTileHoldTimer]);
-
-  const handleSectionTouchStart = (section: string) => (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-    clearSectionHoldTimer();
-    sectionHoldTimer.current = setTimeout(() => {
-      setReadyToDragSection(section);
-      triggerHaptic();
-    }, HOLD_DELAY);
-  };
-
-  const handleSectionTouchMove = (section: string) => (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (touchStartPos.current && !readyToDragSection) {
-      const dx = Math.abs(touch.clientX - touchStartPos.current.x);
-      const dy = Math.abs(touch.clientY - touchStartPos.current.y);
-      if (dx > 10 || dy > 10) {
-        clearSectionHoldTimer();
-        touchStartPos.current = null;
-      }
-    }
-
-    if (readyToDragSection === section || draggedSection === section) {
-      if (!draggedSection) {
-        setDraggedSection(section);
-      }
-      e.preventDefault();
-      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (elemBelow) {
-        const dropTarget = elemBelow.closest("[data-section-id]");
-        if (dropTarget) {
-          const targetId = dropTarget.getAttribute("data-section-id");
-          if (targetId && targetId !== section) {
-            const targetIndex = sectionOrder.indexOf(targetId);
-            const currentIndex = sectionOrder.indexOf(section);
-            if (targetIndex !== -1 && currentIndex !== -1 && targetIndex !== currentIndex) {
-              const newOrder = [...sectionOrder];
-              newOrder.splice(currentIndex, 1);
-              newOrder.splice(targetIndex, 0, section);
-              setSectionOrder(newOrder);
-            }
-          }
-        }
-      }
-    }
-  };
-
-  const handleSectionTouchEnd = () => {
-    clearSectionHoldTimer();
-    setDraggedSection(null);
-    setReadyToDragSection(null);
-    touchStartPos.current = null;
-  };
-
-  const handleSectionMouseDown = (section: string) => () => {
-    clearSectionHoldTimer();
-    sectionHoldTimer.current = setTimeout(() => {
-      setReadyToDragSection(section);
-      triggerHaptic();
-    }, HOLD_DELAY);
-  };
-
-  const handleSectionMouseUp = () => {
-    clearSectionHoldTimer();
-  };
-
-  const handleSectionMouseLeave = () => {
-    if (!draggedSection) {
-      clearSectionHoldTimer();
-      setReadyToDragSection(null);
-    }
-  };
-
-  const handleSectionDragStart = (section: string) => (e: React.DragEvent) => {
-    if (!readyToDragSection) {
-      e.preventDefault();
-      return;
-    }
-    setDraggedSection(section);
+  const handleDragStart = (e: React.DragEvent, section: string) => {
+    setDraggedItem(section);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData("text/plain", section);
   };
 
-  const handleSectionDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleSectionDrop = (targetSection: string) => (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent, targetSection: string) => {
     e.preventDefault();
-    if (!draggedSection || draggedSection === targetSection) {
-      setDraggedSection(null);
-      setReadyToDragSection(null);
+    if (!draggedItem || draggedItem === targetSection) {
+      setDraggedItem(null);
       return;
     }
 
-    const draggedIndex = sectionOrder.indexOf(draggedSection);
+    const draggedIndex = sectionOrder.indexOf(draggedItem);
     const targetIndex = sectionOrder.indexOf(targetSection);
     
     const newOrder = [...sectionOrder];
     newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedSection);
+    newOrder.splice(targetIndex, 0, draggedItem);
     
     setSectionOrder(newOrder);
-    setDraggedSection(null);
-    setReadyToDragSection(null);
+    setDraggedItem(null);
   };
 
-  const handleSectionDragEnd = () => {
-    setDraggedSection(null);
-    setReadyToDragSection(null);
-    clearSectionHoldTimer();
+  const handleDragEnd = () => {
+    setDraggedItem(null);
   };
 
-  const handleTileTouchStart = (tile: string) => (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-    clearTileHoldTimer();
-    tileHoldTimer.current = setTimeout(() => {
-      setReadyToDragTile(tile);
-      triggerHaptic();
-    }, HOLD_DELAY);
-  };
-
-  const handleTileTouchMove = (tile: string) => (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (touchStartPos.current && !readyToDragTile) {
-      const dx = Math.abs(touch.clientX - touchStartPos.current.x);
-      const dy = Math.abs(touch.clientY - touchStartPos.current.y);
-      if (dx > 10 || dy > 10) {
-        clearTileHoldTimer();
-        touchStartPos.current = null;
-      }
-    }
-
-    if (readyToDragTile === tile || draggedTile === tile) {
-      if (!draggedTile) {
-        setDraggedTile(tile);
-      }
-      e.preventDefault();
-      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (elemBelow) {
-        const dropTarget = elemBelow.closest("[data-tile-id]");
-        if (dropTarget) {
-          const targetId = dropTarget.getAttribute("data-tile-id");
-          if (targetId && targetId !== tile) {
-            const targetIndex = tileOrder.indexOf(targetId);
-            const currentIndex = tileOrder.indexOf(tile);
-            if (targetIndex !== -1 && currentIndex !== -1 && targetIndex !== currentIndex) {
-              const newOrder = [...tileOrder];
-              newOrder.splice(currentIndex, 1);
-              newOrder.splice(targetIndex, 0, tile);
-              setTileOrder(newOrder);
-              localStorage.setItem("tileOrder", JSON.stringify(newOrder));
-            }
-          }
-        }
-      }
-    }
-  };
-
-  const handleTileTouchEnd = () => {
-    clearTileHoldTimer();
-    setDraggedTile(null);
-    setReadyToDragTile(null);
-    touchStartPos.current = null;
-  };
-
-  const handleTileMouseDown = (tile: string) => () => {
-    clearTileHoldTimer();
-    tileHoldTimer.current = setTimeout(() => {
-      setReadyToDragTile(tile);
-      triggerHaptic();
-    }, HOLD_DELAY);
-  };
-
-  const handleTileMouseUp = () => {
-    clearTileHoldTimer();
-  };
-
-  const handleTileMouseLeave = () => {
-    if (!draggedTile) {
-      clearTileHoldTimer();
-      setReadyToDragTile(null);
-    }
-  };
-
-  const handleTileDragStart = (tile: string) => (e: React.DragEvent) => {
-    if (!readyToDragTile) {
-      e.preventDefault();
-      return;
-    }
-    setDraggedTile(tile);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData("text/plain", tile);
-  };
-
-  const handleTileDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleTileDragStart = (e: React.DragEvent, tileType: string) => {
+    setDraggedTile(tileType);
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleTileDrop = (targetTile: string) => (e: React.DragEvent) => {
+  const handleTileDrop = (e: React.DragEvent, targetTile: string) => {
     e.preventDefault();
     if (!draggedTile || draggedTile === targetTile) {
       setDraggedTile(null);
-      setReadyToDragTile(null);
       return;
     }
 
@@ -444,13 +243,11 @@ export default function HomePage() {
     setTileOrder(newOrder);
     localStorage.setItem("tileOrder", JSON.stringify(newOrder));
     setDraggedTile(null);
-    setReadyToDragTile(null);
   };
 
-  const handleTileDragEnd = () => {
-    setDraggedTile(null);
-    setReadyToDragTile(null);
-    clearTileHoldTimer();
+  const handleTileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleTileVisibilityChange = (tileType: string) => {
@@ -533,7 +330,6 @@ export default function HomePage() {
                     );
                   }
                 }
-                return null;
               })}
             </div>
           </section>
@@ -722,12 +518,12 @@ export default function HomePage() {
           <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Customize Homepage</DialogTitle>
-              <DialogDescription>Hold to drag and reorder sections and tiles.</DialogDescription>
+              <DialogDescription>Manage sections and activity tiles.</DialogDescription>
             </DialogHeader>
             
             <div className="space-y-2 mt-4">
               <p className="text-xs font-semibold text-foreground mb-2">Sections</p>
-              <p className="text-xs text-muted-foreground mb-3">Hold for 300ms then drag to reorder</p>
+              <p className="text-xs text-muted-foreground mb-3">Drag to reorder sections</p>
               {sectionOrder.map((section) => {
                 let icon: React.ReactNode;
                 let label: string;
@@ -751,39 +547,26 @@ export default function HomePage() {
                   onChange = setShowRecentLogs;
                 }
 
-                const isReady = readyToDragSection === section;
-                const isDragging = draggedSection === section;
-
                 return (
                   <div 
-                    key={section}
-                    data-section-id={section}
-                    onTouchStart={handleSectionTouchStart(section)}
-                    onTouchMove={handleSectionTouchMove(section)}
-                    onTouchEnd={handleSectionTouchEnd}
-                    onMouseDown={handleSectionMouseDown(section)}
-                    onMouseUp={handleSectionMouseUp}
-                    onMouseLeave={handleSectionMouseLeave}
-                    draggable={isReady}
-                    onDragStart={handleSectionDragStart(section)}
-                    onDragOver={handleSectionDragOver}
-                    onDrop={handleSectionDrop(section)}
-                    onDragEnd={handleSectionDragEnd}
+                    key={section} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, section)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, section)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg transition-all select-none",
-                      isDragging
-                        ? "bg-primary/20 opacity-50 scale-[1.02] shadow-lg"
-                        : isReady
-                        ? "border-2 border-dashed border-primary bg-primary/5 cursor-grab"
-                        : draggedSection
+                      "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all touch-none",
+                      draggedItem === section 
+                        ? "bg-primary/20 opacity-50" 
+                        : draggedItem 
                         ? "bg-muted/50 border-2 border-dashed border-primary/40"
-                        : "bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                        : "bg-muted/30 hover:bg-muted/50"
                     )}
                   >
-                    <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
                     <div className="flex items-center gap-2 flex-1">
                       {icon}
-                      <Label className="cursor-inherit">{label}</Label>
+                      <Label className="cursor-move">{label}</Label>
                     </div>
                     <Switch
                       checked={checked}
@@ -796,7 +579,7 @@ export default function HomePage() {
 
             <div className="space-y-2 mt-6">
               <p className="text-xs font-semibold text-foreground mb-2">Activity Tiles</p>
-              <p className="text-xs text-muted-foreground mb-3">Hold for 300ms then drag to reorder</p>
+              <p className="text-xs text-muted-foreground mb-3">Drag to reorder tiles</p>
               <div className="space-y-2">
                 {tileOrder.map((tileType) => {
                   let label = tileType.charAt(0).toUpperCase() + tileType.slice(1).replace('-', ' ');
@@ -805,38 +588,25 @@ export default function HomePage() {
                     label = customEx.name;
                   }
 
-                  const isReady = readyToDragTile === tileType;
-                  const isDragging = draggedTile === tileType;
-
                   return (
                     <div 
                       key={tileType}
-                      data-tile-id={tileType}
-                      onTouchStart={handleTileTouchStart(tileType)}
-                      onTouchMove={handleTileTouchMove(tileType)}
-                      onTouchEnd={handleTileTouchEnd}
-                      onMouseDown={handleTileMouseDown(tileType)}
-                      onMouseUp={handleTileMouseUp}
-                      onMouseLeave={handleTileMouseLeave}
-                      draggable={isReady}
-                      onDragStart={handleTileDragStart(tileType)}
+                      draggable
+                      onDragStart={(e) => handleTileDragStart(e, tileType)}
                       onDragOver={handleTileDragOver}
-                      onDrop={handleTileDrop(tileType)}
-                      onDragEnd={handleTileDragEnd}
+                      onDrop={(e) => handleTileDrop(e, tileType)}
+                      onDragEnd={() => setDraggedTile(null)}
                       className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg transition-all select-none",
-                        isDragging
-                          ? "bg-primary/20 opacity-50 scale-[1.02] shadow-lg"
-                          : isReady
-                          ? "border-2 border-dashed border-primary bg-primary/5 cursor-grab"
+                        "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all touch-none",
+                        draggedTile === tileType
+                          ? "bg-primary/20 opacity-50"
                           : draggedTile
                           ? "bg-muted/50 border-2 border-dashed border-primary/40"
-                          : "bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                          : "bg-muted/30 hover:bg-muted/50"
                       )}
                     >
-                      <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
                       <div className="flex items-center gap-2 flex-1">
-                        <Label className="cursor-inherit">{label}</Label>
+                        <Label className="cursor-move">{label}</Label>
                       </div>
                       <Switch
                         checked={visibleTiles[tileType] ?? true}

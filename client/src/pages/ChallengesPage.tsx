@@ -766,7 +766,7 @@ export default function ChallengesPage() {
                   challenge={challenge} 
                   currentUserId={user?.uid || ""} 
                   isParticipant={true}
-                  allUsers={allUsers}
+                  allUsers={users}
                   onInvite={handleInviteToChallenge}
                 />
               ))
@@ -934,14 +934,6 @@ function ChallengeCard({
                 <p className="text-xs text-muted-foreground">Complete</p>
               </div>
             </div>
-
-            {!isDone && onInvite && allUsers.length > 0 && (
-              <InviteUsersSection 
-                challenge={challenge}
-                allUsers={allUsers}
-                onInvite={onInvite}
-              />
-            )}
           </>
         ) : (
           <div className="flex items-center justify-between">
@@ -961,84 +953,5 @@ function ChallengeCard({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function InviteUsersSection({
-  challenge,
-  allUsers,
-  onInvite,
-}: {
-  challenge: Challenge;
-  allUsers: AppUser[];
-  onInvite: (challengeId: string, inviteeId: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [invitingUser, setInvitingUser] = useState<string | null>(null);
-
-  const availableUsers = allUsers.filter(
-    u => !challenge.participantIds?.includes(u.id)
-  );
-
-  if (availableUsers.length === 0) return null;
-
-  const handleInvite = async (userId: string) => {
-    setInvitingUser(userId);
-    await onInvite(challenge.id, userId);
-    setInvitingUser(null);
-  };
-
-  return (
-    <div className="mt-4 pt-4 border-t border-border/50">
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-2">
-            <UserPlus size={14} />
-            Invite More People
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Invite to Challenge</DialogTitle>
-            <DialogDescription>
-              Select users to invite to "{challenge.title}"
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {availableUsers.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">
-                All users are already participants
-              </p>
-            ) : (
-              availableUsers.map(appUser => (
-                <div
-                  key={appUser.id}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
-                >
-                  <img
-                    src={appUser.avatar}
-                    alt={appUser.username}
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <span className="flex-1 font-medium">{appUser.username}</span>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={invitingUser === appUser.id}
-                    onClick={() => handleInvite(appUser.id)}
-                  >
-                    {invitingUser === appUser.id ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      "Invite"
-                    )}
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
   );
 }

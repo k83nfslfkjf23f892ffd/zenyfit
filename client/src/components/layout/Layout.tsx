@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import { Toaster } from "@/components/ui/toaster";
-import bgPattern from "@assets/generated_images/subtle_geometric_pattern_background.png";
+import bgPattern from "@/assets/images/subtle_geometric_pattern_background.png";
 
 interface LayoutProps {
   children: ReactNode;

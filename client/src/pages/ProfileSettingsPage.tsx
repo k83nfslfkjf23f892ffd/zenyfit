@@ -123,21 +123,16 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const generateNewAvatar = async () => {
+  const generateNewAvatar = () => {
     setPreviousAvatarSeed(avatarSeed);
     const randomSeed = `avatar-${Math.random().toString(36).substring(7)}`;
     setAvatarSeed(randomSeed);
     setCustomAvatarUrl(null);
     setHasGeneratedNewAvatar(true);
-    
-    const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}`;
-    const saved = await saveAvatarToBackend(newAvatarUrl);
-    if (!saved) {
-      toast({
-        title: "Avatar Generated!",
-        description: "Click Save Avatar to keep this avatar.",
-      });
-    }
+    toast({
+      title: "Avatar Generated!",
+      description: "Your new avatar is ready.",
+    });
   };
 
   const revertToPreviousAvatar = () => {
@@ -223,19 +218,9 @@ export default function ProfileSettingsPage() {
           setIsCropping(false);
           setCroppingImage(null);
           setIsAvatarCustomizing(false);
-          
-          saveAvatarToBackend(croppedUrl).then(saved => {
-            if (saved) {
-              toast({
-                title: "Avatar Saved!",
-                description: "Your custom avatar has been saved.",
-              });
-            } else {
-              toast({
-                title: "Avatar Updated!",
-                description: "Your custom avatar has been set locally.",
-              });
-            }
+          toast({
+            title: "Avatar Updated!",
+            description: "Your custom avatar has been set.",
           });
         };
         img.src = croppingImage;

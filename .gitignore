@@ -75,3 +75,6 @@ temp/
 .replit
 replit.nix
 .config/
+
+GEMINI.md
+.gemini

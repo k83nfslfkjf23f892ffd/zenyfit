@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import minimalistLogo from "@assets/generated_images/minimalist_zen_fitness_logo.png";
+import minimalistLogo from "@/assets/images/minimalist_zen_fitness_logo.png";
 import { signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth";
 import { initializeFirebase } from "@/lib/firebase";
 import { getApiUrl } from "@/lib/api";
