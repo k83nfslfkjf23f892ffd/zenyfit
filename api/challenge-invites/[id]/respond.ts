@@ -20,10 +20,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { id } = req.query;
-  const { idToken } = req.body;
+  const { idToken, action } = req.body;
 
   if (!idToken) {
     return res.status(400).json({ success: false, error: "Missing token" });
+  }
+
+  if (!action || !["accept", "decline"].includes(action)) {
+    return res.status(400).json({ success: false, error: "Invalid action. Use 'accept' or 'decline'" });
   }
 
   try {
@@ -47,6 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (inviteData.invitedUserId !== userId) {
       return res.status(403).json({ success: false, error: "Not your invite" });
+    }
+
+    if (action === "decline") {
+      await inviteRef.update({ status: "declined", declinedAt: Date.now() });
+      return res.json({ success: true });
     }
 
     if (inviteData.status !== "pending") {
@@ -91,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({ success: true, challengeId: inviteData.challengeId });
   } catch (error: any) {
-    console.error("Accept invite error:", error);
-    return res.status(500).json({ success: false, error: error.message || "Failed to accept invite" });
+    console.error("Respond to invite error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to respond to invite" });
   }
 }

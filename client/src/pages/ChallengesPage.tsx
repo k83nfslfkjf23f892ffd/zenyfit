@@ -147,10 +147,10 @@ export default function ChallengesPage() {
     
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/accept`), {
+      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/respond`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken, action: "accept" }),
       });
       
       const data = await response.json();
@@ -187,10 +187,10 @@ export default function ChallengesPage() {
     
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/decline`), {
+      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/respond`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken, action: "decline" }),
       });
       
       const data = await response.json();
