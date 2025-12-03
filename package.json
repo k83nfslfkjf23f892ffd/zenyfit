@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "scripts": {
     "dev": "vite --port 5000",
     "build": "vite build",
-    "vercel-build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
