@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, GripVertical, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +75,8 @@ export default function HomePage() {
   });
   const [tileOrder, setTileOrder] = useState<string[]>(["pull-up", "push-up", "run", "dip"]);
   const [draggedTile, setDraggedTile] = useState<string | null>(null);
+  const [touchDragItem, setTouchDragItem] = useState<{ type: 'section' | 'tile', id: string } | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number>(0);
   const { currentTheme, setTheme } = useThemeToggle();
   const [, setLocation] = useLocation();
   
@@ -296,6 +298,43 @@ export default function HomePage() {
       setTileOrder(newOrder);
       localStorage.setItem("tileOrder", JSON.stringify(newOrder));
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, type: 'section' | 'tile', id: string) => {
+    setTouchDragItem({ type, id });
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, currentId: string, items: string[], type: 'section' | 'tile') => {
+    if (!touchDragItem || touchDragItem.id !== items.find(i => i === touchDragItem.id)) return;
+    
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY;
+    const threshold = 50;
+    
+    if (Math.abs(deltaY) > threshold) {
+      const currentIdx = items.indexOf(touchDragItem.id);
+      
+      if (deltaY < 0 && currentIdx > 0) {
+        if (type === 'section') {
+          moveSectionUp(touchDragItem.id);
+        } else {
+          moveTileUp(touchDragItem.id);
+        }
+        setTouchStartY(currentY);
+      } else if (deltaY > 0 && currentIdx < items.length - 1) {
+        if (type === 'section') {
+          moveSectionDown(touchDragItem.id);
+        } else {
+          moveTileDown(touchDragItem.id);
+        }
+        setTouchStartY(currentY);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchDragItem(null);
   };
 
   const renderSection = (type: string) => {
@@ -573,8 +612,8 @@ export default function HomePage() {
             {/* Section-level controls */}
             <div className="space-y-2 mt-4">
               <p className="text-xs font-semibold text-foreground mb-2">Sections</p>
-              <p className="text-xs text-muted-foreground mb-3">Use arrows to reorder sections</p>
-              {sectionOrder.map((section, idx) => {
+              <p className="text-xs text-muted-foreground mb-3">Drag to reorder sections</p>
+              {sectionOrder.map((section) => {
                 let icon, label, checked, onChange;
                 
                 if (section === 'today') {
@@ -597,29 +636,22 @@ export default function HomePage() {
                 return (
                   <div 
                     key={section} 
-                    className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all"
+                    className={cn(
+                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing",
+                      touchDragItem?.type === 'section' && touchDragItem?.id === section && "bg-primary/20 scale-[1.02]",
+                      draggedItem === section && "opacity-50"
+                    )}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, section)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, section)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => handleTouchStart(e, 'section', section)}
+                    onTouchMove={(e) => handleTouchMove(e, section, sectionOrder, 'section')}
+                    onTouchEnd={handleTouchEnd}
                   >
-                    <div className="flex flex-col gap-0.5">
-                      <button 
-                        onClick={() => moveSectionUp(section)}
-                        disabled={idx === 0}
-                        className={cn(
-                          "p-1 rounded hover:bg-muted transition-colors",
-                          idx === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
-                        )}
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button 
-                        onClick={() => moveSectionDown(section)}
-                        disabled={idx === sectionOrder.length - 1}
-                        className={cn(
-                          "p-1 rounded hover:bg-muted transition-colors",
-                          idx === sectionOrder.length - 1 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
-                        )}
-                      >
-                        <ChevronDown size={14} />
-                      </button>
+                    <div className="text-muted-foreground touch-none">
+                      <GripVertical size={18} />
                     </div>
                     <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
                       {icon}
@@ -637,8 +669,8 @@ export default function HomePage() {
             {/* Tile-level controls */}
             <div className="space-y-2 mt-6 pt-4 border-t">
               <p className="text-xs font-semibold text-foreground mb-2">Today's Activity Tiles</p>
-              <p className="text-xs text-muted-foreground mb-3">Use arrows to reorder, toggle to show/hide</p>
-              {tileOrder.map((tileType, idx) => {
+              <p className="text-xs text-muted-foreground mb-3">Drag to reorder, toggle to show/hide</p>
+              {tileOrder.map((tileType) => {
                 let label = "";
                 let icon = null;
 
@@ -664,29 +696,22 @@ export default function HomePage() {
                 return (
                   <div
                     key={tileType}
-                    className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all"
+                    className={cn(
+                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing",
+                      touchDragItem?.type === 'tile' && touchDragItem?.id === tileType && "bg-primary/20 scale-[1.02]",
+                      draggedTile === tileType && "opacity-50"
+                    )}
+                    draggable
+                    onDragStart={(e) => handleTileDragStart(e, tileType)}
+                    onDragOver={handleTileDragOver}
+                    onDrop={(e) => handleTileDrop(e, tileType)}
+                    onDragEnd={() => setDraggedTile(null)}
+                    onTouchStart={(e) => handleTouchStart(e, 'tile', tileType)}
+                    onTouchMove={(e) => handleTouchMove(e, tileType, tileOrder, 'tile')}
+                    onTouchEnd={handleTouchEnd}
                   >
-                    <div className="flex flex-col gap-0.5">
-                      <button 
-                        onClick={() => moveTileUp(tileType)}
-                        disabled={idx === 0}
-                        className={cn(
-                          "p-1 rounded hover:bg-muted transition-colors",
-                          idx === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
-                        )}
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button 
-                        onClick={() => moveTileDown(tileType)}
-                        disabled={idx === tileOrder.length - 1}
-                        className={cn(
-                          "p-1 rounded hover:bg-muted transition-colors",
-                          idx === tileOrder.length - 1 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
-                        )}
-                      >
-                        <ChevronDown size={14} />
-                      </button>
+                    <div className="text-muted-foreground touch-none">
+                      <GripVertical size={18} />
                     </div>
                     <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
                       {icon}
