@@ -71,6 +71,7 @@ temp/
 .cache/
 .parcel-cache/
 
-# Replit specific (remove if not using Replit)
+# Replit specific
 .replit
 replit.nix
+.config/

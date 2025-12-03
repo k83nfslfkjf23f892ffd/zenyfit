@@ -131,4 +131,40 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+html {
+  height: 100%;
+  background-color: hsl(var(--background));
+}
+
+body {
+  min-height: 100%;
+  background-color: hsl(var(--background));
+}
+
+.dark body,
+.dark html {
+  background-color: hsl(0 0% 0%);
+}
+
+.drag-handle {
+  touch-action: none;
+  user-select: none;
+}
+
+.dragging-item {
+  opacity: 0.7;
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
+
+.drag-target {
+  border: 2px dashed hsl(var(--primary));
+  border-radius: 0.75rem;
+  background-color: hsl(var(--primary) / 0.1);
 }

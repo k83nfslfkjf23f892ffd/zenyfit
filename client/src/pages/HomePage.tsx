@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,18 @@ export default function HomePage() {
   const [draggedTile, setDraggedTile] = useState<string | null>(null);
   const [touchDragItem, setTouchDragItem] = useState<{ type: 'section' | 'tile', id: string } | null>(null);
   const [touchStartY, setTouchStartY] = useState<number>(0);
+  const [longPressActive, setLongPressActive] = useState(false);
+  const [longPressItem, setLongPressItem] = useState<{ type: 'section' | 'tile', id: string } | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { currentTheme, setTheme } = useThemeToggle();
+  
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
   const [, setLocation] = useLocation();
   
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
@@ -301,16 +312,33 @@ export default function HomePage() {
   };
 
   const handleTouchStart = (e: React.TouchEvent, type: 'section' | 'tile', id: string) => {
-    setTouchDragItem({ type, id });
     setTouchStartY(e.touches[0].clientY);
+    
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressActive(true);
+      setLongPressItem({ type, id });
+      setTouchDragItem({ type, id });
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 300);
   };
 
   const handleTouchMove = (e: React.TouchEvent, currentId: string, items: string[], type: 'section' | 'tile') => {
-    if (!touchDragItem || touchDragItem.id !== items.find(i => i === touchDragItem.id)) return;
+    if (longPressTimerRef.current && !longPressActive) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    
+    if (!longPressActive || !touchDragItem || touchDragItem.id !== items.find(i => i === touchDragItem.id)) return;
     
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY;
-    const threshold = 50;
+    const threshold = 40;
     
     if (Math.abs(deltaY) > threshold) {
       const currentIdx = items.indexOf(touchDragItem.id);
@@ -334,7 +362,13 @@ export default function HomePage() {
   };
 
   const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
     setTouchDragItem(null);
+    setLongPressActive(false);
+    setLongPressItem(null);
   };
 
   const renderSection = (type: string) => {
@@ -637,9 +671,10 @@ export default function HomePage() {
                   <div 
                     key={section} 
                     className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing",
-                      touchDragItem?.type === 'section' && touchDragItem?.id === section && "bg-primary/20 scale-[1.02]",
-                      draggedItem === section && "opacity-50"
+                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing relative",
+                      longPressItem?.type === 'section' && longPressItem?.id === section && "border-2 border-dashed border-primary bg-primary/10 scale-[1.03] shadow-lg",
+                      draggedItem === section && "opacity-50",
+                      longPressActive && longPressItem?.id !== section && "border border-dashed border-muted-foreground/30"
                     )}
                     draggable
                     onDragStart={(e) => handleDragStart(e, section)}
@@ -697,9 +732,10 @@ export default function HomePage() {
                   <div
                     key={tileType}
                     className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing",
-                      touchDragItem?.type === 'tile' && touchDragItem?.id === tileType && "bg-primary/20 scale-[1.02]",
-                      draggedTile === tileType && "opacity-50"
+                      "flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all cursor-grab active:cursor-grabbing relative",
+                      longPressItem?.type === 'tile' && longPressItem?.id === tileType && "border-2 border-dashed border-primary bg-primary/10 scale-[1.03] shadow-lg",
+                      draggedTile === tileType && "opacity-50",
+                      longPressActive && longPressItem?.id !== tileType && "border border-dashed border-muted-foreground/30"
                     )}
                     draggable
                     onDragStart={(e) => handleTileDragStart(e, tileType)}

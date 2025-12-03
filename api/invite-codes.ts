@@ -3,10 +3,7 @@ import { getAdminInstances, verifyRequiredEnvVars, verifyTokenFromBody, initiali
 
 function generateCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  const part3 = Array.from({ length: 2 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  return `${part1}-${part2}-${part3}`;
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

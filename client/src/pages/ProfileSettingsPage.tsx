@@ -26,6 +26,7 @@ export default function ProfileSettingsPage() {
   const [avatarSeed, setAvatarSeed] = useState(userProfile?.username || "user");
   const [previousAvatarSeed, setPreviousAvatarSeed] = useState<string | null>(null);
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
+  const [hasGeneratedNewAvatar, setHasGeneratedNewAvatar] = useState(false);
   const [username, setUsername] = useState(userProfile?.username || "");
   const [usernameChanged, setUsernameChanged] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
@@ -78,13 +79,14 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  const currentAvatarUrl = customAvatarUrl || userProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
+  const currentAvatarUrl = customAvatarUrl || (hasGeneratedNewAvatar ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}` : userProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`);
 
   const generateNewAvatar = () => {
     setPreviousAvatarSeed(avatarSeed);
     const randomSeed = `avatar-${Math.random().toString(36).substring(7)}`;
     setAvatarSeed(randomSeed);
     setCustomAvatarUrl(null);
+    setHasGeneratedNewAvatar(true);
     toast({
       title: "Avatar Generated!",
       description: "Your new avatar is ready.",
