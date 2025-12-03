@@ -1,17 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
   const envError = verifyRequiredEnvVars();
@@ -19,6 +15,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ success: false, error: "Server not fully configured" });
   }
 
+  initializeFirebaseAdmin();
+
+  if (req.method === "GET") {
+    return handleGetWorkoutLogs(req, res);
+  } else if (req.method === "POST") {
+    return handleLogWorkout(req, res);
+  }
+
+  return res.status(405).json({ success: false, error: "Method not allowed" });
+}
+
+async function handleGetWorkoutLogs(req: VercelRequest, res: VercelResponse) {
+  try {
+    const user = await verifyAuthToken(req.headers.authorization as string);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const logsSnapshot = await db.collection("exercise_logs")
+      .where("userId", "==", userId)
+      .orderBy("timestamp", "desc")
+      .limit(50)
+      .get();
+
+    const logs = logsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ success: true, logs });
+  } catch (error: any) {
+    console.error("Get workout logs error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to get logs" });
+  }
+}
+
+async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
   const { idToken, exerciseType, amount, unit, isCustom } = req.body;
 
   if (!idToken || !exerciseType || amount === undefined || amount <= 0) {
@@ -26,7 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    initializeFirebaseAdmin();
     const user = await verifyTokenFromBody(idToken);
     if (!user) {
       return res.status(401).json({ success: false, error: "Invalid token" });

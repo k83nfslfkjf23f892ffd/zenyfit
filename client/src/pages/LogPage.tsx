@@ -282,7 +282,7 @@ export default function LogPage() {
       
       const idToken = await auth.currentUser.getIdToken();
       
-      const response = await fetch(getApiUrl("/api/log-workout"), {
+      const response = await fetch(getApiUrl("/api/workouts"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

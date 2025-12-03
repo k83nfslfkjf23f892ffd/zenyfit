@@ -1,17 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, verifyTokenFromBody, initializeFirebaseAdmin } from "../../lib/firebase-admin";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
   const envError = verifyRequiredEnvVars();
@@ -19,7 +15,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ success: false, error: "Server not fully configured" });
   }
 
-  const { id } = req.query;
+  initializeFirebaseAdmin();
+
+  const { action, id } = req.query;
+
+  if (req.method === "GET") {
+    return handleGetInvites(req, res);
+  } else if (req.method === "POST") {
+    if (action === "respond" && id) {
+      return handleRespondToInvite(req, res, id as string);
+    }
+    return res.status(400).json({ success: false, error: "Invalid action" });
+  }
+
+  return res.status(405).json({ success: false, error: "Method not allowed" });
+}
+
+async function handleGetInvites(req: VercelRequest, res: VercelResponse) {
+  try {
+    const user = await verifyAuthToken(req.headers.authorization as string);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const invitesSnapshot = await db.collection("challengeInvites")
+      .where("invitedUserId", "==", userId)
+      .where("status", "==", "pending")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const invites = invitesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.json({ success: true, invites });
+  } catch (error: any) {
+    console.error("Get challenge invites error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to get invites" });
+  }
+}
+
+async function handleRespondToInvite(req: VercelRequest, res: VercelResponse, id: string) {
   const { idToken, action } = req.body;
 
   if (!idToken) {
@@ -31,7 +71,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    initializeFirebaseAdmin();
     const user = await verifyTokenFromBody(idToken);
     if (!user) {
       return res.status(401).json({ success: false, error: "Invalid token" });
@@ -40,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { db } = getAdminInstances();
     const userId = user.userId;
 
-    const inviteRef = db.collection("challengeInvites").doc(id as string);
+    const inviteRef = db.collection("challengeInvites").doc(id);
     const inviteDoc = await inviteRef.get();
 
     if (!inviteDoc.exists) {

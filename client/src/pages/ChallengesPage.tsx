@@ -99,7 +99,7 @@ export default function ChallengesPage() {
         fetch(getApiUrl("/api/challenges"), {
           headers: { Authorization: `Bearer ${idToken}` },
         }),
-        fetch(getApiUrl("/api/challenge-invites"), {
+        fetch(getApiUrl("/api/invites"), {
           headers: { Authorization: `Bearer ${idToken}` },
         }),
         fetch(getApiUrl("/api/users"), {
@@ -147,7 +147,7 @@ export default function ChallengesPage() {
     
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/respond`), {
+      const response = await fetch(getApiUrl(`/api/invites?action=respond&id=${inviteId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, action: "accept" }),
@@ -187,7 +187,7 @@ export default function ChallengesPage() {
     
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(getApiUrl(`/api/challenge-invites/${inviteId}/respond`), {
+      const response = await fetch(getApiUrl(`/api/invites?action=respond&id=${inviteId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, action: "decline" }),
@@ -223,7 +223,7 @@ export default function ChallengesPage() {
     
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(getApiUrl(`/api/challenges/${challengeId}/join`), {
+      const response = await fetch(getApiUrl(`/api/challenges?action=join&id=${challengeId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),

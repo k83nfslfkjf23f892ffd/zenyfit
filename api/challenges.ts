@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -17,10 +17,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   initializeFirebaseAdmin();
 
+  const { action, id } = req.query;
+
   if (req.method === "GET") {
     return handleGetChallenges(req, res);
   } else if (req.method === "POST") {
-    return handleCreateChallenge(req, res);
+    if (action === "join" && id) {
+      return handleJoinChallenge(req, res, id as string);
+    } else if (action === "invite" && id) {
+      return handleInviteToChallenge(req, res, id as string);
+    } else {
+      return handleCreateChallenge(req, res);
+    }
   }
 
   return res.status(405).json({ success: false, error: "Method not allowed" });
@@ -157,5 +165,137 @@ async function handleCreateChallenge(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error("Create challenge error:", error);
     return res.status(500).json({ success: false, error: error.message || "Failed to create challenge" });
+  }
+}
+
+async function handleJoinChallenge(req: VercelRequest, res: VercelResponse, id: string) {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ success: false, error: "Missing token" });
+  }
+
+  try {
+    const user = await verifyTokenFromBody(idToken);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid token" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const challengeRef = db.collection("challenges").doc(id);
+    const challengeDoc = await challengeRef.get();
+
+    if (!challengeDoc.exists) {
+      return res.status(404).json({ success: false, error: "Challenge not found" });
+    }
+
+    const challengeData = challengeDoc.data()!;
+
+    if (challengeData.participantIds?.includes(userId)) {
+      return res.status(400).json({ success: false, error: "Already a participant" });
+    }
+
+    if (!challengeData.isPublic) {
+      return res.status(403).json({ success: false, error: "Challenge is private" });
+    }
+
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    const userData = userDoc.data()!;
+
+    const newParticipant = {
+      userId,
+      username: userData.username,
+      avatar: userData.avatar,
+      progress: 0,
+      joinedAt: Date.now(),
+    };
+
+    await challengeRef.update({
+      participantIds: [...(challengeData.participantIds || []), userId],
+      participants: [...(challengeData.participants || []), newParticipant],
+    });
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error("Join challenge error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to join challenge" });
+  }
+}
+
+async function handleInviteToChallenge(req: VercelRequest, res: VercelResponse, id: string) {
+  const { idToken, inviteeId } = req.body;
+
+  if (!idToken || !inviteeId) {
+    return res.status(400).json({ success: false, error: "Missing required fields" });
+  }
+
+  try {
+    const user = await verifyTokenFromBody(idToken);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid token" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const challengeRef = db.collection("challenges").doc(id);
+    const challengeDoc = await challengeRef.get();
+
+    if (!challengeDoc.exists) {
+      return res.status(404).json({ success: false, error: "Challenge not found" });
+    }
+
+    const challengeData = challengeDoc.data()!;
+
+    if (!challengeData.participantIds?.includes(userId)) {
+      return res.status(403).json({ success: false, error: "Only participants can invite others" });
+    }
+
+    if (challengeData.participantIds?.includes(inviteeId)) {
+      return res.status(400).json({ success: false, error: "User is already a participant" });
+    }
+
+    const inviterDoc = await db.collection("users").doc(userId).get();
+    if (!inviterDoc.exists) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    const inviterData = inviterDoc.data()!;
+
+    const inviteeDoc = await db.collection("users").doc(inviteeId).get();
+    if (!inviteeDoc.exists) {
+      return res.status(404).json({ success: false, error: "Invitee not found" });
+    }
+
+    const existingInvite = await db.collection("challengeInvites")
+      .where("challengeId", "==", id)
+      .where("invitedUserId", "==", inviteeId)
+      .where("status", "==", "pending")
+      .get();
+
+    if (!existingInvite.empty) {
+      return res.status(400).json({ success: false, error: "Invite already sent" });
+    }
+
+    const inviteRef = await db.collection("challengeInvites").add({
+      challengeId: id,
+      challengeTitle: challengeData.title,
+      challengeType: challengeData.type,
+      invitedUserId: inviteeId,
+      invitedBy: userId,
+      invitedByUsername: inviterData.username,
+      invitedByAvatar: inviterData.avatar,
+      status: "pending",
+      createdAt: Date.now(),
+    });
+
+    return res.json({ success: true, inviteId: inviteRef.id });
+  } catch (error: any) {
+    console.error("Send invite error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to send invite" });
   }
 }
