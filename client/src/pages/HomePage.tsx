@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
-import { currentUser, exercises, challenges, customExercises } from "@/lib/mockData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,8 @@ import { useThemeToggle } from "@/hooks/use-theme";
 import { useLocation } from "wouter";
 import NotificationCenter from "@/components/NotificationCenter";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
+import { useAuth } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api";
 
 const EXERCISE_ICONS = {
   "push-up": PushupIcon,
@@ -32,15 +33,34 @@ const CUSTOM_EXERCISE_COLORS = [
   { bg: "bg-rose-500/10", text: "text-rose-500", hex: "#f43f5e" },
 ];
 
+interface ExerciseLog {
+  id: string;
+  exerciseType: string;
+  amount: number;
+  unit: string;
+  xpGained: number;
+  timestamp: number;
+  isCustom?: boolean;
+}
+
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  goal: number;
+  startDate: number;
+  endDate: number;
+  participants: Array<{ userId: string; progress: number; avatar: string; username: string }>;
+  isPublic: boolean;
+  colors?: { from: string; to: string };
+}
+
 export default function HomePage() {
   const { toast } = useToast();
+  const { user, userProfile } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isAvatarCustomizing, setIsAvatarCustomizing] = useState(false);
   const [isCustomizingHome, setIsCustomizingHome] = useState(false);
-  const [avatarSeed, setAvatarSeed] = useState(currentUser.username);
-  const [previousAvatarSeed, setPreviousAvatarSeed] = useState<string | null>(null);
-  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
   const [showTodayActivity, setShowTodayActivity] = useState(true);
   const [showChallenges, setShowChallenges] = useState(true);
   const [showRecentLogs, setShowRecentLogs] = useState(true);
@@ -55,12 +75,61 @@ export default function HomePage() {
   });
   const [tileOrder, setTileOrder] = useState<string[]>(["pull-up", "push-up", "run", "dip"]);
   const [draggedTile, setDraggedTile] = useState<string | null>(null);
-  const [inviteCodes, setInviteCodes] = useState([
-    { id: 1, code: "ZEN-5K9P-2X", createdAt: "2025-01-15", used: false },
-    { id: 2, code: "FIT-7Q3M-8Y", createdAt: "2025-01-14", used: true },
-  ]);
   const { currentTheme, setTheme } = useThemeToggle();
   const [, setLocation] = useLocation();
+  
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
+
+  useEffect(() => {
+    const fetchWorkoutLogs = async () => {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(getApiUrl("/api/workouts"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.logs) {
+            setExerciseLogs(data.logs);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch workout logs:", err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+
+    const fetchChallenges = async () => {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(getApiUrl("/api/challenges"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.challenges) {
+            setChallenges(data.challenges.filter((c: Challenge) => {
+              const now = Date.now();
+              return now >= c.startDate && now <= c.endDate;
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch challenges:", err);
+      } finally {
+        setLoadingChallenges(false);
+      }
+    };
+
+    fetchWorkoutLogs();
+    fetchChallenges();
+  }, [user]);
 
   // Load custom exercises and tile preferences from localStorage on mount
   useEffect(() => {
@@ -122,52 +191,6 @@ export default function HomePage() {
     return () => window.removeEventListener("storage", loadTileSettings);
   }, []);
 
-  const generateInviteCode = () => {
-    if (inviteCodes.length >= 10) {
-      toast({
-        title: "Limit Reached",
-        description: "You can only have a maximum of 10 invite codes.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const part3 = Array.from({ length: 2 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const code = `${part1}-${part2}-${part3}`;
-    
-    const newCode = {
-      id: Math.max(...inviteCodes.map(c => c.id), 0) + 1,
-      code,
-      createdAt: new Date().toISOString().split('T')[0],
-      used: false,
-    };
-    
-    setInviteCodes([newCode, ...inviteCodes]);
-    toast({
-      title: "Invite Code Generated!",
-      description: `${code} is ready to share.`,
-    });
-  };
-
-  const revokeInviteCode = (id: number) => {
-    setInviteCodes(inviteCodes.filter(c => c.id !== id));
-    toast({
-      title: "Invite Code Revoked",
-      description: "The code has been deleted.",
-    });
-  };
-
-  const copyToClipboard = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast({
-      title: "Copied!",
-      description: `${code} copied to clipboard.`,
-    });
-  };
-
   const handleDragStart = (e: React.DragEvent, section: string) => {
     setDraggedItem(section);
     e.dataTransfer.effectAllowed = 'move';
@@ -198,6 +221,25 @@ export default function HomePage() {
 
   const handleDragEnd = () => {
     setDraggedItem(null);
+  };
+
+  // Move section up/down for touch devices
+  const moveSectionUp = (section: string) => {
+    const idx = sectionOrder.indexOf(section);
+    if (idx > 0) {
+      const newOrder = [...sectionOrder];
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+      setSectionOrder(newOrder);
+    }
+  };
+
+  const moveSectionDown = (section: string) => {
+    const idx = sectionOrder.indexOf(section);
+    if (idx < sectionOrder.length - 1) {
+      const newOrder = [...sectionOrder];
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      setSectionOrder(newOrder);
+    }
   };
 
   const handleTileDragStart = (e: React.DragEvent, tileType: string) => {
@@ -233,6 +275,27 @@ export default function HomePage() {
     const newVisibility = { ...visibleTiles, [tileType]: !visibleTiles[tileType] };
     setVisibleTiles(newVisibility);
     localStorage.setItem("tileVisibility", JSON.stringify(newVisibility));
+  };
+
+  // Move tile up/down for touch devices
+  const moveTileUp = (tileType: string) => {
+    const idx = tileOrder.indexOf(tileType);
+    if (idx > 0) {
+      const newOrder = [...tileOrder];
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+      setTileOrder(newOrder);
+      localStorage.setItem("tileOrder", JSON.stringify(newOrder));
+    }
+  };
+
+  const moveTileDown = (tileType: string) => {
+    const idx = tileOrder.indexOf(tileType);
+    if (idx < tileOrder.length - 1) {
+      const newOrder = [...tileOrder];
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      setTileOrder(newOrder);
+      localStorage.setItem("tileOrder", JSON.stringify(newOrder));
+    }
   };
 
   const renderSection = (type: string) => {
@@ -323,36 +386,52 @@ export default function HomePage() {
               </h2>
             
             <div className="space-y-4">
-              {challenges.map(challenge => (
-                <Card key={challenge.id} className="overflow-hidden border-none shadow-sm dark:bg-zinc-900">
-                  <CardContent className="p-0">
-                    <div className="bg-card dark:bg-zinc-900 p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold">{challenge.title}</h3>
-                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
-                        </div>
-                        <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-full uppercase">
-                          {challenge.type}
-                        </span>
-                      </div>
-                      
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">Progress</span>
-                          <span className="font-medium">{Math.round((challenge.participants[0].progress / challenge.goal) * 100)}%</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-full" 
-                            style={{ width: `${(challenge.participants[0].progress / challenge.goal) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+              {loadingChallenges ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : challenges.length === 0 ? (
+                <Card className="border-none shadow-sm dark:bg-zinc-900">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">No active challenges. Create or join one!</p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                challenges.map(challenge => {
+                  const myProgress = challenge.participants.find(p => p.userId === user?.uid);
+                  const progressPercent = myProgress ? Math.round((myProgress.progress / challenge.goal) * 100) : 0;
+                  return (
+                    <Card key={challenge.id} className="overflow-hidden border-none shadow-sm dark:bg-zinc-900">
+                      <CardContent className="p-0">
+                        <div className="bg-card dark:bg-zinc-900 p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-semibold">{challenge.title}</h3>
+                              <p className="text-xs text-muted-foreground">{challenge.description}</p>
+                            </div>
+                            <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-full uppercase">
+                              {challenge.type}
+                            </span>
+                          </div>
+                          
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-muted-foreground">Progress</span>
+                              <span className="font-medium">{Math.min(progressPercent, 100)}%</span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary rounded-full" 
+                                style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
             </div>
           </section>
         ) : null;
@@ -364,31 +443,38 @@ export default function HomePage() {
               Recent Logs
             </h2>
             <div className="bg-card dark:bg-zinc-900 rounded-2xl p-4 shadow-sm space-y-4">
-              {exercises.map(log => {
-                const IconComponent = EXERCISE_ICONS[log.type as keyof typeof EXERCISE_ICONS];
-                return (
-                <div key={log.id} className="flex justify-between items-center pb-3 border-b last:border-0 last:pb-0 border-dashed border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", 
-                      log.type === 'push-up' ? 'bg-blue-100 text-blue-600' :
-                      log.type === 'pull-up' ? 'bg-purple-100 text-purple-600' :
-                      log.type === 'dip' ? 'bg-pink-100 text-pink-600' :
-                      'bg-green-100 text-green-600'
-                    )}>
-                      <IconComponent size={18} />
-                    </div>
-                    <div>
-                      <p className="font-medium capitalize">{log.type}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(log.timestamp), "MMM d, h:mm a")}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{log.amount} <span className="text-xs font-normal text-muted-foreground">{log.type === 'run' ? 'km' : 'reps'}</span></p>
-                    {(!log.synced || !isOnline) && <p className="text-[10px] text-orange-400 flex items-center justify-end gap-1"><WifiOff size={8} /> Pending</p>}
-                  </div>
+              {loadingLogs ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
-              );
-              })}
+              ) : exerciseLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No workout logs yet. Start logging!</p>
+              ) : (
+                exerciseLogs.slice(0, 5).map(log => {
+                  const IconComponent = EXERCISE_ICONS[log.exerciseType as keyof typeof EXERCISE_ICONS] || Activity;
+                  return (
+                    <div key={log.id} className="flex justify-between items-center pb-3 border-b last:border-0 last:pb-0 border-dashed border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", 
+                          log.exerciseType === 'push-up' ? 'bg-blue-100 text-blue-600' :
+                          log.exerciseType === 'pull-up' ? 'bg-purple-100 text-purple-600' :
+                          log.exerciseType === 'dip' ? 'bg-pink-100 text-pink-600' :
+                          'bg-green-100 text-green-600'
+                        )}>
+                          <IconComponent size={18} />
+                        </div>
+                        <div>
+                          <p className="font-medium capitalize">{log.exerciseType.replace('-', ' ')}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(log.timestamp), "MMM d, h:mm a")}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg">{log.amount} <span className="text-xs font-normal text-muted-foreground">{log.unit}</span></p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </section>
         ) : null;
@@ -397,82 +483,25 @@ export default function HomePage() {
     }
   };
 
-  const currentAvatarUrl = customAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
+  const currentAvatarUrl = userProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile?.username || 'user'}`;
 
-  const generateNewAvatar = () => {
-    setPreviousAvatarSeed(avatarSeed);
-    const randomSeed = `avatar-${Math.random().toString(36).substring(7)}`;
-    setAvatarSeed(randomSeed);
-    setCustomAvatarUrl(null);
-    toast({
-      title: "Avatar Generated!",
-      description: "Your new avatar is ready.",
-    });
-  };
-
-  const revertToPreviousAvatar = () => {
-    if (previousAvatarSeed) {
-      setAvatarSeed(previousAvatarSeed);
-      setCustomAvatarUrl(null);
-      toast({
-        title: "Avatar Reverted",
-        description: "Restored your previous avatar.",
-      });
-    }
-  };
-
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviousAvatarSeed(avatarSeed);
-        setCustomAvatarUrl(reader.result as string);
-        setIsAvatarCustomizing(false);
-        toast({
-          title: "Avatar Updated!",
-          description: "Your custom avatar has been set.",
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsEditing(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your changes have been saved.",
-    });
-  };
-
-  const handleSignOut = () => {
-    setIsEditing(false);
-    setLocation("/auth");
-  };
-  
-  // Calculate daily stats (includes custom exercises for today)
-  const todayLogs = exercises.filter(e => 
-    new Date(e.timestamp).toDateString() === new Date().toDateString()
-  );
-
-  const todayCustomLogs = customExercises.filter(e =>
+  // Calculate daily stats from real API data
+  const todayLogs = exerciseLogs.filter(e => 
     new Date(e.timestamp).toDateString() === new Date().toDateString()
   );
   
   const dailyStats = {
-    pushups: todayLogs.filter(e => e.type === "push-up").reduce((acc, curr) => acc + curr.amount, 0),
-    pullups: todayLogs.filter(e => e.type === "pull-up").reduce((acc, curr) => acc + curr.amount, 0),
-    dips: todayLogs.filter(e => e.type === "dip").reduce((acc, curr) => acc + curr.amount, 0),
-    run: todayLogs.filter(e => e.type === "run").reduce((acc, curr) => acc + curr.amount, 0),
+    pushups: todayLogs.filter(e => e.exerciseType === "push-up").reduce((acc, curr) => acc + curr.amount, 0),
+    pullups: todayLogs.filter(e => e.exerciseType === "pull-up").reduce((acc, curr) => acc + curr.amount, 0),
+    dips: todayLogs.filter(e => e.exerciseType === "dip").reduce((acc, curr) => acc + curr.amount, 0),
+    run: todayLogs.filter(e => e.exerciseType === "run").reduce((acc, curr) => acc + curr.amount, 0),
   };
 
   // Calculate custom exercise totals for today
   const customExerciseTotals: Record<string, number> = {};
   customExercisesData.forEach(ex => {
-    customExerciseTotals[ex.name] = todayCustomLogs
-      .filter(log => log.type === ex.name)
+    customExerciseTotals[ex.name] = todayLogs
+      .filter(log => log.exerciseType === ex.name && log.isCustom)
       .reduce((acc, curr) => acc + curr.amount, 0);
   });
 
@@ -499,7 +528,7 @@ export default function HomePage() {
           </button>
           <div>
             <h1 className="text-lg font-heading font-bold leading-tight">
-              {currentUser.username}
+              {userProfile?.username || user?.email?.split('@')[0] || 'User'}
             </h1>
             <p className="text-xs text-muted-foreground">
               {format(new Date(), "EEEE, MMM do")}
@@ -544,8 +573,8 @@ export default function HomePage() {
             {/* Section-level controls */}
             <div className="space-y-2 mt-4">
               <p className="text-xs font-semibold text-foreground mb-2">Sections</p>
-              <p className="text-xs text-muted-foreground mb-3">Drag to reorder sections</p>
-              {sectionOrder.map((section) => {
+              <p className="text-xs text-muted-foreground mb-3">Use arrows to reorder sections</p>
+              {sectionOrder.map((section, idx) => {
                 let icon, label, checked, onChange;
                 
                 if (section === 'today') {
@@ -568,21 +597,30 @@ export default function HomePage() {
                 return (
                   <div 
                     key={section} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, section)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, section)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all",
-                      draggedItem === section 
-                        ? "bg-primary/20 opacity-50" 
-                        : draggedItem 
-                        ? "bg-muted/50 border-2 border-dashed border-primary/40"
-                        : "bg-muted/30 hover:bg-muted/50"
-                    )}
+                    className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all"
                   >
-                    <span className="text-lg">⋮⋮</span>
+                    <div className="flex flex-col gap-0.5">
+                      <button 
+                        onClick={() => moveSectionUp(section)}
+                        disabled={idx === 0}
+                        className={cn(
+                          "p-1 rounded hover:bg-muted transition-colors",
+                          idx === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                        )}
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button 
+                        onClick={() => moveSectionDown(section)}
+                        disabled={idx === sectionOrder.length - 1}
+                        className={cn(
+                          "p-1 rounded hover:bg-muted transition-colors",
+                          idx === sectionOrder.length - 1 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                        )}
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
                     <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
                       {icon}
                       {label}
@@ -599,7 +637,7 @@ export default function HomePage() {
             {/* Tile-level controls */}
             <div className="space-y-2 mt-6 pt-4 border-t">
               <p className="text-xs font-semibold text-foreground mb-2">Today's Activity Tiles</p>
-              <p className="text-xs text-muted-foreground mb-3">Drag to reorder, toggle to show/hide</p>
+              <p className="text-xs text-muted-foreground mb-3">Use arrows to reorder, toggle to show/hide</p>
               {tileOrder.map((tileType, idx) => {
                 let label = "";
                 let icon = null;
@@ -617,7 +655,6 @@ export default function HomePage() {
                   label = "Dips";
                   icon = <span className="w-5 h-5 text-pink-500 flex items-center justify-center"><DipsIcon /></span>;
                 } else {
-                  // Custom exercise - get its color based on index
                   const customIdx = customExercisesData.findIndex(ex => ex.name === tileType);
                   const colorScheme = CUSTOM_EXERCISE_COLORS[Math.max(0, customIdx) % CUSTOM_EXERCISE_COLORS.length];
                   label = tileType;
@@ -627,20 +664,30 @@ export default function HomePage() {
                 return (
                   <div
                     key={tileType}
-                    draggable
-                    onDragStart={(e) => handleTileDragStart(e, tileType)}
-                    onDragOver={handleTileDragOver}
-                    onDrop={(e) => handleTileDrop(e, tileType)}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all",
-                      draggedTile === tileType 
-                        ? "bg-primary/20 opacity-50" 
-                        : draggedTile 
-                        ? "bg-muted/50 border-2 border-dashed border-primary/40"
-                        : "bg-muted/30 hover:bg-muted/50"
-                    )}
+                    className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all"
                   >
-                    <span className="text-lg">⋮⋮</span>
+                    <div className="flex flex-col gap-0.5">
+                      <button 
+                        onClick={() => moveTileUp(tileType)}
+                        disabled={idx === 0}
+                        className={cn(
+                          "p-1 rounded hover:bg-muted transition-colors",
+                          idx === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                        )}
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button 
+                        onClick={() => moveTileDown(tileType)}
+                        disabled={idx === tileOrder.length - 1}
+                        className={cn(
+                          "p-1 rounded hover:bg-muted transition-colors",
+                          idx === tileOrder.length - 1 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                        )}
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
                     <Label className="flex items-center gap-2 font-normal cursor-pointer flex-1">
                       {icon}
                       {label}

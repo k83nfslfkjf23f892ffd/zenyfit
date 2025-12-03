@@ -89,16 +89,66 @@ function GlobalLeaderboard() {
     localStorage.setItem("leaderboardViewMode", viewMode);
   }, [viewMode]);
 
-  // Mock trend data for chart
-  const trendData = [
-    { date: "Mon", you: 120, top: 150 },
-    { date: "Tue", you: 132, top: 160 },
-    { date: "Wed", you: 101, top: 180 },
-    { date: "Thu", you: 134, top: 170 },
-    { date: "Fri", you: 190, top: 210 },
-    { date: "Sat", you: 230, top: 240 },
-    { date: "Sun", you: 210, top: 230 },
-  ];
+  const [trendData, setTrendData] = useState<Array<{ date: string; you: number; top: number }>>([]);
+
+  useEffect(() => {
+    const fetchTrendData = async () => {
+      if (!user) return;
+      
+      try {
+        const token = await user.getIdToken();
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        
+        const [workoutsResponse, trendResponse] = await Promise.all([
+          fetch(getApiUrl("/api/workouts?days=7"), {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(getApiUrl("/api/leaderboard-trend"))
+        ]);
+        
+        const dailyTotals: Record<string, number> = {};
+        const topAvgTotals: Record<string, number> = {};
+        
+        if (workoutsResponse.ok) {
+          const data = await workoutsResponse.json();
+          if (data.success && data.logs) {
+            data.logs.forEach((log: { amount: number; timestamp: number }) => {
+              const date = new Date(log.timestamp);
+              const dayName = dayNames[date.getDay()];
+              dailyTotals[dayName] = (dailyTotals[dayName] || 0) + log.amount;
+            });
+          }
+        }
+        
+        if (trendResponse.ok) {
+          const trendDataRes = await trendResponse.json();
+          if (trendDataRes.success && trendDataRes.trendData) {
+            trendDataRes.trendData.forEach((item: { date: string; topAvg: number }) => {
+              topAvgTotals[item.date] = item.topAvg;
+            });
+          }
+        }
+        
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dayName = dayNames[d.getDay()];
+          last7Days.push({
+            date: dayName,
+            you: dailyTotals[dayName] || 0,
+            top: topAvgTotals[dayName] || 0,
+          });
+        }
+        
+        setTrendData(last7Days);
+      } catch (err) {
+        console.error("Failed to fetch trend data:", err);
+      }
+    };
+
+    fetchTrendData();
+  }, [user]);
 
   return (
     <div className="space-y-6">

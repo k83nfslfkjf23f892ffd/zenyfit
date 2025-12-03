@@ -2,27 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ZenyFit" />
+    <meta name="application-name" content="ZenyFit" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-TileColor" content="#6C5CE7" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="theme-color" content="#6C5CE7" />
 
     <title>ZenyFit - Social Fitness Tracker</title>
+    <meta name="description" content="Track your fitness journey, compete with friends, and find your zen." />
     <meta property="og:title" content="ZenyFit" />
     <meta property="og:description" content="Track your fitness journey, compete with friends, and find your zen." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/icon-192.png" />
+    <meta property="og:image" content="/favicon.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@replit" />
     <meta name="twitter:title" content="ZenyFit" />
     <meta name="twitter:description" content="Track your fitness journey, compete with friends, and find your zen." />
 
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Poppins for Headings, Inter for UI -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- PWA manifest placeholder -->
-    <meta name="theme-color" content="#6C5CE7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="/manifest.json">
+    
+    <style>
+      html, body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      body {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

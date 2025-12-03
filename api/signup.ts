@@ -1,28 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
 
-function generateInviteCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from({ length: 19 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
-
 function generateAvatar(username: string): string {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
-}
-
-function generateMultipleInviteCodes(count: number): string[] {
-  const codes: string[] = [];
-  const usedCodes = new Set<string>();
-
-  while (codes.length < count) {
-    const code = generateInviteCode();
-    if (!usedCodes.has(code)) {
-      usedCodes.add(code);
-      codes.push(code);
-    }
-  }
-
-  return codes;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -87,8 +67,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw authError;
     }
 
-    const newInviteCodes = generateMultipleInviteCodes(10);
-
     await db.runTransaction(async (transaction) => {
       let inviterUserId: string | null = null;
 
@@ -128,17 +106,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         invitedBy: isMasterCode ? "master" : inviterUserId,
         createdAt: Date.now(),
       });
-
-      for (const code of newInviteCodes) {
-        const newCodeRef = db.collection("inviteCodes").doc(code);
-        transaction.create(newCodeRef, {
-          code,
-          createdBy: userRecord.uid,
-          used: false,
-          usedBy: null,
-          createdAt: Date.now(),
-        });
-      }
     });
 
     const customToken = await auth.createCustomToken(userRecord.uid);

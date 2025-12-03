@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-.pnp
+.pnp/
 .pnp.js
 
 # Build outputs
@@ -9,12 +9,15 @@ build/
 .next/
 out/
 
-# Environment and secrets - CRITICAL: Never commit these
+# Environment and secrets - NEVER commit these
 .env
 .env.*
 .env.local
 .env.development
+.env.development.local
+.env.test.local
 .env.production
+.env.production.local
 *.env
 
 # Firebase service account keys - NEVER commit these
@@ -25,13 +28,11 @@ serviceAccount*.json
 firebase-adminsdk*.json
 *.pem
 
-# IDE and editor
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.DS_Store
+# Firebase local emulator
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
 
 # Logs
 logs/
@@ -39,6 +40,17 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Testing
 coverage/
@@ -49,17 +61,16 @@ tmp/
 temp/
 *.tmp
 
-# OS files
-Thumbs.db
-.DS_Store
+# TypeScript cache
+*.tsbuildinfo
 
 # Vercel
 .vercel/
 
-# TypeScript cache
-*.tsbuildinfo
+# Local cache
+.cache/
+.parcel-cache/
 
-# Replit specific
+# Replit specific (remove if not using Replit)
 .replit
 replit.nix
-.cache/

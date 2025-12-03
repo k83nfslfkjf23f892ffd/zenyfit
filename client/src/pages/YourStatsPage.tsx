@@ -1,21 +1,34 @@
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
-import { currentUser, exercises, customExercises } from "@/lib/mockData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from "recharts";
-import { Zap, TrendingUp, Activity, Plus, X, Award, Info, ArrowUp } from "lucide-react";
+import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
+import { useAuth } from "@/hooks/use-auth";
+import { getApiUrl } from "@/lib/api";
+
+interface ExerciseLog {
+  id: string;
+  exerciseType: string;
+  amount: number;
+  unit: string;
+  xpGained: number;
+  timestamp: number;
+  isCustom?: boolean;
+}
 
 export default function YourStatsPage() {
   const { toast } = useToast();
+  const { user, userProfile } = useAuth();
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
-  // Load custom exercises from localStorage on mount and listen for changes
   useEffect(() => {
     const loadCustomExercises = () => {
       const saved = localStorage.getItem("customExercises");
@@ -30,16 +43,44 @@ export default function YourStatsPage() {
     
     loadCustomExercises();
     
-    // Listen for storage changes from other tabs/pages
     window.addEventListener("storage", loadCustomExercises);
     return () => window.removeEventListener("storage", loadCustomExercises);
   }, []);
 
+  useEffect(() => {
+    const fetchWorkoutLogs = async () => {
+      if (!user) {
+        setLoadingLogs(false);
+        return;
+      }
+      
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(getApiUrl("/api/workouts"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.logs) {
+            setExerciseLogs(data.logs);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch workout logs:", err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+
+    fetchWorkoutLogs();
+  }, [user]);
+
   const [milestones, setMilestones] = useState([
-    { id: 1, name: "100 Pull-ups", target: 100, current: 70, icon: "🎯" },
-    { id: 2, name: "500 Push-ups", target: 500, current: 0, icon: "💪" },
-    { id: 3, name: "50km Running", target: 50, current: 5.2, icon: "🏃" },
-    { id: 4, name: "7-Day Streak", target: 7, current: 3, icon: "🔥" },
+    { id: 1, name: "100 Pull-ups", target: 100, icon: "🎯" },
+    { id: 2, name: "500 Push-ups", target: 500, icon: "💪" },
+    { id: 3, name: "50km Running", target: 50, icon: "🏃" },
+    { id: 4, name: "7-Day Streak", target: 7, icon: "🔥" },
   ]);
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
   const [newMilestoneName, setNewMilestoneName] = useState("");
@@ -51,7 +92,6 @@ export default function YourStatsPage() {
         id: Math.max(...milestones.map(m => m.id), 0) + 1,
         name: newMilestoneName,
         target: parseFloat(newMilestoneTarget),
-        current: 0,
         icon: "⭐",
       };
       setMilestones([...milestones, newMilestone]);
@@ -73,42 +113,34 @@ export default function YourStatsPage() {
     });
   };
 
-  // Calculate exercise distribution including custom exercises
-  const exerciseCounts = exercises.reduce((acc, ex) => {
-    const existing = acc.find(e => e.name === ex.type);
+  const exerciseCounts = exerciseLogs.reduce((acc, ex) => {
+    const typeName = ex.exerciseType.replace('-', ' ').toUpperCase();
+    const existing = acc.find(e => e.name === typeName);
     if (existing) {
       existing.value += 1;
+      existing.totalAmount += ex.amount;
     } else {
-      acc.push({ name: ex.type.replace('-', ' ').toUpperCase(), value: 1 });
+      acc.push({ name: typeName, value: 1, totalAmount: ex.amount });
     }
     return acc;
-  }, [] as { name: string; value: number }[]);
+  }, [] as { name: string; value: number; totalAmount: number }[]);
 
-  // Add custom exercise counts from mockData
-  customExercisesData.forEach(customEx => {
-    const count = customExercises.filter(e => e.type === customEx.name).length;
-    // Show all custom exercises, even if count is 0
-    exerciseCounts.push({ name: customEx.name.toUpperCase(), value: count || 0 });
-  });
-
-  // Color scheme for custom exercises - cycle through these colors
   const CUSTOM_COLORS = [
-    '#ef4444', // red
-    '#f59e0b', // amber
-    '#06b6d4', // cyan
-    '#a78bfa', // violet
-    '#f43f5e', // rose
+    '#ef4444',
+    '#f59e0b',
+    '#06b6d4',
+    '#a78bfa',
+    '#f43f5e',
   ];
 
   const getColorByExerciseType = (exerciseType: string): string => {
     const type = exerciseType.toLowerCase().replace(' ', '-');
     switch(type) {
-      case 'pull-up': return '#a855f7'; // purple
-      case 'push-up': return '#3b82f6'; // blue
-      case 'run': return '#10b981'; // green
-      case 'dip': return '#ec4899'; // pink
+      case 'pull-up': return '#a855f7';
+      case 'push-up': return '#3b82f6';
+      case 'run': return '#10b981';
+      case 'dip': return '#ec4899';
       default: {
-        // For custom exercises, find their index and assign color
         const customIdx = customExercisesData.findIndex(ex => ex.name.toUpperCase() === exerciseType);
         return CUSTOM_COLORS[customIdx >= 0 ? customIdx % CUSTOM_COLORS.length : 0];
       }
@@ -130,51 +162,78 @@ export default function YourStatsPage() {
     return null;
   };
 
-  // Calculate personal bests
   const personalBests = [
     {
       name: "Pull-ups",
-      best: Math.max(...exercises.filter(e => e.type === 'pull-up').map(e => e.amount), 0),
+      best: Math.max(...exerciseLogs.filter(e => e.exerciseType === 'pull-up').map(e => e.amount), 0),
       unit: "reps",
       icon: "🎯",
       color: "text-purple-500"
     },
     {
       name: "Push-ups",
-      best: Math.max(...exercises.filter(e => e.type === 'push-up').map(e => e.amount), 0),
+      best: Math.max(...exerciseLogs.filter(e => e.exerciseType === 'push-up').map(e => e.amount), 0),
       unit: "reps",
       icon: "💪",
       color: "text-blue-500"
     },
     {
       name: "Running",
-      best: Math.max(...exercises.filter(e => e.type === 'run').map(e => e.amount), 0),
+      best: Math.max(...exerciseLogs.filter(e => e.exerciseType === 'run').map(e => e.amount), 0),
       unit: "km",
       icon: "🏃",
       color: "text-green-500"
     },
     {
       name: "Dips",
-      best: Math.max(...exercises.filter(e => e.type === 'dip').map(e => e.amount), 0),
+      best: Math.max(...exerciseLogs.filter(e => e.exerciseType === 'dip').map(e => e.amount), 0),
       unit: "reps",
       icon: "🏋️",
       color: "text-pink-500"
     },
   ];
 
-  const consistencyScore = 85;
-  const workoutDays = 6;
+  const calculateMilestoneProgress = (milestone: typeof milestones[0]) => {
+    const name = milestone.name.toLowerCase();
+    let current = 0;
+    
+    if (name.includes('pull-up') || name.includes('pullup')) {
+      current = userProfile?.totalPullups || exerciseLogs.filter(e => e.exerciseType === 'pull-up').reduce((sum, e) => sum + e.amount, 0);
+    } else if (name.includes('push-up') || name.includes('pushup')) {
+      current = userProfile?.totalPushups || exerciseLogs.filter(e => e.exerciseType === 'push-up').reduce((sum, e) => sum + e.amount, 0);
+    } else if (name.includes('dip')) {
+      current = userProfile?.totalDips || exerciseLogs.filter(e => e.exerciseType === 'dip').reduce((sum, e) => sum + e.amount, 0);
+    } else if (name.includes('run') || name.includes('km')) {
+      current = userProfile?.totalRunningKm || exerciseLogs.filter(e => e.exerciseType === 'run').reduce((sum, e) => sum + e.amount, 0);
+    } else if (name.includes('streak')) {
+      const dates = new Set(exerciseLogs.map(l => new Date(l.timestamp).toDateString()));
+      current = dates.size;
+    }
+    
+    return current;
+  };
+
+  const last7DaysLogs = exerciseLogs.filter(log => {
+    const logDate = new Date(log.timestamp);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return logDate >= sevenDaysAgo;
+  });
+  
+  const uniqueDays = new Set(last7DaysLogs.map(l => new Date(l.timestamp).toDateString()));
+  const workoutDays = uniqueDays.size;
   const totalDays = 7;
+  const consistencyScore = Math.round((workoutDays / totalDays) * 100);
 
   const getExerciseIcon = (exerciseType: string) => {
     const type = exerciseType.toLowerCase().replace(' ', '-');
-    const iconMap = {
+    const iconMap: Record<string, JSX.Element> = {
       'pull-up': <ArrowUp size={20} />,
       'push-up': <PushupIcon size={20} />,
       'dip': <DipsIcon size={20} />,
       'run': <Activity size={20} />,
     };
-    return iconMap[type as keyof typeof iconMap] || null;
+    return iconMap[type] || null;
   };
 
   const getColorStyles = (exerciseType: string) => {
@@ -193,18 +252,18 @@ export default function YourStatsPage() {
       case 'dip': return { bgColor: 'bg-pink-500/10', textColor: 'text-pink-500' };
       case 'run': return { bgColor: 'bg-green-500/10', textColor: 'text-green-500' };
       default: {
-        // For custom exercises, find their index and assign color
         const customIdx = customExercisesData.findIndex(ex => ex.name.toUpperCase() === exerciseType);
         return customColorStyles[customIdx >= 0 ? customIdx % customColorStyles.length : 0];
       }
     }
   };
 
+  const totalReps = exerciseCounts.reduce((sum, item) => sum + item.totalAmount, 0);
+
   return (
     <Layout>
       <h1 className="text-2xl font-heading font-bold mb-6">Your Stats</h1>
 
-      {/* Exercise Distribution */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
           <Activity size={20} className="text-primary" />
@@ -212,7 +271,11 @@ export default function YourStatsPage() {
         </h2>
         <Card className="border-none shadow-md dark:bg-zinc-900 overflow-hidden">
           <CardContent className="pt-2 px-4 pb-4">
-            {exerciseCounts.length > 0 ? (
+            {loadingLogs ? (
+              <div className="h-40 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : exerciseCounts.length > 0 ? (
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-1" style={{ pointerEvents: 'none' }}>
                   <ResponsiveContainer width="100%" height={380}>
@@ -235,70 +298,46 @@ export default function YourStatsPage() {
                   </ResponsiveContainer>
                 </div>
                 <div className="flex-1 flex flex-col justify-center gap-4">
-                  {(() => {
-                    // Calculate total reps per exercise type (standard + custom)
-                    const repsByExercise = exercises.reduce((acc, ex) => {
-                      const key = ex.type.replace('-', ' ').toUpperCase();
-                      acc[key] = (acc[key] || 0) + ex.amount;
-                      return acc;
-                    }, {} as Record<string, number>);
-
-                    // Add custom exercises
-                    customExercisesData.forEach(customEx => {
-                      const total = customExercises.reduce((sum, log) => {
-                        if (log.type === customEx.name) return sum + log.amount;
-                        return sum;
-                      }, 0);
-                      if (total > 0) {
-                        repsByExercise[customEx.name.toUpperCase()] = total;
-                      }
-                    });
-
-                    const totalReps = Object.values(repsByExercise).reduce((sum, reps) => sum + reps, 0);
-                    
-                    return exerciseCounts.map((item, index) => {
-                      const reps = repsByExercise[item.name] || 0;
-                      const percentage = Math.round((reps / totalReps) * 100);
-                      const colorStyles = getColorStyles(item.name);
-                      return (
-                        <div key={item.name} className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorStyles.bgColor} ${colorStyles.textColor}`}
-                            >
-                              {getExerciseIcon(item.name)}
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground">{item.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {reps} rep{reps !== 1 ? 's' : ''} 
-                                <span className="mx-1">•</span>
-                                {percentage}%
-                              </p>
-                            </div>
+                  {exerciseCounts.map((item, index) => {
+                    const percentage = totalReps > 0 ? Math.round((item.totalAmount / totalReps) * 100) : 0;
+                    const colorStyles = getColorStyles(item.name);
+                    return (
+                      <div key={item.name} className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colorStyles.bgColor} ${colorStyles.textColor}`}
+                          >
+                            {getExerciseIcon(item.name)}
                           </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className="h-full rounded-full transition-all"
-                              style={{ width: `${percentage}%`, backgroundColor: COLORS[index] }}
-                            />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.totalAmount} {item.name.toLowerCase().includes('run') ? 'km' : 'reps'}
+                              <span className="mx-1">•</span>
+                              {percentage}%
+                            </p>
                           </div>
                         </div>
-                      );
-                    });
-                  })()}
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${percentage}%`, backgroundColor: COLORS[index] }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
               <div className="h-40 flex items-center justify-center text-muted-foreground">
-                No workout data yet
+                No workout data yet. Start logging!
               </div>
             )}
           </CardContent>
         </Card>
       </section>
 
-      {/* Milestones */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -346,7 +385,8 @@ export default function YourStatsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {milestones.map((milestone) => {
-            const progress = Math.min(100, Math.round((milestone.current / milestone.target) * 100));
+            const current = calculateMilestoneProgress(milestone);
+            const progress = Math.min(100, Math.round((current / milestone.target) * 100));
             return (
               <Card key={milestone.id} className="border-none shadow-sm dark:bg-zinc-900 relative group">
                 <CardContent className="p-4 space-y-3">
@@ -369,7 +409,7 @@ export default function YourStatsPage() {
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">{progress}%</p>
+                    <p className="text-xs text-muted-foreground">{current} / {milestone.target} ({progress}%)</p>
                   </div>
                 </CardContent>
               </Card>
@@ -378,7 +418,6 @@ export default function YourStatsPage() {
         </div>
       </section>
 
-      {/* Personal Bests */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
           <Award size={20} className="text-accent" />
@@ -402,7 +441,6 @@ export default function YourStatsPage() {
         </div>
       </section>
 
-      {/* Consistency Score */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
           <TrendingUp size={20} className="text-primary" />
@@ -415,13 +453,11 @@ export default function YourStatsPage() {
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">You've worked out {workoutDays} out of {totalDays} days this week</p>
-              <p className="text-sm text-green-500">+5% compared to last week</p>
+              <p className="text-sm text-muted-foreground">Keep up the great work!</p>
             </div>
           </CardContent>
         </Card>
       </section>
-
-
     </Layout>
   );
 }
