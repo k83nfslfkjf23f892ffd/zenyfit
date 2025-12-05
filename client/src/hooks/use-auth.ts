@@ -3,7 +3,29 @@ import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { doc, getDoc, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
 import { initializeFirebase, getFirebaseInstances } from "@/lib/firebase";
 
-import { userSchema, User as UserProfile, inviteCodeSchema, InviteCode } from "../../../shared/schema";
+export interface InviteCode {
+  code: string;
+  createdBy: string;
+  used: boolean;
+  usedBy: string | null;
+  createdAt: number;
+  usedAt?: number;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  avatar: string;
+  level: number;
+  xp: number;
+  totalPullups: number;
+  totalPushups: number;
+  totalDips: number;
+  totalRunningKm: number;
+  invitedBy: string;
+  createdAt: number;
+}
 
 export const XP_RATES = {
   "pull-up": 15,
@@ -12,19 +34,33 @@ export const XP_RATES = {
   "run": 50,
 } as const;
 
+export const LEVEL_THRESHOLDS = [
+  0,      // Level 1
+  500,    // Level 2
+  1500,   // Level 3
+  3000,   // Level 4
+  5000,   // Level 5
+  8000,   // Level 6
+  12000,  // Level 7
+  17000,  // Level 8
+  23000,  // Level 9
+  30000,  // Level 10
+];
+
+export function calculateLevel(xp: number): number {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (xp >= LEVEL_THRESHOLDS[i]) {
+      if (i >= LEVEL_THRESHOLDS.length - 1) {
+        const extraXP = xp - LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
+        return LEVEL_THRESHOLDS.length + Math.floor(extraXP / 7000);
+      }
+      return i + 1;
+    }
+  }
+  return 1;
+}
+
 export function getXPForNextLevel(currentLevel: number): number {
-  const LEVEL_THRESHOLDS = [
-    0,      // Level 1
-    500,    // Level 2
-    1500,   // Level 3
-    3000,   // Level 4
-    5000,   // Level 5
-    8000,   // Level 6
-    12000,  // Level 7
-    17000,  // Level 8
-    23000,  // Level 9
-    30000,  // Level 10
-  ];
   if (currentLevel >= LEVEL_THRESHOLDS.length) {
     return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] + ((currentLevel - LEVEL_THRESHOLDS.length + 1) * 7000);
   }
@@ -59,9 +95,10 @@ export function useAuth() {
             
             unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
               if (docSnap.exists()) {
-                const rawData = { id: docSnap.id, ...docSnap.data() };
-                const profile = userSchema.parse(rawData);
-                setUserProfile(profile);
+                setUserProfile({
+                  id: docSnap.id,
+                  ...docSnap.data(),
+                } as UserProfile);
               } else {
                 setUserProfile(null);
               }
@@ -114,9 +151,10 @@ export function useAuth() {
       const docSnap = await getDoc(userDocRef);
       
       if (docSnap.exists()) {
-        const rawData = { id: docSnap.id, ...docSnap.data() };
-        const profile = userSchema.parse(rawData);
-        setUserProfile(profile);
+        setUserProfile({
+          id: docSnap.id,
+          ...docSnap.data(),
+        } as UserProfile);
       }
     } catch (err) {
       console.error("Error refreshing profile:", err);
@@ -134,7 +172,10 @@ export function useAuth() {
       const q = query(inviteCodesRef, where("createdBy", "==", user.uid));
       const snapshot = await getDocs(q);
       
-      return snapshot.docs.map(doc => inviteCodeSchema.parse({ ...doc.data(), code: doc.id }));
+      return snapshot.docs.map(doc => ({
+        ...doc.data(),
+        code: doc.id,
+      })) as InviteCode[];
     } catch (err) {
       console.error("Error fetching invite codes:", err);
       return [];

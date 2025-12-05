@@ -24,14 +24,10 @@ service cloud.firestore {
     // - Creation is handled by the server during signup
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow update: if isOwner(userId) &&
+      allow update: if isOwner(userId) && 
         // Users can only update these fields
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['avatar', 'username']) &&
-        // Validate username length
-        request.resource.data.username is string &&
-        request.resource.data.username.size() >= 3 &&
-        request.resource.data.username.size() <= 20;
+          .hasOnly(['avatar', 'username']);
       // Creation and deletion only via Admin SDK (server-side)
       allow create, delete: if false;
     }
