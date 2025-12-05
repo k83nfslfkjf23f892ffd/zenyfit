@@ -1,8 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { FieldValue } from "firebase-admin/firestore";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const allowedOrigins = ["http://localhost:5000", process.env.APP_URL].filter(Boolean);
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -55,16 +61,16 @@ async function handleGetWorkoutLogs(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
-  const { idToken, exerciseType, amount, unit, isCustom } = req.body;
+  const { exerciseType, amount, unit, isCustom } = req.body;
 
-  if (!idToken || !exerciseType || amount === undefined || amount <= 0) {
+  if (!exerciseType || amount === undefined || amount <= 0) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
   try {
-    const user = await verifyTokenFromBody(idToken);
+    const user = await verifyAuthToken(req.headers.authorization as string);
     if (!user) {
-      return res.status(401).json({ success: false, error: "Invalid token" });
+      return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
     const { db } = getAdminInstances();
@@ -91,24 +97,45 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
     };
 
     const logRef = await db.collection("exercise_logs").add(logEntry);
-
     const userRef = db.collection("users").doc(userId);
-    const userDoc = await userRef.get();
 
-    if (!userDoc.exists) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
+    // Use a transaction to atomically update user stats
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) {
+        throw new Error("User not found");
+      }
 
-    const userData = userDoc.data() || {};
+      const updateData: Record<string, any> = {
+        xp: FieldValue.increment(xpGained),
+      };
+
+      if (!isCustom) {
+        if (exerciseType === "pull-up") {
+          updateData.totalPullups = FieldValue.increment(amount);
+        } else if (exerciseType === "push-up") {
+          updateData.totalPushups = FieldValue.increment(amount);
+        } else if (exerciseType === "dip") {
+          updateData.totalDips = FieldValue.increment(amount);
+        } else if (exerciseType === "run") {
+          updateData.totalRunningKm = FieldValue.increment(amount);
+        }
+      }
+      transaction.update(userRef, updateData);
+    });
+
+    // After the transaction, get the latest user data to calculate level
+    const updatedUserDoc = await userRef.get();
+    const userData = updatedUserDoc.data() || {};
     const currentXP = userData.xp || 0;
-    const newXP = currentXP + xpGained;
+    const oldLevel = userData.level || 1;
 
     const levelThresholds = [0, 500, 1500, 3000, 5000, 8000, 12000, 17000, 23000, 30000];
     let newLevel = 1;
     for (let i = levelThresholds.length - 1; i >= 0; i--) {
-      if (newXP >= levelThresholds[i]) {
+      if (currentXP >= levelThresholds[i]) {
         if (i >= levelThresholds.length - 1) {
-          const extraXP = newXP - levelThresholds[levelThresholds.length - 1];
+          const extraXP = currentXP - levelThresholds[levelThresholds.length - 1];
           newLevel = levelThresholds.length + Math.floor(extraXP / 7000);
         } else {
           newLevel = i + 1;
@@ -117,26 +144,12 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const updateData: Record<string, any> = {
-      xp: newXP,
-      level: newLevel,
-    };
-
-    if (!isCustom) {
-      if (exerciseType === "pull-up") {
-        updateData.totalPullups = (userData.totalPullups || 0) + amount;
-      } else if (exerciseType === "push-up") {
-        updateData.totalPushups = (userData.totalPushups || 0) + amount;
-      } else if (exerciseType === "dip") {
-        updateData.totalDips = (userData.totalDips || 0) + amount;
-      } else if (exerciseType === "run") {
-        updateData.totalRunningKm = (userData.totalRunningKm || 0) + amount;
-      }
+    // Only update the level if it has changed
+    if (newLevel > oldLevel) {
+      await userRef.update({ level: newLevel });
     }
 
-    await userRef.update(updateData);
-
-    const leveledUp = newLevel > (userData.level || 1);
+    const leveledUp = newLevel > oldLevel;
 
     if (!isCustom) {
       try {
@@ -180,7 +193,7 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
       success: true,
       logId: logRef.id,
       xpGained,
-      newXP,
+      newXP: currentXP,
       newLevel,
       leveledUp,
     });
@@ -189,3 +202,4 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, error: error.message || "Failed to log workout" });
   }
 }
+

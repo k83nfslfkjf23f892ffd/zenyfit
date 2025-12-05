@@ -284,9 +284,11 @@ export default function LogPage() {
       
       const response = await fetch(getApiUrl("/api/workouts"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
-          idToken,
           exerciseType: exerciseName,
           amount: finalAmount,
           unit,

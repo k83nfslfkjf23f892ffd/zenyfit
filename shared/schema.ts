@@ -4,16 +4,21 @@ import { z } from "zod";
 export const userSchema = z.object({
   id: z.string().optional(), // Firestore doc ID
   username: z.string().min(3).max(20),
-  password: z.string().min(6).max(100),
+  email: z.string().email().optional(),
   avatar: z.string().optional(),
   level: z.number().default(1),
   xp: z.number().default(0),
+  totalPullups: z.number().default(0),
+  totalPushups: z.number().default(0),
+  totalDips: z.number().default(0),
+  totalRunningKm: z.number().default(0),
+  invitedBy: z.string().optional().nullable(),
   createdAt: z.number().optional(),
 });
 
-export const insertUserSchema = userSchema.pick({
-  username: true,
-  password: true,
+export const insertUserSchema = z.object({
+  username: z.string().min(3).max(20),
+  password: z.string().min(6).max(100),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -58,6 +63,18 @@ export const challengeSchema = z.object({
 });
 
 export type Challenge = z.infer<typeof challengeSchema>;
+
+// Invite code schema
+export const inviteCodeSchema = z.object({
+  code: z.string(),
+  createdBy: z.string(),
+  used: z.boolean().default(false),
+  usedBy: z.string().nullable().default(null),
+  createdAt: z.number(),
+  usedAt: z.number().optional(),
+});
+
+export type InviteCode = z.infer<typeof inviteCodeSchema>;
 
 // Auth schema
 export const signUpSchema = z.object({
