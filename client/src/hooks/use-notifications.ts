@@ -10,6 +10,10 @@ export function useNotifications() {
     }
 
     if (Notification.permission !== 'denied') {
+        // Request permission if not already granted or denied
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }
 
     return false;
   };
