@@ -374,6 +374,116 @@ export default function LogPage() {
           <Card className="border-none shadow-xl">
             <CardContent className="p-6 relative">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Moved Amount Selection Block here */}
+                {!isCustomMode && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-baseline">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        {selectedCustom ? 'Amount' : type === 'run' ? 'Distance' : 'Repetitions'}
+                      </label>
+                      <span className="text-2xl font-bold font-heading text-primary">
+                        {customAmount !== null ? customAmount : amount} <span className="text-sm font-normal text-muted-foreground">{selectedCustom ? customUnit : type === 'run' ? 'km' : 'reps'}</span>
+                      </span>
+                    </div>
+                    
+                    <Slider 
+                      value={[amount]} 
+                      max={100} 
+                      step={1}
+                      onValueChange={(v) => {
+                        setAmount(v[0]);
+                        setCustomAmount(null);
+                        setCustomInputActive(false);
+                      }}
+                      className="py-4"
+                    />
+                    
+                    <div className="grid grid-cols-4 gap-2">
+                      {!isCustomMode && !selectedCustom ? (
+                        <>
+                          {[1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100].map(val => (
+                            <Button 
+                              key={val} 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setAmount(val);
+                                setCustomAmount(null);
+                                setCustomInputActive(false);
+                              }}
+                              className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
+                            >
+                              {val}
+                            </Button>
+                          ))}
+                          {type !== 'run' && (
+                            customInputActive ? (
+                              <input
+                                type="number"
+                                autoFocus
+                                placeholder="0"
+                                value={manualInputValue}
+                                onChange={(e) => setManualInputValue(e.target.value)}
+                                onBlur={() => {
+                                  if (!manualInputValue.trim()) {
+                                    setCustomInputActive(false);
+                                  }
+                                }}
+                                className="h-9 px-2 rounded border border-dashed border-input text-center text-xs font-semibold focus:outline-none focus:border-primary"
+                              />
+                            ) : (
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setCustomInputActive(true)}
+                                className="border-dashed"
+                              >
+                                Custom
+                              </Button>
+                            )
+                          )}
+                          {type === 'run' && [3, 5, 10, 15].map(val => (
+                            <Button 
+                              key={val} 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setAmount(val);
+                                setCustomAmount(null);
+                                setCustomInputActive(false);
+                              }}
+                              className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
+                            >
+                              {val}
+                            </Button>
+                          ))}
+                        </>
+                      ) : (
+                        customButtons.map(val => (
+                          <Button 
+                            key={val} 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setAmount(val);
+                              setCustomAmount(null);
+                              setCustomInputActive(false);
+                            }}
+                            className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
+                          >
+                            {val}
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Exercise Type Selection Block */}
                 <div className="space-y-3 relative">
                   {!isCustomMode && (
                     <div className="flex items-center justify-end gap-2 -mt-3">
@@ -523,13 +633,11 @@ export default function LogPage() {
                     </div>
                   ) : (
                     <div className="space-y-6 pt-2">
-                      {/* Header */}
                       <div className="space-y-1">
                         <h3 className="text-lg font-bold text-foreground">Create Exercise</h3>
                         <p className="text-xs text-muted-foreground">Define your custom workout</p>
                       </div>
 
-                      {/* Exercise Name */}
                       <div className="space-y-3">
                         <label className="text-sm font-semibold text-foreground block">Exercise Name</label>
                         <Input
@@ -541,7 +649,6 @@ export default function LogPage() {
                         />
                       </div>
 
-                      {/* Unit Selection */}
                       <div className="space-y-3">
                         <label className="text-sm font-semibold text-foreground block">Unit of Measurement</label>
                         <div className="flex flex-wrap gap-2">
@@ -570,7 +677,7 @@ export default function LogPage() {
                                         setCustomUnit("reps");
                                       }
                                     }}
-                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:shadow-lg"
+                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:shadow-lg"
                                   >
                                     <X size={12} />
                                   </button>
@@ -620,7 +727,6 @@ export default function LogPage() {
                         </div>
                       </div>
 
-                      {/* Quick Buttons */}
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <label className="text-sm font-semibold text-foreground">Quick Buttons</label>
@@ -637,7 +743,7 @@ export default function LogPage() {
                             {isCustomButtonEdit ? "Done" : "Edit"}
                           </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-4 gap-3">
                           {customButtons.map((btn, idx) => (
                             <div
@@ -730,114 +836,6 @@ export default function LogPage() {
                     </div>
                   )}
                 </div>
-
-                {!isCustomMode && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-baseline">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      {selectedCustom ? 'Amount' : type === 'run' ? 'Distance' : 'Repetitions'}
-                    </label>
-                    <span className="text-2xl font-bold font-heading text-primary">
-                      {customAmount !== null ? customAmount : amount} <span className="text-sm font-normal text-muted-foreground">{selectedCustom ? customUnit : type === 'run' ? 'km' : 'reps'}</span>
-                    </span>
-                  </div>
-                  
-                  <Slider 
-                    value={[amount]} 
-                    max={100} 
-                    step={1}
-                    onValueChange={(v) => {
-                      setAmount(v[0]);
-                      setCustomAmount(null);
-                      setCustomInputActive(false);
-                    }}
-                    className="py-4"
-                  />
-                  
-                  <div className="grid grid-cols-4 gap-2">
-                    {!isCustomMode && !selectedCustom ? (
-                      <>
-                        {type !== 'run' && [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100].map(val => (
-                          <Button 
-                            key={val} 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setAmount(val);
-                              setCustomAmount(null);
-                              setCustomInputActive(false);
-                            }}
-                            className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
-                          >
-                            {val}
-                          </Button>
-                        ))}
-                        {type !== 'run' && (
-                          customInputActive ? (
-                            <input
-                              type="number"
-                              autoFocus
-                              placeholder="0"
-                              value={manualInputValue}
-                              onChange={(e) => setManualInputValue(e.target.value)}
-                              onBlur={() => {
-                                if (!manualInputValue.trim()) {
-                                  setCustomInputActive(false);
-                                }
-                              }}
-                              className="h-9 px-2 rounded border border-dashed border-input text-center text-xs font-semibold focus:outline-none focus:border-primary"
-                            />
-                          ) : (
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setCustomInputActive(true)}
-                              className="border-dashed"
-                            >
-                              Custom
-                            </Button>
-                          )
-                        )}
-                        {type === 'run' && [3, 5, 10, 15].map(val => (
-                          <Button 
-                            key={val} 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setAmount(val);
-                              setCustomAmount(null);
-                              setCustomInputActive(false);
-                            }}
-                            className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
-                          >
-                            {val}
-                          </Button>
-                        ))}
-                      </>
-                    ) : (
-                      customButtons.map(val => (
-                        <Button 
-                          key={val} 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setAmount(val);
-                            setCustomAmount(null);
-                            setCustomInputActive(false);
-                          }}
-                          className={amount === val ? "border-primary text-primary bg-primary/5" : ""}
-                        >
-                          {val}
-                        </Button>
-                      ))
-                    )}
-                  </div>
-                </div>
-                )}
 
                 {!isCustomMode && (
                 <div className="space-y-4">

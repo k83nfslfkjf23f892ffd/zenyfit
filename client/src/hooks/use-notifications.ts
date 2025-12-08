@@ -38,13 +38,6 @@ export function useNotifications() {
     }
   };
 
-  const workoutNotification = async (exerciseType: string, amount: number) => {
-    await showNotification('Workout Logged! 💪', {
-      body: `Great job! You logged ${amount} ${exerciseType === 'run' ? 'km' : 'reps'} of ${exerciseType.replace('-', ' ')}`,
-      tag: 'workout',
-      requireInteraction: false,
-    });
-  };
 
   const challengeInviteNotification = async (invitedBy: string, challengeName: string) => {
     await showNotification('Challenge Invite 🏆', {
@@ -81,7 +74,6 @@ export function useNotifications() {
   return {
     requestPermission,
     showNotification,
-    workoutNotification,
     challengeInviteNotification,
     challengeDeadlineNotification,
     rankChangeNotification,
