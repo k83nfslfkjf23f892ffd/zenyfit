@@ -374,7 +374,361 @@ export default function LogPage() {
           <Card className="border-none shadow-xl">
             <CardContent className="p-6 relative">
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Moved Amount Selection Block here */}
+                {/* Exercise Type Selection Block */}
+                <div className="space-y-3 relative">
+                  {!isCustomMode && (
+                    <div className="flex items-center justify-end gap-2 -mt-3">
+                      {customExercises.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditMode(!isEditMode)}
+                          className="w-6 h-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center hover:scale-125 transition-transform hover:bg-muted/80"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomMode(true);
+                          setAmount(0);
+                          setCustomExerciseName("");
+                        }}
+                        className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:scale-125 transition-transform"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
+                  {isEditMode && !isCustomMode ? (
+                    <div className="space-y-2">
+                      {customExercises.map((customEx) => (
+                        <div key={customEx.name}>
+                          {editingExercise === customEx.name ? (
+                            <div className="flex gap-2">
+                              <Input
+                                type="text"
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                className="h-10 text-sm"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (editingName.trim() && editingName !== customEx.name) {
+                                    const updated = customExercises.map(ex => 
+                                      ex.name === customEx.name ? { ...ex, name: editingName.trim() } : ex
+                                    );
+                                    setCustomExercises(updated);
+                                    localStorage.setItem("customExercises", JSON.stringify(updated));
+                                    toast({
+                                      title: "Renamed!",
+                                      description: `${customEx.name} → ${editingName.trim()}`,
+                                    });
+                                  }
+                                  setEditingExercise(null);
+                                  setEditingName("");
+                                }}
+                                className="px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingExercise(null);
+                                  setEditingName("");
+                                }}
+                                className="px-3 rounded-lg bg-muted text-muted-foreground text-xs font-semibold hover:bg-muted/80"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between bg-muted p-3 rounded-lg">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingExercise(customEx.name);
+                                  setEditingName(customEx.name);
+                                }}
+                                className="text-sm font-semibold text-left hover:text-primary transition-colors cursor-text flex-1"
+                              >
+                                {customEx.name}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirmExercise(customEx.name)}
+                                className="text-destructive hover:text-destructive/80 ml-2"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditMode(false);
+                          setEditingExercise(null);
+                          setEditingName("");
+                        }}
+                        className="w-full p-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  ) : !isCustomMode ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {EXERCISE_TYPES.map((exercise) => {
+                        const Icon = exercise.icon;
+                        const isActive = selectedCustom === null && type === exercise.id;
+                        return (
+                          <button
+                            key={exercise.id}
+                            type="button"
+                            onClick={() => handleTypeChange(exercise.id as any)}
+                            className={cn(
+                              "flex flex-col items-center justify-center gap-2 p-3 rounded-lg transition-all",
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                                : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <Icon size={24} />
+                            <span className="text-xs font-semibold text-center leading-tight">{exercise.label}</span>
+                          </button>
+                        );
+                      })}
+                      {customExercises.map((customEx) => {
+                        const isActive = selectedCustom === customEx.name;
+                        return (
+                          <button
+                            key={customEx.name}
+                            type="button"
+                            onClick={() => handleTypeChange(customEx.name)}
+                            className={cn(
+                              "flex flex-col items-center justify-center gap-2 p-3 rounded-lg transition-all min-h-[90px] w-full",
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                                : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <Zap size={24} />
+                            <span className="text-xs font-semibold text-center leading-snug break-all line-clamp-2 px-1">{customEx.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-6 pt-2">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-bold text-foreground">Create Exercise</h3>
+                        <p className="text-xs text-muted-foreground">Define your custom workout</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-sm font-semibold text-foreground block">Exercise Name</label>
+                        <Input
+                          type="text"
+                          value={customExerciseName}
+                          onChange={(e) => setCustomExerciseName(e.target.value)}
+                          placeholder="e.g., Handstand, Planks, Rowing..."
+                          className="h-12 text-sm border-2 focus:border-primary transition-colors"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-sm font-semibold text-foreground block">Unit of Measurement</label>
+                        <div className="flex flex-wrap gap-2">
+                          {allUnits.map((unit) => {
+                            const isCustom = addedUnits.includes(unit);
+                            return (
+                              <div key={unit} className="relative group">
+                                <button
+                                  type="button"
+                                  onClick={() => setCustomUnit(unit)}
+                                  className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                                    customUnit === unit
+                                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  )}
+                                >
+                                  {unit}
+                                </button>
+                                {isCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddedUnits(addedUnits.filter(u => u !== unit));
+                                      if (customUnit === unit) {
+                                        setCustomUnit("reps");
+                                      }
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:shadow-lg"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            placeholder="Create custom unit..."
+                            className="h-11 text-sm border-2 focus:border-primary transition-colors flex-1"
+                            id="customUnitInput"
+                            onBlur={(e) => {
+                              if (e.target.value.trim()) {
+                                const newUnit = e.target.value.trim();
+                                setAddedUnits([...addedUnits, newUnit]);
+                                setCustomUnit(newUnit);
+                                e.target.value = "";
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                const newUnit = e.currentTarget.value.trim();
+                                setAddedUnits([...addedUnits, newUnit]);
+                                setCustomUnit(newUnit);
+                                e.currentTarget.value = "";
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById("customUnitInput") as HTMLInputElement;
+                              if (input && input.value.trim()) {
+                                const newUnit = input.value.trim();
+                                setAddedUnits([...addedUnits, newUnit]);
+                                setCustomUnit(newUnit);
+                                input.value = "";
+                              }
+                            }}
+                            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-semibold"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-semibold text-foreground">Quick Buttons</label>
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomButtonEdit(!isCustomButtonEdit)}
+                            className={cn(
+                              "text-xs font-semibold transition-colors px-3 py-1 rounded-md",
+                              isCustomButtonEdit
+                                ? "bg-primary/10 text-primary"
+                                : "text-primary hover:bg-primary/5"
+                            )}
+                          >
+                            {isCustomButtonEdit ? "Done" : "Edit"}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-3">
+                          {customButtons.map((btn, idx) => (
+                            <div
+                              key={idx}
+                              draggable
+                              onDragStart={() => setDraggedIdx(idx)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={() => {
+                                if (draggedIdx !== null && draggedIdx !== idx) {
+                                  const newButtons = [...customButtons];
+                                  const [draggedItem] = newButtons.splice(draggedIdx, 1);
+                                  newButtons.splice(idx, 0, draggedItem);
+                                  setCustomButtons(newButtons);
+                                  setDraggedIdx(null);
+                                }
+                              }}
+                              className={cn(
+                                "relative group transition-all duration-200 cursor-move",
+                                isCustomButtonEdit && draggedIdx === idx ? "opacity-50 scale-95" : ""
+                              )}
+                            >
+                              {isCustomButtonEdit ? (
+                                <Input
+                                  type="number"
+                                  value={btn}
+                                  onChange={(e) => {
+                                    const newButtons = [...customButtons];
+                                    newButtons[idx] = parseFloat(e.target.value) || 0;
+                                    setCustomButtons(newButtons);
+                                  }}
+                                  className="h-14 text-center text-sm font-bold border-2 focus:border-primary transition-colors"
+                                />
+                              ) : (
+                                <div className="bg-gradient-to-br from-muted/80 to-muted text-muted-foreground text-sm font-bold p-3 rounded-lg text-center h-14 flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
+                                  {btn}
+                                </div>
+                              )}
+                              {isCustomButtonEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newButtons = customButtons.filter((_, i) => i !== idx);
+                                    setCustomButtons(newButtons);
+                                  }}
+                                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:shadow-lg"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {isCustomButtonEdit && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomButtons([...customButtons, 0])}
+                            className="w-full py-2.5 text-sm font-semibold border-2 border-dashed border-primary/40 text-primary rounded-lg hover:bg-primary/5 transition-colors"
+                          >
+                            + Add Button
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customExerciseName.trim()) {
+                            setCustomExercises((prev) => {
+                              const updated = [...prev, { name: customExerciseName.trim(), unit: customUnit, buttons: customButtons }];
+                              localStorage.setItem("customExercises", JSON.stringify(updated));
+                              return updated;
+                            });
+                            const exerciseName = customExerciseName;
+                            setCustomExerciseName("");
+                            setCustomUnit("reps");
+                            setCustomButtons([10, 20, 50, 100]);
+                            setIsCustomMode(false);
+                            setAmount(0);
+                            toast({
+                              title: "Exercise Added!",
+                              description: `${exerciseName} has been added to your exercises.`,
+                            });
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 p-3.5 rounded-lg transition-all bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 font-semibold text-sm"
+                      >
+                        <Plus size={18} />
+                        Add Exercise Type
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Amount Selection Block */}
                 {!isCustomMode && (
                   <div className="space-y-4">
                     <div className="flex justify-between items-baseline">
@@ -482,8 +836,6 @@ export default function LogPage() {
                     </div>
                   </div>
                 )}
-
-                {/* Exercise Type Selection Block */}
                 <div className="space-y-3 relative">
                   {!isCustomMode && (
                     <div className="flex items-center justify-end gap-2 -mt-3">

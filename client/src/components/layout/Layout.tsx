@@ -24,7 +24,7 @@ export default function Layout({ children, hideNav = false }: LayoutProps) {
              style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: 'cover' }} />
         
         <main 
-          className="relative z-10 px-4 pt-4 flex-1 overflow-y-auto"
+          className="relative z-10 px-4 flex-1 overflow-y-auto"
           style={{ 
             paddingBottom: hideNav ? '1.5rem' : 'calc(4rem + max(env(safe-area-inset-bottom, 0px), 8px) + 1rem)'
           }}
