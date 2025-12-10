@@ -20,9 +20,9 @@ export default function Layout({ children, hideNav = false }: LayoutProps) {
             <main
               className="relative z-10 flex-1 overflow-y-auto"
               style={{
-                paddingTop: 'max(env(safe-area-inset-top), 1.5rem)',
-                paddingLeft: 'env(safe-area-inset-left, 1rem)',
-                paddingRight: 'env(safe-area-inset-right, 1rem)',
+                paddingTop: 'env(safe-area-inset-top, 12px)',
+                paddingLeft: 'env(safe-area-inset-left, 0px)',
+                paddingRight: 'env(safe-area-inset-right, 0px)',
                 paddingBottom: hideNav ? '1.5rem' : 'calc(4rem + max(env(safe-area-inset-bottom, 0px), 8px) + 1rem)',
               }}
             >
