@@ -39,18 +39,39 @@ async function handleGetWorkoutLogs(req: VercelRequest, res: VercelResponse) {
     const { db } = getAdminInstances();
     const userId = user.userId;
 
-    const logsSnapshot = await db.collection("exercise_logs")
+    // Parse pagination parameters
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Max 100 per page
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    let query = db.collection("exercise_logs")
       .where("userId", "==", userId)
-      .orderBy("timestamp", "desc")
-      .limit(50)
-      .get();
+      .orderBy("timestamp", "desc");
+
+    // Apply offset if provided
+    if (offset > 0) {
+      const offsetSnapshot = await query.limit(offset).get();
+      if (!offsetSnapshot.empty) {
+        const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+        query = query.startAfter(lastDoc);
+      }
+    }
+
+    const logsSnapshot = await query.limit(limit).get();
 
     const logs = logsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));
 
-    return res.json({ success: true, logs });
+    // Check if there are more logs
+    const hasMore = logsSnapshot.docs.length === limit;
+
+    return res.json({
+      success: true,
+      logs,
+      hasMore,
+      offset: offset + logs.length,
+    });
   } catch (error: any) {
     console.error("Get workout logs error:", error);
     return res.status(500).json({ success: false, error: error.message || "Failed to get logs" });
@@ -64,6 +85,32 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
+  // Sanitize and validate exercise type
+  const sanitizedExerciseType = String(exerciseType).trim().toLowerCase();
+
+  if (sanitizedExerciseType.length === 0 || sanitizedExerciseType.length > 50) {
+    return res.status(400).json({
+      success: false,
+      error: "Exercise type must be between 1 and 50 characters"
+    });
+  }
+
+  // Validate exercise type contains only safe characters
+  if (!/^[a-z0-9\s\-_]+$/.test(sanitizedExerciseType)) {
+    return res.status(400).json({
+      success: false,
+      error: "Exercise type contains invalid characters"
+    });
+  }
+
+  // Validate amount is reasonable
+  if (amount > 100000) {
+    return res.status(400).json({
+      success: false,
+      error: "Amount seems unreasonably large"
+    });
+  }
+
   try {
     const user = await verifyTokenFromBody(idToken);
     if (!user) {
@@ -73,11 +120,11 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
     const { db } = getAdminInstances();
     const userId = user.userId;
 
-    const xpGained = calculateWorkoutXP(exerciseType, amount);
+    const xpGained = calculateWorkoutXP(sanitizedExerciseType, amount);
 
     const logEntry = {
       userId,
-      exerciseType,
+      exerciseType: sanitizedExerciseType,
       amount,
       unit: unit || "reps",
       isCustom: isCustom || false,
@@ -120,13 +167,13 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
     };
 
     if (!isCustom) {
-      if (exerciseType === "pull-up") {
+      if (sanitizedExerciseType === "pull-up") {
         updateData.totalPullups = (userData.totalPullups || 0) + amount;
-      } else if (exerciseType === "push-up") {
+      } else if (sanitizedExerciseType === "push-up") {
         updateData.totalPushups = (userData.totalPushups || 0) + amount;
-      } else if (exerciseType === "dip") {
+      } else if (sanitizedExerciseType === "dip") {
         updateData.totalDips = (userData.totalDips || 0) + amount;
-      } else if (exerciseType === "run") {
+      } else if (sanitizedExerciseType === "run") {
         updateData.totalRunningKm = (userData.totalRunningKm || 0) + amount;
       }
     }
@@ -140,7 +187,7 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
         const now = Date.now();
         const challengesSnapshot = await db.collection("challenges")
           .where("participantIds", "array-contains", userId)
-          .where("type", "==", exerciseType)
+          .where("type", "==", sanitizedExerciseType)
           .get();
 
         for (const challengeDoc of challengesSnapshot.docs) {

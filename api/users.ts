@@ -81,6 +81,9 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
       updateData.avatar = avatar;
     }
 
+    const userData = userDoc.data();
+    const oldUsername = userData?.username;
+
     if (username !== undefined) {
       if (username.length < 3 || username.length > 20) {
         return res.status(400).json({ success: false, error: "Username must be 3-20 characters" });
@@ -88,11 +91,11 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
       if (!/^[a-zA-Z0-9_]+$/.test(username)) {
         return res.status(400).json({ success: false, error: "Username can only contain letters, numbers, and underscores" });
       }
-      
+
       const existingUser = await db.collection("users")
         .where("username", "==", username)
         .get();
-      
+
       if (!existingUser.empty && existingUser.docs[0].id !== userId) {
         return res.status(400).json({ success: false, error: "Username already taken" });
       }
@@ -107,6 +110,35 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
     updateData.updatedAt = Date.now();
 
     await userRef.update(updateData);
+
+    // If username was updated, update it in all challenges where this user participates
+    if (username !== undefined && username !== oldUsername) {
+      try {
+        const challengesSnapshot = await db.collection("challenges")
+          .where("participantIds", "array-contains", userId)
+          .get();
+
+        const batch = db.batch();
+        for (const challengeDoc of challengesSnapshot.docs) {
+          const challengeData = challengeDoc.data();
+          const participants = challengeData.participants || [];
+
+          const updatedParticipants = participants.map((p: any) => {
+            if (p.userId === userId) {
+              return { ...p, username: username };
+            }
+            return p;
+          });
+
+          batch.update(challengeDoc.ref, { participants: updatedParticipants });
+        }
+
+        await batch.commit();
+      } catch (challengeError) {
+        console.error("Failed to update username in challenges:", challengeError);
+        // Don't fail the request if challenge updates fail
+      }
+    }
 
     return res.json({ success: true, updated: updateData });
   } catch (error: any) {

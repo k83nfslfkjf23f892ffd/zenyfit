@@ -52,29 +52,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .orderBy("xp", "desc")
       .limit(10)
       .get();
-    
+
     const topUserIds = topUsersSnapshot.docs.map(doc => doc.id);
     const topUserCount = topUserIds.length;
-    
+
     const dateTotals: Record<string, number> = {};
     last7Dates.forEach(d => dateTotals[d.dateKey] = 0);
-    
+
     if (topUserIds.length > 0) {
-      for (const userId of topUserIds) {
-        const workoutsSnapshot = await db.collection("users")
-          .doc(userId)
-          .collection("workouts")
-          .where("timestamp", ">=", sevenDaysAgo)
-          .get();
-        
-        workoutsSnapshot.docs.forEach(doc => {
+      // Use collection group query to get all workouts at once instead of N+1 queries
+      const workoutsSnapshot = await db.collectionGroup("workouts")
+        .where("timestamp", ">=", sevenDaysAgo)
+        .get();
+
+      // Filter to only top users' workouts and aggregate
+      workoutsSnapshot.docs.forEach(doc => {
+        // Extract userId from the document path (workouts are in users/{userId}/workouts/{workoutId})
+        const pathParts = doc.ref.path.split('/');
+        const userId = pathParts[1]; // users/[userId]/workouts/[workoutId]
+
+        // Only count workouts from top users
+        if (topUserIds.includes(userId)) {
           const data = doc.data();
           const dateKey = getDateKey(data.timestamp);
           if (dateTotals.hasOwnProperty(dateKey)) {
             dateTotals[dateKey] += data.amount || 0;
           }
-        });
-      }
+        }
+      });
     }
     
     const result = last7Dates.map(d => ({

@@ -50,6 +50,8 @@ async function handleGetChallenges(req: VercelRequest, res: VercelResponse) {
 
     const publicChallengesSnapshot = await db.collection("challenges")
       .where("isPublic", "==", true)
+      .orderBy("createdAt", "desc")
+      .limit(100)
       .get();
 
     const challengeMap = new Map();
@@ -106,17 +108,55 @@ async function handleCreateChallenge(req: VercelRequest, res: VercelResponse) {
     }
     const creatorData = creatorDoc.data()!;
 
+    const now = Date.now();
     const start = startDate ? new Date(startDate) : new Date();
+    const startTime = start.getTime();
+
+    // Validate start date is not too far in the past (more than 7 days ago)
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    if (startTime < sevenDaysAgo) {
+      return res.status(400).json({
+        success: false,
+        error: "Start date cannot be more than 7 days in the past"
+      });
+    }
+
+    // Validate start date is not too far in the future (more than 1 year)
+    const oneYearFromNow = now + (365 * 24 * 60 * 60 * 1000);
+    if (startTime > oneYearFromNow) {
+      return res.status(400).json({
+        success: false,
+        error: "Start date cannot be more than 1 year in the future"
+      });
+    }
+
+    // Validate duration is reasonable (max 1 year)
+    if (numericDuration > 365) {
+      return res.status(400).json({
+        success: false,
+        error: "Challenge duration cannot exceed 365 days"
+      });
+    }
+
     const durationMs = numericDuration * 24 * 60 * 60 * 1000;
-    const end = new Date(start.getTime() + durationMs);
+    const end = new Date(startTime + durationMs);
+    const endTime = end.getTime();
+
+    // Validate end date is after start date (should always be true with positive duration, but verify)
+    if (endTime <= startTime) {
+      return res.status(400).json({
+        success: false,
+        error: "Challenge end date must be after start date"
+      });
+    }
 
     const challengeData = {
       title,
       description: `Created by ${creatorData.username}`,
       type: exerciseType,
       goal: numericGoal,
-      startDate: start.getTime(),
-      endDate: end.getTime(),
+      startDate: startTime,
+      endDate: endTime,
       isPublic: isPublic ?? true,
       createdBy: userId,
       createdAt: Date.now(),

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth
 import { initializeFirebase } from "@/lib/firebase";
 import { getApiUrl } from "@/lib/api";
 import { toast } from "sonner";
-import { Ticket, Eye, EyeOff } from "lucide-react";
+import { Ticket, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
@@ -21,6 +21,40 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+
+  // Check username availability with debouncing
+  useEffect(() => {
+    if (step !== "signup" || !username || username.length < 3) {
+      setUsernameAvailable(null);
+      setUsernameError(null);
+      setCheckingUsername(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setCheckingUsername(true);
+      setUsernameError(null);
+
+      try {
+        const response = await fetch(getApiUrl(`/api/check-username?username=${encodeURIComponent(username)}`));
+        const data = await response.json();
+
+        if (data.success) {
+          setUsernameAvailable(data.available);
+          setUsernameError(data.reason);
+        }
+      } catch (error) {
+        console.error("Failed to check username:", error);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [username, step]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,15 +235,31 @@ export default function AuthPage() {
               )}
 
               <div className="space-y-2">
-                <Input 
-                  placeholder="Username" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
-                  className="bg-background"
-                  data-testid="input-username"
-                  disabled={loading}
-                  maxLength={20}
-                />
+                <div className="relative">
+                  <Input
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                    className="bg-background pr-10"
+                    data-testid="input-username"
+                    disabled={loading}
+                    maxLength={20}
+                  />
+                  {step === "signup" && username.length >= 3 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {checkingUsername ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : usernameAvailable === true ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : usernameAvailable === false ? (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+                {step === "signup" && usernameError && (
+                  <p className="text-xs text-red-500">{usernameError}</p>
+                )}
               </div>
 
               <div className="space-y-2">
