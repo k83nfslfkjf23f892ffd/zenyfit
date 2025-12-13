@@ -10,7 +10,7 @@ export default function ScrollHeader() {
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       const scrollPosition = target.scrollTop;
-      // Only show blur when scrolled down (not at top)
+      // Show blur when scrolled down from top
       setIsScrolled(scrollPosition > 10);
     };
 
@@ -22,16 +22,14 @@ export default function ScrollHeader() {
     }
   }, []);
 
-  if (!isScrolled) return null;
-
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 max-w-md mx-auto"
+      className="fixed top-0 left-0 right-0 z-40 max-w-md mx-auto transition-all duration-200"
       style={{
         height: "env(safe-area-inset-top)",
-        backdropFilter: "blur(12px) saturate(180%)",
-        WebkitBackdropFilter: "blur(12px) saturate(180%)",
-        backgroundColor: "hsl(var(--background) / 0.8)",
+        backdropFilter: isScrolled ? "blur(12px) saturate(180%)" : "none",
+        WebkitBackdropFilter: isScrolled ? "blur(12px) saturate(180%)" : "none",
+        backgroundColor: isScrolled ? "hsl(var(--background) / 0.75)" : "hsl(var(--background))",
         pointerEvents: "none",
       }}
     />
