@@ -1,13 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { setCorsHeaders } from "./lib/cors.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   const envError = verifyRequiredEnvVars();
@@ -47,10 +44,27 @@ async function handleGetInvites(req: VercelRequest, res: VercelResponse) {
       .orderBy("createdAt", "desc")
       .get();
 
-    const invites = invitesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Filter out expired invites and auto-mark them as expired
+    const now = Date.now();
+    const invites = [];
+    const batch = db.batch();
+
+    for (const doc of invitesSnapshot.docs) {
+      const data = doc.data();
+      if (data.expiresAt && data.expiresAt < now) {
+        // Mark as expired
+        batch.update(doc.ref, { status: "expired" });
+      } else {
+        invites.push({
+          id: doc.id,
+          ...data,
+        });
+      }
+    }
+
+    if (invites.length !== invitesSnapshot.docs.length) {
+      await batch.commit(); // Clean up expired invites
+    }
 
     return res.json({ success: true, invites });
   } catch (error: any) {
@@ -90,6 +104,12 @@ async function handleRespondToInvite(req: VercelRequest, res: VercelResponse, id
 
     if (inviteData.invitedUserId !== userId) {
       return res.status(403).json({ success: false, error: "Not your invite" });
+    }
+
+    // Check if invite has expired (30 days)
+    if (inviteData.expiresAt && inviteData.expiresAt < Date.now()) {
+      await inviteRef.update({ status: "expired" });
+      return res.status(400).json({ success: false, error: "Invite has expired" });
     }
 
     if (action === "decline") {

@@ -1,13 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { setCorsHeaders } from "./lib/cors.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   const envError = verifyRequiredEnvVars();
@@ -321,6 +318,7 @@ async function handleInviteToChallenge(req: VercelRequest, res: VercelResponse, 
       return res.status(400).json({ success: false, error: "Invite already sent" });
     }
 
+    const now = Date.now();
     const inviteRef = await db.collection("challengeInvites").add({
       challengeId: id,
       challengeTitle: challengeData.title,
@@ -330,7 +328,8 @@ async function handleInviteToChallenge(req: VercelRequest, res: VercelResponse, 
       invitedByUsername: inviterData.username,
       invitedByAvatar: inviterData.avatar,
       status: "pending",
-      createdAt: Date.now(),
+      createdAt: now,
+      expiresAt: now + (30 * 24 * 60 * 60 * 1000), // 30 days from now
     });
 
     return res.json({ success: true, inviteId: inviteRef.id });

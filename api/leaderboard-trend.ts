@@ -11,13 +11,11 @@ function getDayName(timestamp: number): string {
   return dayNames[new Date(timestamp).getDay()];
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+import { setCorsHeaders } from "./lib/cors.js";
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   if (req.method !== "GET") {

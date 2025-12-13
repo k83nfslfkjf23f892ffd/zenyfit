@@ -1,17 +1,20 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { setCorsHeaders } from "./lib/cors.js";
+import { rateLimit, RateLimits } from "./lib/rate-limit.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   if (req.method !== "GET") {
     return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
+
+  // Rate limit to prevent account enumeration
+  if (rateLimit(req, res, RateLimits.READ)) {
+    return; // Rate limit exceeded
   }
 
   const envError = verifyRequiredEnvVars();

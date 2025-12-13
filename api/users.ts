@@ -1,13 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { setCorsHeaders } from "./lib/cors.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   const envError = verifyRequiredEnvVars();
@@ -78,6 +75,25 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
     const updateData: Record<string, any> = {};
 
     if (avatar !== undefined) {
+      // Validate avatar size (data URLs can be huge)
+      const MAX_AVATAR_SIZE = 200 * 1024; // 200KB limit
+      if (avatar && avatar.length > MAX_AVATAR_SIZE) {
+        return res.status(400).json({
+          success: false,
+          error: "Avatar image too large. Please use an image under 200KB.",
+        });
+      }
+
+      // Basic validation for data URL format
+      if (avatar && avatar.startsWith('data:')) {
+        if (!avatar.startsWith('data:image/')) {
+          return res.status(400).json({
+            success: false,
+            error: "Avatar must be an image",
+          });
+        }
+      }
+
       updateData.avatar = avatar;
     }
 

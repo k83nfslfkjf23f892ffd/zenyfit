@@ -1,14 +1,19 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
 import { calculateWorkoutXP, calculateLevel } from "../shared/constants.js";
+import { setCorsHeaders } from "./lib/cors.js";
+import { rateLimit, RateLimits } from "./lib/rate-limit.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
+  }
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  // Rate limit write operations
+  if (req.method === "POST" || req.method === "DELETE") {
+    if (rateLimit(req, res, RateLimits.WRITE)) {
+      return; // Rate limit exceeded
+    }
   }
 
   const envError = verifyRequiredEnvVars();
@@ -122,6 +127,7 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
 
     const xpGained = calculateWorkoutXP(sanitizedExerciseType, amount);
 
+    const timestamp = Date.now();
     const logEntry = {
       userId,
       exerciseType: sanitizedExerciseType,
@@ -129,24 +135,33 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
       unit: unit || "reps",
       isCustom: isCustom || false,
       xpGained,
-      timestamp: Date.now(),
+      timestamp,
       createdAt: new Date().toISOString(),
     };
 
-    const logRef = await db.collection("exercise_logs").add(logEntry);
+    // Use batch write for atomicity - all writes succeed or all fail
+    const batch = db.batch();
 
-    // Also write to user's workouts subcollection for trend data
-    const workoutSubcollectionRef = await db.collection("users").doc(userId).collection("workouts").add({
-      exerciseType,
+    // Write to exercise_logs collection
+    const logRef = db.collection("exercise_logs").doc();
+    batch.set(logRef, logEntry);
+
+    // Write to user's workouts subcollection for trend data
+    const workoutSubcollectionRef = db.collection("users").doc(userId).collection("workouts").doc();
+    batch.set(workoutSubcollectionRef, {
+      exerciseType: sanitizedExerciseType,
       amount,
-      timestamp: logEntry.timestamp,
+      timestamp,
       xpGained,
     });
 
-    // Store the subcollection doc ID in the main log for deletion tracking
-    await logRef.update({
+    // Update log with subcollection ID reference
+    batch.update(logRef, {
       workoutSubcollectionId: workoutSubcollectionRef.id,
     });
+
+    // Commit all writes atomically
+    await batch.commit();
 
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();

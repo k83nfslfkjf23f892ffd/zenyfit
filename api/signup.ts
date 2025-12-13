@@ -1,21 +1,24 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { setCorsHeaders } from "./lib/cors.js";
+import { rateLimit, RateLimits } from "./lib/rate-limit.js";
 
 function generateAvatar(username: string): string {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  if (setCorsHeaders(req, res)) {
+    return; // Preflight handled
   }
 
   if (req.method !== "POST") {
     return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
+
+  // Rate limit: 5 requests per 15 minutes
+  if (rateLimit(req, res, RateLimits.AUTH)) {
+    return; // Rate limit exceeded
   }
 
   const envError = verifyRequiredEnvVars();
@@ -39,8 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: "Username can only contain letters, numbers, and underscores" });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ success: false, error: "Password must be at least 6 characters" });
+  if (password.length < 12) {
+    return res.status(400).json({ success: false, error: "Password must be at least 12 characters for security" });
   }
 
   const isMasterCode = normalizedCode === masterCode?.trim().toUpperCase();
