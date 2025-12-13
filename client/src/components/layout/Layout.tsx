@@ -24,7 +24,7 @@ export default function Layout({ children, hideNav = false }: LayoutProps) {
                       <main
                         className="relative z-10 flex-1 overflow-y-auto pt-6"
                         style={{
-                          paddingBottom: hideNav ? '1.5rem' : 'calc(5rem + max(env(safe-area-inset-bottom, 0px), 12px))',
+                          paddingBottom: hideNav ? '1.5rem' : '5rem',
                         }}
                       >
                         {children}
