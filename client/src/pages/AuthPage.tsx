@@ -206,7 +206,7 @@ export default function AuthPage() {
           <p className="text-muted-foreground">Find your strength. Find your zen.</p>
         </div>
 
-        <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm dark:bg-zinc-900 dark:border-zinc-800">
+        <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm dark:bg-black dark:border-zinc-800">
           <CardHeader>
             <CardTitle className="text-center font-heading">
               {step === "login" ? "Welcome Back" : "Create Account"}
@@ -276,10 +276,10 @@ export default function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -299,10 +299,10 @@ export default function AuthPage() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
                       tabIndex={-1}
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
                 </div>

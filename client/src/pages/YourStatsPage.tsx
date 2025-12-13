@@ -269,7 +269,7 @@ export default function YourStatsPage() {
           <Activity size={20} className="text-primary" />
           Exercise Distribution
         </h2>
-        <Card className="border-none shadow-md dark:bg-zinc-900 overflow-hidden">
+        <Card className="border-none shadow-md dark:bg-black overflow-hidden">
           <CardContent className="pt-2 px-4 pb-4">
             {loadingLogs ? (
               <div className="h-40 flex items-center justify-center">
@@ -388,7 +388,7 @@ export default function YourStatsPage() {
             const current = calculateMilestoneProgress(milestone);
             const progress = Math.min(100, Math.round((current / milestone.target) * 100));
             return (
-              <Card key={milestone.id} className="border-none shadow-sm dark:bg-zinc-900 relative group">
+              <Card key={milestone.id} className="border-none shadow-sm dark:bg-black relative group">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2 justify-between">
                     <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export default function YourStatsPage() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {personalBests.map((pb) => (
-            <Card key={pb.name} className="border-none shadow-sm dark:bg-zinc-900">
+            <Card key={pb.name} className="border-none shadow-sm dark:bg-black">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">{pb.icon}</span>
@@ -446,7 +446,7 @@ export default function YourStatsPage() {
           <TrendingUp size={20} className="text-primary" />
           Consistency Score
         </h2>
-        <Card className="border-none shadow-md dark:bg-zinc-900">
+        <Card className="border-none shadow-md dark:bg-black">
           <CardContent className="p-6 space-y-4">
             <div className="flex items-baseline gap-2">
               <span className="text-5xl font-bold text-primary">{consistencyScore}%</span>
