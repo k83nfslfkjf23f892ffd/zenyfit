@@ -15,7 +15,8 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-border z-50 safe-bottom max-w-md mx-auto pb-3"
+      className="fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-border z-50 max-w-md mx-auto"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-center justify-evenly h-20 px-2">
         {navItems.map((item) => {
@@ -29,16 +30,8 @@ export default function BottomNav() {
                   item.primary && "text-primary"
                 )}
               >
-                {item.primary ? (
-                  <div className="bg-primary text-primary-foreground p-4 rounded-full shadow-lg -mt-8 border-4 border-background">
-                    <item.icon size={32} />
-                  </div>
-                ) : (
-                  <item.icon size={26} strokeWidth={isActive ? 2.5 : 2} />
-                )}
-                {!item.primary && (
-                  <span className="text-[11px] font-medium mt-1.5 whitespace-nowrap">{item.label}</span>
-                )}
+                <item.icon size={26} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[11px] font-medium mt-1.5 whitespace-nowrap">{item.label}</span>
               </button>
             </Link>
           );
