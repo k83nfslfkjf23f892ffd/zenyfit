@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
+import ScrollHeader from "./ScrollHeader";
 import { Toaster } from "@/components/ui/toaster";
 import bgPattern from "@/assets/images/subtle_geometric_pattern_background.png";
 
@@ -18,6 +19,7 @@ export default function Layout({ children, hideNav = false }: LayoutProps) {
           }}
         >
                     <div className="max-w-md mx-auto relative bg-background shadow-2xl flex flex-col min-h-screen px-4">
+                      <ScrollHeader />
                       <div className="absolute inset-0 pointer-events-none opacity-[0.05] z-0"
                            style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: 'cover' }} />
 
