@@ -3,7 +3,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Edit2, Palette, Sun, Moon, LogOut, RotateCcw, Upload, Copy, Trash2, UserPlus, Plus, ArrowLeft, Share2, Loader2 } from "lucide-react";
+import { Edit2, Palette, Sun, Moon, LogOut, RotateCcw, Upload, Copy, Trash2, UserPlus, Plus, ArrowLeft, Share2, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useThemeToggle } from "@/hooks/use-theme";
 import { useLocation } from "wouter";
@@ -29,6 +29,9 @@ export default function ProfileSettingsPage() {
   const [hasGeneratedNewAvatar, setHasGeneratedNewAvatar] = useState(false);
   const [username, setUsername] = useState(userProfile?.username || "");
   const [usernameChanged, setUsernameChanged] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
   const [croppingImage, setCroppingImage] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -54,6 +57,39 @@ export default function ProfileSettingsPage() {
   useEffect(() => {
     fetchInviteCodes();
   }, [user]);
+
+  // Check username availability with debouncing
+  useEffect(() => {
+    const originalUsername = userProfile?.username;
+
+    if (!usernameChanged || !username || username.length < 3 || username === originalUsername) {
+      setUsernameAvailable(null);
+      setUsernameError(null);
+      setCheckingUsername(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setCheckingUsername(true);
+      setUsernameError(null);
+
+      try {
+        const response = await fetch(getApiUrl(`/api/check-username?username=${encodeURIComponent(username)}`));
+        const data = await response.json();
+
+        if (data.success) {
+          setUsernameAvailable(data.available);
+          setUsernameError(data.reason);
+        }
+      } catch (error) {
+        console.error("Failed to check username:", error);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [username, usernameChanged, userProfile?.username]);
 
   const fetchInviteCodes = async () => {
     if (!user) {
@@ -488,19 +524,37 @@ export default function ProfileSettingsPage() {
 
             <form onSubmit={handleSaveProfile} className="space-y-3">
               <label className="text-sm font-medium">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setUsernameChanged(true);
-                }}
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''));
+                    setUsernameChanged(true);
+                  }}
+                  maxLength={20}
+                  className="w-full px-4 py-3 pr-10 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-base"
+                />
+                {usernameChanged && username !== userProfile?.username && username.length >= 3 && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {checkingUsername ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : usernameAvailable === true ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : usernameAvailable === false ? (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {usernameError && usernameChanged && (
+                <p className="text-xs text-red-500">{usernameError}</p>
+              )}
               {usernameChanged && (
                 <button
                   type="submit"
-                  className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  disabled={usernameAvailable === false || checkingUsername}
+                  className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
                 >
                   Save Changes
                 </button>

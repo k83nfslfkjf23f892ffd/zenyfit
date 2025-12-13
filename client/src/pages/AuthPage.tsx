@@ -218,11 +218,11 @@ export default function AuthPage() {
                 <div className="space-y-2">
                   <div className="relative">
                     <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Invite Code" 
+                    <Input
+                      placeholder="Invite Code"
                       value={inviteCode}
                       onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                      className="bg-background pl-10 uppercase tracking-wider"
+                      className="bg-background pl-10 uppercase tracking-wider h-12 text-base"
                       data-testid="input-invite-code"
                       disabled={loading}
                       maxLength={19}
@@ -240,7 +240,7 @@ export default function AuthPage() {
                     placeholder="Username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
-                    className="bg-background pr-10"
+                    className="bg-background pr-10 h-12 text-base"
                     data-testid="input-username"
                     disabled={loading}
                     maxLength={20}
@@ -269,7 +269,7 @@ export default function AuthPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-background pr-10"
+                    className="bg-background pr-10 h-12 text-base"
                     data-testid="input-password"
                     disabled={loading}
                   />
@@ -292,7 +292,7 @@ export default function AuthPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="bg-background pr-10"
+                      className="bg-background pr-10 h-12 text-base"
                       data-testid="input-confirm-password"
                       disabled={loading}
                     />
@@ -312,9 +312,9 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Button 
-                  type="submit" 
-                  className="w-full font-semibold" 
+                <Button
+                  type="submit"
+                  className="w-full font-semibold text-base h-12"
                   size="lg"
                   disabled={loading}
                   data-testid={step === "login" ? "button-signin" : "button-signup"}
