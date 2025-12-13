@@ -96,7 +96,7 @@ function GlobalLeaderboard() {
       if (!user) return;
       
       try {
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         
         const [workoutsResponse, trendResponse] = await Promise.all([

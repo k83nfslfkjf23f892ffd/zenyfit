@@ -88,6 +88,19 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
 
     const logRef = await db.collection("exercise_logs").add(logEntry);
 
+    // Also write to user's workouts subcollection for trend data
+    const workoutSubcollectionRef = await db.collection("users").doc(userId).collection("workouts").add({
+      exerciseType,
+      amount,
+      timestamp: logEntry.timestamp,
+      xpGained,
+    });
+
+    // Store the subcollection doc ID in the main log for deletion tracking
+    await logRef.update({
+      workoutSubcollectionId: workoutSubcollectionRef.id,
+    });
+
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();
 
@@ -239,9 +252,56 @@ async function handleDeleteWorkout(req: VercelRequest, res: VercelResponse) {
       updateData.totalRunningKm = Math.max(0, (userData.totalRunningKm || 0) - amount);
     }
 
-    // Delete the log and update user in a batch
+    // Revert challenge progress if not a custom exercise
+    if (!logData.isCustom) {
+      try {
+        const now = Date.now();
+        const challengesSnapshot = await db.collection("challenges")
+          .where("participantIds", "array-contains", userId)
+          .where("type", "==", exerciseType)
+          .get();
+
+        for (const challengeDoc of challengesSnapshot.docs) {
+          await db.runTransaction(async (transaction) => {
+            const freshDoc = await transaction.get(challengeDoc.ref);
+            if (!freshDoc.exists) return;
+
+            const challengeData = freshDoc.data()!;
+
+            // Only update if the workout was logged during the challenge period
+            if (logData.timestamp >= challengeData.startDate && logData.timestamp <= challengeData.endDate) {
+              const participants = challengeData.participants || [];
+              const updatedParticipants = participants.map((p: any) => {
+                if (p.userId === userId) {
+                  return {
+                    ...p,
+                    progress: Math.max(0, (p.progress || 0) - amount),
+                  };
+                }
+                return p;
+              });
+
+              transaction.update(challengeDoc.ref, {
+                participants: updatedParticipants,
+              });
+            }
+          });
+        }
+      } catch (challengeError) {
+        console.error("Failed to revert challenge progress:", challengeError);
+      }
+    }
+
+    // Delete the log, subcollection entry, and update user in a batch
     const batch = db.batch();
     batch.delete(logRef);
+
+    // Also delete from workouts subcollection if tracked
+    if (logData.workoutSubcollectionId) {
+      const workoutSubRef = db.collection("users").doc(userId).collection("workouts").doc(logData.workoutSubcollectionId);
+      batch.delete(workoutSubRef);
+    }
+
     batch.update(userRef, updateData);
     await batch.commit();
 

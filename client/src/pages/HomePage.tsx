@@ -85,7 +85,7 @@ export default function HomePage() {
     const fetchWorkoutLogs = async () => {
       if (!user) return;
       try {
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         const response = await fetch(getApiUrl("/api/workouts"), {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -105,7 +105,7 @@ export default function HomePage() {
     const fetchChallenges = async () => {
       if (!user) return;
       try {
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         const response = await fetch(getApiUrl("/api/challenges"), {
           headers: { Authorization: `Bearer ${token}` },
         });

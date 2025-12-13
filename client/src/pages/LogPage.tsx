@@ -269,7 +269,7 @@ export default function LogPage() {
         throw new Error("Not authenticated");
       }
       
-      const idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser.getIdToken(true);
       
       const response = await fetch(getApiUrl("/api/workouts"), {
         method: "POST",
@@ -888,7 +888,7 @@ export default function LogPage() {
                       throw new Error("Not authenticated");
                     }
 
-                    const idToken = await auth.currentUser.getIdToken();
+                    const idToken = await auth.currentUser.getIdToken(true);
 
                     const response = await fetch(getApiUrl("/api/workouts"), {
                       method: "DELETE",

@@ -93,7 +93,7 @@ export default function ChallengesPage() {
     setError(null);
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       
       const [challengesRes, invitesRes, usersRes] = await Promise.all([
         fetch(getApiUrl("/api/challenges"), {
@@ -146,7 +146,7 @@ export default function ChallengesPage() {
     if (!invite) return;
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl(`/api/invites?action=respond&id=${inviteId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +186,7 @@ export default function ChallengesPage() {
     if (!invite) return;
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl(`/api/invites?action=respond&id=${inviteId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,7 +222,7 @@ export default function ChallengesPage() {
     if (!user) return;
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl(`/api/challenges?action=join&id=${challengeId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -328,7 +328,7 @@ export default function ChallengesPage() {
     setSubmitting(true);
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       
       const response = await fetch(getApiUrl("/api/challenges"), {
         method: "POST",
@@ -425,7 +425,7 @@ export default function ChallengesPage() {
     if (!user) return;
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl(`/api/challenges?action=invite&id=${challengeId}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

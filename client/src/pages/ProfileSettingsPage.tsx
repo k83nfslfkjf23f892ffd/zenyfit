@@ -62,7 +62,7 @@ export default function ProfileSettingsPage() {
     }
     
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       const response = await fetch(getApiUrl("/api/invite-codes"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -86,7 +86,7 @@ export default function ProfileSettingsPage() {
     if (!user) return false;
     setSavingAvatar(true);
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl("/api/users"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -251,7 +251,7 @@ export default function ProfileSettingsPage() {
     setGeneratingCode(true);
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl("/api/invite-codes"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -341,7 +341,7 @@ export default function ProfileSettingsPage() {
     if (!user) return;
     
     try {
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
       const response = await fetch(getApiUrl("/api/invite-codes"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },

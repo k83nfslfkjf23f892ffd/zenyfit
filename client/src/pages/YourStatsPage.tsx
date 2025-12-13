@@ -55,7 +55,7 @@ export default function YourStatsPage() {
       }
       
       try {
-        const token = await user.getIdToken();
+        const token = await user.getIdToken(true);
         const response = await fetch(getApiUrl("/api/workouts"), {
           headers: { Authorization: `Bearer ${token}` },
         });

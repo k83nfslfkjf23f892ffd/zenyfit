@@ -10,17 +10,33 @@ export function initializeFirebaseAdmin() {
   }
 
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  
-  if (serviceAccount) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+
+  if (!serviceAccount) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required");
+  }
+
+  if (!projectId) {
+    throw new Error("FIREBASE_PROJECT_ID environment variable is required");
+  }
+
+  try {
     const parsedServiceAccount = JSON.parse(serviceAccount);
+
+    // Validate that the service account has required fields
+    if (!parsedServiceAccount.project_id || !parsedServiceAccount.private_key || !parsedServiceAccount.client_email) {
+      throw new Error("Invalid service account key: missing required fields");
+    }
+
     adminApp = admin.initializeApp({
       credential: admin.credential.cert(parsedServiceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      projectId: projectId,
     });
-  } else {
-    adminApp = admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-    });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not valid JSON");
+    }
+    throw error;
   }
 
   adminDb = admin.firestore();
@@ -54,8 +70,11 @@ export function verifyClientEnvVars(): string | null {
     "FIREBASE_API_KEY",
     "FIREBASE_AUTH_DOMAIN",
     "FIREBASE_PROJECT_ID",
+    "FIREBASE_STORAGE_BUCKET",
+    "FIREBASE_MESSAGING_SENDER_ID",
+    "FIREBASE_APP_ID",
   ];
-  
+
   const missing = required.filter(key => !process.env[key]);
   if (missing.length > 0) {
     return `Missing environment variables: ${missing.join(", ")}`;
