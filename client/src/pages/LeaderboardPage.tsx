@@ -169,7 +169,7 @@ function GlobalLeaderboard() {
 
       {/* Toggleable Chart Section */}
       {viewMode === "list" ? (
-        <Card className="border-none shadow-xl bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden">
+        <Card className="border-none shadow-xl bg-slate-100 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg font-medium text-slate-900 dark:text-zinc-100">Quick Comparison</CardTitle>
@@ -229,7 +229,7 @@ function GlobalLeaderboard() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-none shadow-xl bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden">
+        <Card className="border-none shadow-xl bg-slate-100 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
                <div>
@@ -313,7 +313,7 @@ function GlobalLeaderboard() {
       )}
 
       {/* Ranking List - Always visible now */}
-      <Card className="border-none shadow-sm dark:bg-black">
+      <Card className="border-none shadow-sm dark:bg-zinc-900">
         <CardContent className="p-0">
            <div className="bg-primary/5 dark:bg-zinc-800 p-4 flex items-center justify-between border-b border-primary/10 dark:border-zinc-700">
               <div className="flex items-center gap-2 text-primary dark:text-white font-semibold">

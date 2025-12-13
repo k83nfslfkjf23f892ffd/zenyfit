@@ -462,7 +462,7 @@ export default function ProfileSettingsPage() {
             Profile
           </h2>
 
-          <div className="bg-card dark:bg-black rounded-2xl p-6 space-y-6 border border-border/50">
+          <div className="bg-card dark:bg-zinc-900 rounded-2xl p-6 space-y-6 border border-border/50">
             <div className="space-y-3">
               <label className="text-sm font-medium">Avatar</label>
               <div className="flex items-center gap-4">
@@ -569,7 +569,7 @@ export default function ProfileSettingsPage() {
             Preferences
           </h2>
 
-          <div className="bg-card dark:bg-black rounded-2xl p-6 space-y-4 border border-border/50">
+          <div className="bg-card dark:bg-zinc-900 rounded-2xl p-6 space-y-4 border border-border/50">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium flex items-center gap-2">
                 {currentTheme === "light" ? <Sun size={16} /> : <Moon size={16} />}
@@ -603,7 +603,7 @@ export default function ProfileSettingsPage() {
             </button>
           </div>
 
-          <div className="bg-card dark:bg-black rounded-2xl p-6 space-y-3 border border-border/50">
+          <div className="bg-card dark:bg-zinc-900 rounded-2xl p-6 space-y-3 border border-border/50">
             {loadingCodes ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

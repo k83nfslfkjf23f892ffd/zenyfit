@@ -206,7 +206,7 @@ export default function AuthPage() {
           <p className="text-muted-foreground">Find your strength. Find your zen.</p>
         </div>
 
-        <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm dark:bg-black dark:border-zinc-800">
+        <Card className="w-full border-none shadow-lg bg-white/80 backdrop-blur-sm dark:bg-zinc-900 dark:border-zinc-800">
           <CardHeader>
             <CardTitle className="text-center font-heading">
               {step === "login" ? "Welcome Back" : "Create Account"}

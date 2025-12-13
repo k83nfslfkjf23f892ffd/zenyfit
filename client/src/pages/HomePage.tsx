@@ -347,7 +347,7 @@ export default function HomePage() {
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
               ) : challenges.length === 0 ? (
-                <Card className="border-none shadow-sm dark:bg-black">
+                <Card className="border-none shadow-sm dark:bg-zinc-900">
                   <CardContent className="p-4 text-center">
                     <p className="text-sm text-muted-foreground">No active challenges. Create or join one!</p>
                   </CardContent>
@@ -357,9 +357,9 @@ export default function HomePage() {
                   const myProgress = challenge.participants.find(p => p.userId === user?.uid);
                   const progressPercent = myProgress ? Math.round((myProgress.progress / challenge.goal) * 100) : 0;
                   return (
-                    <Card key={challenge.id} className="overflow-hidden border-none shadow-sm dark:bg-black">
+                    <Card key={challenge.id} className="overflow-hidden border-none shadow-sm dark:bg-zinc-900">
                       <CardContent className="p-0">
-                        <div className="bg-card dark:bg-black p-4">
+                        <div className="bg-card dark:bg-zinc-900 p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="font-semibold">{challenge.title}</h3>
@@ -398,7 +398,7 @@ export default function HomePage() {
               <TrendingUp className="text-gray-500" size={20} />
               Recent Logs
             </h2>
-            <div className="bg-card dark:bg-black rounded-2xl p-4 shadow-sm space-y-4">
+            <div className="bg-card dark:bg-zinc-900 rounded-2xl p-4 shadow-sm space-y-4">
               {loadingLogs ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -629,7 +629,7 @@ function StatCard({ title, value, unit, color, bgColor }: {
   bgColor: string;
 }) {
   return (
-    <Card className="border-none shadow-md dark:bg-black overflow-hidden">
+    <Card className="border-none shadow-md dark:bg-zinc-900 overflow-hidden">
       <CardContent className="p-4">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", bgColor)}>
           <Activity className={color} size={20} />

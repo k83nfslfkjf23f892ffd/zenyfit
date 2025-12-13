@@ -711,7 +711,7 @@ export default function ChallengesPage() {
                   Challenge Invitations
                 </h3>
                 {invites.map(invite => (
-                  <Card key={invite.id} className="overflow-hidden border-none shadow-sm dark:bg-black">
+                  <Card key={invite.id} className="overflow-hidden border-none shadow-sm dark:bg-zinc-900">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -849,7 +849,7 @@ function ChallengeCard({
   const hasEnded = endDate <= now;
 
   return (
-    <Card className="overflow-hidden border-none shadow-md hover:shadow-lg transition-shadow duration-300 dark:bg-black">
+    <Card className="overflow-hidden border-none shadow-md hover:shadow-lg transition-shadow duration-300 dark:bg-zinc-900">
       <div 
         className="h-2" 
         style={{ 
