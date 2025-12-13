@@ -20,7 +20,7 @@ export default function Layout({ children, hideNav = false }: LayoutProps) {
         >
                     <div className="max-w-md mx-auto relative bg-background shadow-2xl flex flex-col min-h-screen px-4">
                       <ScrollHeader />
-                      <div className="absolute inset-0 pointer-events-none opacity-[0.05] z-0"
+                      <div className="absolute inset-0 pointer-events-none opacity-[0.05] dark:opacity-0 z-0"
                            style={{ backgroundImage: `url(${bgPattern})`, backgroundSize: 'cover' }} />
 
                       <main
