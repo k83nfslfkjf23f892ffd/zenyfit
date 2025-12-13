@@ -1,0 +1,32 @@
+{
+  "name": "ZenyFit - Social Fitness Tracker",
+  "short_name": "ZenyFit",
+  "description": "Track your fitness journey, compete with friends, and find your zen.",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#000000",
+  "theme_color": "#6C5CE7",
+  "orientation": "portrait-primary",
+  "id": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["fitness", "health", "lifestyle"],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}
