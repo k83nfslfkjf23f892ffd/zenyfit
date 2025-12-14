@@ -28,6 +28,8 @@ export default function YourStatsPage() {
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterDateRange, setFilterDateRange] = useState<number>(30); // days
 
   useEffect(() => {
     const loadCustomExercises = () => {
@@ -159,7 +161,23 @@ export default function YourStatsPage() {
     });
   };
 
-  const exerciseCounts = exerciseLogs.reduce((acc, ex) => {
+  // Filter exercise logs based on type and date range
+  const filteredLogs = exerciseLogs.filter(log => {
+    // Filter by type
+    if (filterType !== "all" && log.exerciseType !== filterType) {
+      return false;
+    }
+
+    // Filter by date range
+    const cutoffDate = Date.now() - (filterDateRange * 24 * 60 * 60 * 1000);
+    if (log.timestamp < cutoffDate) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const exerciseCounts = filteredLogs.reduce((acc, ex) => {
     const typeName = ex.exerciseType.replace('-', ' ').toUpperCase();
     const existing = acc.find(e => e.name === typeName);
     if (existing) {
@@ -306,9 +324,52 @@ export default function YourStatsPage() {
 
   const totalReps = exerciseCounts.reduce((sum, item) => sum + item.totalAmount, 0);
 
+  // Get unique exercise types for filter
+  const exerciseTypes = ["all", ...Array.from(new Set(exerciseLogs.map(log => log.exerciseType)))];
+
   return (
     <Layout>
       <h1 className="text-2xl font-heading font-bold mb-6">Your Stats</h1>
+
+      {/* Filter Controls */}
+      <Card className="border-none shadow-sm dark:bg-zinc-900 mb-6">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground mb-2 block">Exercise Type</Label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+              >
+                {exerciseTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type === "all" ? "All Exercises" : type.replace('-', ' ').toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-2 block">Time Range</Label>
+              <select
+                value={filterDateRange}
+                onChange={(e) => setFilterDateRange(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={14}>Last 14 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+                <option value={365}>Last year</option>
+                <option value={36500}>All time</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Showing {filteredLogs.length} of {exerciseLogs.length} workouts
+          </p>
+        </CardContent>
+      </Card>
 
       <section className="mb-8">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
