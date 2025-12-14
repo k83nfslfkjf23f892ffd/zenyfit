@@ -80,19 +80,22 @@ export default function HomePage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [hasMoreLogs, setHasMoreLogs] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const fetchWorkoutLogs = async () => {
       if (!user) return;
       try {
         const token = await user.getIdToken(true);
-        const response = await fetch(getApiUrl("/api/workouts"), {
+        const response = await fetch(getApiUrl("/api/workouts?limit=20"), {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.logs) {
             setExerciseLogs(data.logs);
+            setHasMoreLogs(data.hasMore || false);
           }
         }
       } catch (err) {
@@ -101,6 +104,30 @@ export default function HomePage() {
         setLoadingLogs(false);
       }
     };
+
+    const loadMoreLogs = async () => {
+      if (!user || loadingMore) return;
+      setLoadingMore(true);
+      try {
+        const token = await user.getIdToken(true);
+        const response = await fetch(getApiUrl(`/api/workouts?limit=20&offset=${exerciseLogs.length}`), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.logs) {
+            setExerciseLogs(prev => [...prev, ...data.logs]);
+            setHasMoreLogs(data.hasMore || false);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load more logs:", err);
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+
+    (window as any).loadMoreLogs = loadMoreLogs;
 
     const fetchChallenges = async () => {
       if (!user) return;
@@ -406,30 +433,49 @@ export default function HomePage() {
               ) : exerciseLogs.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No workout logs yet. Start logging!</p>
               ) : (
-                exerciseLogs.slice(0, 5).map(log => {
-                  const IconComponent = EXERCISE_ICONS[log.exerciseType as keyof typeof EXERCISE_ICONS] || Activity;
-                  return (
-                    <div key={log.id} className="flex justify-between items-center pb-3 border-b last:border-0 last:pb-0 border-dashed border-border/50">
-                      <div className="flex items-center gap-3">
-                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", 
-                          log.exerciseType === 'push-up' ? 'bg-blue-100 text-blue-600' :
-                          log.exerciseType === 'pull-up' ? 'bg-purple-100 text-purple-600' :
-                          log.exerciseType === 'dip' ? 'bg-pink-100 text-pink-600' :
-                          'bg-green-100 text-green-600'
-                        )}>
-                          <IconComponent size={18} />
+                <>
+                  {exerciseLogs.slice(0, 5).map(log => {
+                    const IconComponent = EXERCISE_ICONS[log.exerciseType as keyof typeof EXERCISE_ICONS] || Activity;
+                    return (
+                      <div key={log.id} className="flex justify-between items-center pb-3 border-b last:border-0 last:pb-0 border-dashed border-border/50">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center",
+                            log.exerciseType === 'push-up' ? 'bg-blue-100 text-blue-600' :
+                            log.exerciseType === 'pull-up' ? 'bg-purple-100 text-purple-600' :
+                            log.exerciseType === 'dip' ? 'bg-pink-100 text-pink-600' :
+                            'bg-green-100 text-green-600'
+                          )}>
+                            <IconComponent size={18} />
+                          </div>
+                          <div>
+                            <p className="font-medium capitalize">{log.exerciseType.replace('-', ' ')}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(log.timestamp), "MMM d, h:mm a")}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium capitalize">{log.exerciseType.replace('-', ' ')}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(log.timestamp), "MMM d, h:mm a")}</p>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{log.amount} <span className="text-xs font-normal text-muted-foreground">{log.unit}</span></p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">{log.amount} <span className="text-xs font-normal text-muted-foreground">{log.unit}</span></p>
-                      </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  {hasMoreLogs && (
+                    <Button
+                      onClick={() => (window as any).loadMoreLogs()}
+                      variant="outline"
+                      className="w-full mt-2"
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Load More'
+                      )}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </section>
