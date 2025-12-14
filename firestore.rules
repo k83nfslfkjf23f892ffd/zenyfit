@@ -75,7 +75,19 @@ service cloud.firestore {
       // All writes handled by server for security
       allow create, update, delete: if false;
     }
-    
+
+    // Follows collection
+    // - Users can read follows where they're the follower or following
+    // - All writes handled by server to ensure data integrity
+    match /follows/{followId} {
+      allow read: if isAuthenticated() && (
+        resource.data.followerId == request.auth.uid ||
+        resource.data.followingId == request.auth.uid
+      );
+      // All writes handled by server for security
+      allow create, update, delete: if false;
+    }
+
     // Catch-all: deny access to any other collections
     match /{document=**} {
       allow read, write: if false;

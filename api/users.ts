@@ -142,6 +142,8 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
         totalPushups: 0,
         totalDips: 0,
         totalRunningKm: 0,
+        followerCount: 0,
+        followingCount: 0,
         invitedBy: isMasterCode ? "master" : inviterUserId,
         createdAt: Date.now(),
       });

@@ -16,6 +16,7 @@ import { getApiUrl } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useNotifications } from "@/hooks/use-notifications";
 
 interface Challenge {
   id: string;
@@ -66,6 +67,7 @@ const CHALLENGE_TEMPLATES = [
 export default function ChallengesPage() {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
+  const { requestPermission, challengeInviteNotification } = useNotifications();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [invites, setInvites] = useState<ChallengeInvite[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
@@ -73,6 +75,7 @@ export default function ChallengesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previousInviteCount, setPreviousInviteCount] = useState(0);
 
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [challengeName, setChallengeName] = useState("");
@@ -117,7 +120,20 @@ export default function ChallengesPage() {
       if (invitesRes.ok) {
         const data = await invitesRes.json();
         if (data.success) {
-          setInvites(data.invites || []);
+          const newInvites = data.invites || [];
+
+          // Show notifications for new invites
+          if (previousInviteCount > 0 && newInvites.length > previousInviteCount) {
+            const newestInvite = newInvites[0];
+            await requestPermission();
+            await challengeInviteNotification(
+              newestInvite.invitedByUsername,
+              newestInvite.challengeTitle
+            );
+          }
+
+          setInvites(newInvites);
+          setPreviousInviteCount(newInvites.length);
         }
       }
       
