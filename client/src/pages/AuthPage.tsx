@@ -79,8 +79,8 @@ export default function AuthPage() {
       toast.error("Password is required");
       return;
     }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (password.length < 7) {
+      toast.error("Password must be at least 7 characters");
       return;
     }
     if (!confirmPassword) {

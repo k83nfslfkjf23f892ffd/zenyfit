@@ -79,8 +79,8 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: "Username can only contain letters, numbers, and underscores" });
   }
 
-  if (password.length < 12) {
-    return res.status(400).json({ success: false, error: "Password must be at least 12 characters for security" });
+  if (password.length < 7) {
+    return res.status(400).json({ success: false, error: "Password must be at least 7 characters" });
   }
 
   const isMasterCode = normalizedCode === masterCode?.trim().toUpperCase();
