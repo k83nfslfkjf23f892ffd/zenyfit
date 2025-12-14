@@ -3,7 +3,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Edit2, Palette, Sun, Moon, LogOut, RotateCcw, Upload, Copy, Trash2, UserPlus, Plus, ArrowLeft, Share2, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Edit2, Palette, Sun, Moon, LogOut, RotateCcw, Upload, Copy, Trash2, UserPlus, Plus, ArrowLeft, Share2, Loader2, CheckCircle2, XCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useThemeToggle } from "@/hooks/use-theme";
 import { useLocation } from "wouter";
@@ -613,6 +613,19 @@ export default function ProfileSettingsPage() {
             )}
           </div>
         </section>
+
+        {/* Admin Panel Access */}
+        {userProfile?.isAdmin && (
+          <section className="space-y-4">
+            <button
+              onClick={() => setLocation("/admin")}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors border border-primary/20"
+            >
+              <Shield size={16} />
+              Admin Dashboard
+            </button>
+          </section>
+        )}
 
         <section className="space-y-4">
           <Dialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
