@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from "recharts";
-import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2 } from "lucide-react";
+import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
 import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
+import { useLocation } from "wouter";
 
 interface ExerciseLog {
   id: string;
@@ -25,6 +26,7 @@ interface ExerciseLog {
 export default function YourStatsPage() {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
+  const [, setLocation] = useLocation();
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -329,7 +331,18 @@ export default function YourStatsPage() {
 
   return (
     <Layout>
-      <h1 className="text-2xl font-heading font-bold mb-6">Your Stats</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-heading font-bold">Your Stats</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLocation('/analytics')}
+          className="gap-2"
+        >
+          <BarChart3 size={16} />
+          Analytics
+        </Button>
+      </div>
 
       {/* Filter Controls */}
       <Card className="border-none shadow-sm dark:bg-zinc-900 mb-6">
