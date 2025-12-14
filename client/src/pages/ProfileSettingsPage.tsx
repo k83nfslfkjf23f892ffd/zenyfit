@@ -32,14 +32,6 @@ export default function ProfileSettingsPage() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [isCropping, setIsCropping] = useState(false);
-  const [croppingImage, setCroppingImage] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [inviteCodes, setInviteCodes] = useState<InviteCodeData[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(true);
   const [generatingCode, setGeneratingCode] = useState(false);
@@ -188,89 +180,50 @@ export default function ProfileSettingsPage() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviousAvatarSeed(avatarSeed);
-        setCroppingImage(reader.result as string);
-        setIsCropping(true);
-        setZoom(1);
-        setOffsetX(0);
-        setOffsetY(0);
+        const img = new Image();
+        img.onload = () => {
+          // Create canvas for resizing
+          const canvas = document.createElement('canvas');
+          const targetSize = 128;
+          canvas.width = targetSize;
+          canvas.height = targetSize;
+          const ctx = canvas.getContext('2d');
+
+          if (ctx) {
+            // Calculate dimensions to crop to square and resize
+            const minDim = Math.min(img.width, img.height);
+            const sx = (img.width - minDim) / 2;
+            const sy = (img.height - minDim) / 2;
+
+            // Draw circular clipped image
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, targetSize, targetSize);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(targetSize / 2, targetSize / 2, targetSize / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+            ctx.restore();
+
+            // Convert to JPEG with compression
+            const compressedUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+            setPreviousAvatarSeed(avatarSeed);
+            setCustomAvatarUrl(compressedUrl);
+            setIsAvatarCustomizing(false);
+
+            toast({
+              title: "Avatar Updated!",
+              description: "Your custom avatar has been set.",
+            });
+          }
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - offsetX, y: e.clientY - offsetY });
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging) {
-      setOffsetX(e.clientX - dragStart.x);
-      setOffsetY(e.clientY - dragStart.y);
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleZoom = (direction: 'in' | 'out') => {
-    const factor = direction === 'in' ? 1.1 : 0.9;
-    setZoom(Math.max(0.5, Math.min(3, zoom * factor)));
-  };
-
-  const cropConfirm = () => {
-    if (croppingImage && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          const size = 128;
-          const x = (canvas.width - size) / 2;
-          const y = (canvas.height - size) / 2;
-          
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(canvas.width / 2, canvas.height / 2, size / 2, 0, Math.PI * 2);
-          ctx.clip();
-          
-          ctx.drawImage(
-            img,
-            offsetX + x,
-            offsetY + y,
-            img.width * zoom,
-            img.height * zoom
-          );
-          ctx.restore();
-          
-          const croppedUrl = canvas.toDataURL();
-          setCustomAvatarUrl(croppedUrl);
-          setIsCropping(false);
-          setCroppingImage(null);
-          setIsAvatarCustomizing(false);
-          toast({
-            title: "Avatar Updated!",
-            description: "Your custom avatar has been set.",
-          });
-        };
-        img.src = croppingImage;
-      }
-    }
-  };
-
-  const cancelCrop = () => {
-    setIsCropping(false);
-    setCroppingImage(null);
-    setZoom(1);
-    setOffsetX(0);
-    setOffsetY(0);
-  };
 
   const generateInviteCode = async () => {
     if (!user) return;
