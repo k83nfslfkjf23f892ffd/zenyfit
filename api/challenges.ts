@@ -26,6 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       return handleCreateChallenge(req, res);
     }
+  } else if (req.method === "PATCH" && id) {
+    return handleUpdateChallenge(req, res, id as string);
+  } else if (req.method === "DELETE" && id) {
+    return handleDeleteChallenge(req, res, id as string);
   }
 
   return res.status(405).json({ success: false, error: "Method not allowed" });
@@ -336,5 +340,132 @@ async function handleInviteToChallenge(req: VercelRequest, res: VercelResponse, 
   } catch (error: any) {
     console.error("Send invite error:", error);
     return res.status(500).json({ success: false, error: error.message || "Failed to send invite" });
+  }
+}
+
+async function handleUpdateChallenge(req: VercelRequest, res: VercelResponse, id: string) {
+  const { idToken, title, description, goal, endDate } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ success: false, error: "Missing token" });
+  }
+
+  try {
+    const user = await verifyTokenFromBody(idToken);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid token" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const challengeRef = db.collection("challenges").doc(id);
+    const challengeDoc = await challengeRef.get();
+
+    if (!challengeDoc.exists) {
+      return res.status(404).json({ success: false, error: "Challenge not found" });
+    }
+
+    const challengeData = challengeDoc.data()!;
+
+    // Only creator can update
+    if (challengeData.createdBy !== userId) {
+      return res.status(403).json({ success: false, error: "Only the creator can update this challenge" });
+    }
+
+    // Build update object
+    const updateData: Record<string, any> = {};
+
+    if (title !== undefined) {
+      if (title.length < 3 || title.length > 100) {
+        return res.status(400).json({ success: false, error: "Title must be 3-100 characters" });
+      }
+      updateData.title = title;
+    }
+
+    if (description !== undefined) {
+      if (description.length > 500) {
+        return res.status(400).json({ success: false, error: "Description too long (max 500 characters)" });
+      }
+      updateData.description = description;
+    }
+
+    if (goal !== undefined) {
+      if (typeof goal !== 'number' || goal <= 0) {
+        return res.status(400).json({ success: false, error: "Goal must be a positive number" });
+      }
+      updateData.goal = goal;
+    }
+
+    if (endDate !== undefined) {
+      if (endDate <= Date.now()) {
+        return res.status(400).json({ success: false, error: "End date must be in the future" });
+      }
+      updateData.endDate = endDate;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, error: "No fields to update" });
+    }
+
+    updateData.updatedAt = Date.now();
+
+    await challengeRef.update(updateData);
+
+    return res.json({ success: true, updated: updateData });
+  } catch (error: any) {
+    console.error("Update challenge error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to update challenge" });
+  }
+}
+
+async function handleDeleteChallenge(req: VercelRequest, res: VercelResponse, id: string) {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ success: false, error: "Missing token" });
+  }
+
+  try {
+    const user = await verifyTokenFromBody(idToken);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid token" });
+    }
+
+    const { db } = getAdminInstances();
+    const userId = user.userId;
+
+    const challengeRef = db.collection("challenges").doc(id);
+    const challengeDoc = await challengeRef.get();
+
+    if (!challengeDoc.exists) {
+      return res.status(404).json({ success: false, error: "Challenge not found" });
+    }
+
+    const challengeData = challengeDoc.data()!;
+
+    // Only creator can delete
+    if (challengeData.createdBy !== userId) {
+      return res.status(403).json({ success: false, error: "Only the creator can delete this challenge" });
+    }
+
+    // Delete associated invites
+    const invitesSnapshot = await db.collection("challengeInvites")
+      .where("challengeId", "==", id)
+      .get();
+
+    const batch = db.batch();
+    batch.delete(challengeRef);
+
+    invitesSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error("Delete challenge error:", error);
+    return res.status(500).json({ success: false, error: error.message || "Failed to delete challenge" });
   }
 }
