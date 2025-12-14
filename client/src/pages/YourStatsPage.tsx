@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from "recharts";
-import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2, BarChart3 } from "lucide-react";
+import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2, BarChart3, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
 import { useAuth } from "@/hooks/use-auth";
@@ -333,15 +333,26 @@ export default function YourStatsPage() {
     <Layout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-heading font-bold">Your Stats</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLocation('/analytics')}
-          className="gap-2"
-        >
-          <BarChart3 size={16} />
-          Analytics
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation('/achievements')}
+            className="gap-2"
+          >
+            <Trophy size={16} />
+            Badges
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation('/analytics')}
+            className="gap-2"
+          >
+            <BarChart3 size={16} />
+            Charts
+          </Button>
+        </div>
       </div>
 
       {/* Filter Controls */}
