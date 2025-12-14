@@ -79,6 +79,14 @@ export function useNotifications() {
     });
   };
 
+  const levelUpNotification = async (newLevel: number, xpGained: number) => {
+    await showNotification(`Level Up! 🎉`, {
+      body: `Congratulations! You reached Level ${newLevel}! (+${xpGained} XP)`,
+      tag: 'level-up',
+      requireInteraction: true,
+    });
+  };
+
   return {
     requestPermission,
     showNotification,
@@ -87,5 +95,6 @@ export function useNotifications() {
     rankChangeNotification,
     workoutNotification,
     remindWorkoutNotification,
+    levelUpNotification,
   };
 }

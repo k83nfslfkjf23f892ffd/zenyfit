@@ -141,7 +141,7 @@ function isStandardExerciseType(type: string): type is StandardExerciseType {
 export default function LogPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { workoutNotification, remindWorkoutNotification } = useNotifications();
+  const { workoutNotification, levelUpNotification } = useNotifications();
   const { user, refreshProfile } = useAuth();
   const [type, setType] = useState<"push-up" | "pull-up" | "dip" | "run">("push-up");
   const [amount, setAmount] = useState<number>(0);
@@ -300,9 +300,14 @@ export default function LogPage() {
         title: "Workout Logged!",
         description: `${finalAmount} ${unit} of ${exerciseName}. ${xpMessage}`,
       });
-      
-      // Show notification
+
+      // Show notifications
       workoutNotification(exerciseName, finalAmount);
+
+      // Show level-up notification if user leveled up
+      if (result.leveledUp) {
+        levelUpNotification(result.newLevel, result.xpGained);
+      }
 
       // Store last entry for revert (with logId from API response)
       if (result.logId) {
