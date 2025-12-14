@@ -99,7 +99,7 @@ export default function ProfileSettingsPage() {
     
     try {
       const token = await user.getIdToken(true);
-      const response = await fetch(getApiUrl("/api/invite-codes"), {
+      const response = await fetch(getApiUrl("/api/invites?type=codes"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -288,7 +288,7 @@ export default function ProfileSettingsPage() {
     
     try {
       const idToken = await user.getIdToken(true);
-      const response = await fetch(getApiUrl("/api/invite-codes"), {
+      const response = await fetch(getApiUrl("/api/invites?type=codes"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
@@ -378,7 +378,7 @@ export default function ProfileSettingsPage() {
     
     try {
       const idToken = await user.getIdToken(true);
-      const response = await fetch(getApiUrl("/api/invite-codes"), {
+      const response = await fetch(getApiUrl("/api/invites?type=codes"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, code }),

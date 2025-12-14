@@ -94,7 +94,7 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(getApiUrl("/api/signup"), {
+      const response = await fetch(getApiUrl("/api/users"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -103,7 +103,7 @@ function GlobalLeaderboard() {
           fetch(getApiUrl("/api/workouts?days=7"), {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(getApiUrl("/api/leaderboard-trend"))
+          fetch(getApiUrl("/api/leaderboard?action=trend"))
         ]);
         
         const dailyTotals: Record<string, number> = {};
