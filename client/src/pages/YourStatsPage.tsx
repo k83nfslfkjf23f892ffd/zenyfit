@@ -76,17 +76,55 @@ export default function YourStatsPage() {
     fetchWorkoutLogs();
   }, [user]);
 
-  const [milestones, setMilestones] = useState([
+  const defaultMilestones = [
     { id: 1, name: "100 Pull-ups", target: 100, icon: "🎯" },
     { id: 2, name: "500 Push-ups", target: 500, icon: "💪" },
     { id: 3, name: "50km Running", target: 50, icon: "🏃" },
     { id: 4, name: "7-Day Streak", target: 7, icon: "🔥" },
-  ]);
+  ];
+  const [milestones, setMilestones] = useState(userProfile?.milestones || defaultMilestones);
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
   const [newMilestoneName, setNewMilestoneName] = useState("");
   const [newMilestoneTarget, setNewMilestoneTarget] = useState("");
+  const [savingMilestones, setSavingMilestones] = useState(false);
 
-  const handleAddMilestone = () => {
+  // Sync milestones from userProfile when it updates
+  useEffect(() => {
+    if (userProfile?.milestones) {
+      setMilestones(userProfile.milestones);
+    }
+  }, [userProfile?.milestones]);
+
+  const saveMilestonesToBackend = async (updatedMilestones: typeof milestones) => {
+    if (!user) return;
+
+    setSavingMilestones(true);
+    try {
+      const idToken = await user.getIdToken(true);
+      const response = await fetch(getApiUrl("/api/users"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, milestones: updatedMilestones }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to save milestones");
+      }
+    } catch (error) {
+      console.error("Error saving milestones:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save milestones",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingMilestones(false);
+    }
+  };
+
+  const handleAddMilestone = async () => {
     if (newMilestoneName.trim() && newMilestoneTarget) {
       const newMilestone = {
         id: Math.max(...milestones.map(m => m.id), 0) + 1,
@@ -94,10 +132,14 @@ export default function YourStatsPage() {
         target: parseFloat(newMilestoneTarget),
         icon: "⭐",
       };
-      setMilestones([...milestones, newMilestone]);
+      const updatedMilestones = [...milestones, newMilestone];
+      setMilestones(updatedMilestones);
       setNewMilestoneName("");
       setNewMilestoneTarget("");
       setIsAddingMilestone(false);
+
+      await saveMilestonesToBackend(updatedMilestones);
+
       toast({
         title: "Milestone Created!",
         description: `${newMilestoneName} has been added.`,
@@ -105,8 +147,12 @@ export default function YourStatsPage() {
     }
   };
 
-  const handleRemoveMilestone = (id: number) => {
-    setMilestones(milestones.filter(m => m.id !== id));
+  const handleRemoveMilestone = async (id: number) => {
+    const updatedMilestones = milestones.filter(m => m.id !== id);
+    setMilestones(updatedMilestones);
+
+    await saveMilestonesToBackend(updatedMilestones);
+
     toast({
       title: "Milestone Removed",
       description: "Milestone has been deleted.",

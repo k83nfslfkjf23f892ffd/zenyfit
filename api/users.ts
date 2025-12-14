@@ -178,7 +178,7 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
-  const { idToken, avatar, username } = req.body;
+  const { idToken, avatar, username, milestones } = req.body;
 
   if (!idToken) {
     return res.status(400).json({ success: false, error: "Missing token" });
@@ -244,6 +244,33 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
       }
 
       updateData.username = username;
+    }
+
+    if (milestones !== undefined) {
+      // Validate milestones array
+      if (!Array.isArray(milestones)) {
+        return res.status(400).json({ success: false, error: "Milestones must be an array" });
+      }
+
+      // Limit to 20 milestones
+      if (milestones.length > 20) {
+        return res.status(400).json({ success: false, error: "Maximum 20 milestones allowed" });
+      }
+
+      // Validate each milestone
+      for (const milestone of milestones) {
+        if (!milestone.id || !milestone.name || !milestone.target) {
+          return res.status(400).json({ success: false, error: "Invalid milestone format" });
+        }
+        if (milestone.name.length > 100) {
+          return res.status(400).json({ success: false, error: "Milestone name too long" });
+        }
+        if (typeof milestone.target !== 'number' || milestone.target <= 0) {
+          return res.status(400).json({ success: false, error: "Milestone target must be a positive number" });
+        }
+      }
+
+      updateData.milestones = milestones;
     }
 
     if (Object.keys(updateData).length === 0) {
