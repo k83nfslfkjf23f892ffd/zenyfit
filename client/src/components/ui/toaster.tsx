@@ -8,6 +8,11 @@ export function Toaster() {
       richColors
       expand
       visibleToasts={3}
+      toastOptions={{
+        style: {
+          marginTop: 'env(safe-area-inset-top, 0px)',
+        },
+      }}
     />
   );
 }
