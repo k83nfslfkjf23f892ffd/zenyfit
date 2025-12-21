@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Trophy, PlusCircle, Medal, BarChart3, Users } from "lucide-react";
+import { Home, Trophy, PlusCircle, Medal, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function BottomNav() {
@@ -9,7 +9,6 @@ export default function BottomNav() {
     { href: "/", icon: Home, label: "Home" },
     { href: "/profile", icon: BarChart3, label: "Stats" },
     { href: "/log", icon: PlusCircle, label: "Log", primary: true },
-    { href: "/social", icon: Users, label: "Social" },
     { href: "/challenges", icon: Trophy, label: "Challenges" },
     { href: "/leaderboard", icon: Medal, label: "Ranks" },
   ];
