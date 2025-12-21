@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
 import { calculateWorkoutXP, calculateLevel } from "../shared/constants.js";
-import { setCorsHeaders } from "./lib/cors.js";
-import { rateLimit, RateLimits } from "./lib/rate-limit.js";
+import { setCorsHeaders } from "../lib/cors.js";
+import { rateLimit, RateLimits } from "../lib/rate-limit.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (setCorsHeaders(req, res)) {

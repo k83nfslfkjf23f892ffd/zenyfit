@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyAuthToken, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
-import { setCorsHeaders } from "./lib/cors.js";
+import { getAdminInstances, verifyAuthToken, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
+import { setCorsHeaders } from "../lib/cors.js";
 
 // Achievement definitions
 const ACHIEVEMENTS = [

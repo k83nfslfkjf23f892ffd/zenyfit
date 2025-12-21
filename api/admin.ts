@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyAuthToken, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
-import { setCorsHeaders } from "./lib/cors.js";
+import { getAdminInstances, verifyAuthToken, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
+import { setCorsHeaders } from "../lib/cors.js";
 
 // Admin user IDs - in production, this would be in an environment variable or database
 const ADMIN_USERS = (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);

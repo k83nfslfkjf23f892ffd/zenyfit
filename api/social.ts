@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
-import { setCorsHeaders } from "./lib/cors.js";
+import { getAdminInstances, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
+import { setCorsHeaders } from "../lib/cors.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (setCorsHeaders(req, res)) {

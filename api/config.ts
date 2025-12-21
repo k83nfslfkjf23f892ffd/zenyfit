@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyClientEnvVars } from "./lib/firebase-admin.js";
-import { setCorsHeaders } from "./lib/cors.js";
+import { verifyClientEnvVars } from "../lib/firebase-admin.js";
+import { setCorsHeaders } from "../lib/cors.js";
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   if (setCorsHeaders(_req, res)) {

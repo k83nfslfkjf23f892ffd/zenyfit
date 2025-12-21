@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "./lib/firebase-admin.js";
-import { setCorsHeaders } from "./lib/cors.js";
-import { rateLimit, RateLimits } from "./lib/rate-limit.js";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
+import { setCorsHeaders } from "../lib/cors.js";
+import { rateLimit, RateLimits } from "../lib/rate-limit.js";
 
 function generateAvatar(username: string): string {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
