@@ -223,7 +223,7 @@ async function handleGetFollowers(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get user details for all followers (Firestore doesn't support 'in' queries with > 10 items, so chunk)
-    const followers = [];
+    const followers: Array<{ userId: string; username: string; avatar: string; level: number; xp: number }> = [];
     for (let i = 0; i < followerIds.length; i += 10) {
       const chunk = followerIds.slice(i, i + 10);
       const usersSnapshot = await db.collection("users")
@@ -273,7 +273,7 @@ async function handleGetFollowing(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get user details for all following
-    const following = [];
+    const following: Array<{ userId: string; username: string; avatar: string; level: number; xp: number }> = [];
     for (let i = 0; i < followingIds.length; i += 10) {
       const chunk = followingIds.slice(i, i + 10);
       const usersSnapshot = await db.collection("users")
