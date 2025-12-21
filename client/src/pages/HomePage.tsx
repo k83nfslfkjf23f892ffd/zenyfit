@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2 } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -591,25 +591,30 @@ export default function HomePage() {
                 }
 
                 return (
-                  <div 
-                    key={section} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, section)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, section)}
-                    onDragEnd={handleDragEnd}
+                  <div
+                    key={section}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all touch-none",
-                      draggedItem === section 
-                        ? "bg-primary/20 opacity-50" 
-                        : draggedItem 
+                      "flex items-center gap-2 p-3 rounded-lg transition-all",
+                      draggedItem === section
+                        ? "bg-primary/20 opacity-50"
+                        : draggedItem
                         ? "bg-muted/50 border-2 border-dashed border-primary/40"
                         : "bg-muted/30 hover:bg-muted/50"
                     )}
                   >
+                    <div
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, section)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, section)}
+                      onDragEnd={handleDragEnd}
+                      className="cursor-move touch-none p-1"
+                    >
+                      <GripVertical size={18} className="text-muted-foreground" />
+                    </div>
                     <div className="flex items-center gap-2 flex-1">
                       {icon}
-                      <Label className="cursor-move">{label}</Label>
+                      <Label>{label}</Label>
                     </div>
                     <Switch
                       checked={checked}
@@ -632,15 +637,10 @@ export default function HomePage() {
                   }
 
                   return (
-                    <div 
+                    <div
                       key={tileType}
-                      draggable
-                      onDragStart={(e) => handleTileDragStart(e, tileType)}
-                      onDragOver={handleTileDragOver}
-                      onDrop={(e) => handleTileDrop(e, tileType)}
-                      onDragEnd={() => setDraggedTile(null)}
                       className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg cursor-move transition-all touch-none",
+                        "flex items-center gap-2 p-3 rounded-lg transition-all",
                         draggedTile === tileType
                           ? "bg-primary/20 opacity-50"
                           : draggedTile
@@ -648,8 +648,18 @@ export default function HomePage() {
                           : "bg-muted/30 hover:bg-muted/50"
                       )}
                     >
+                      <div
+                        draggable
+                        onDragStart={(e) => handleTileDragStart(e, tileType)}
+                        onDragOver={handleTileDragOver}
+                        onDrop={(e) => handleTileDrop(e, tileType)}
+                        onDragEnd={() => setDraggedTile(null)}
+                        className="cursor-move touch-none p-1"
+                      >
+                        <GripVertical size={18} className="text-muted-foreground" />
+                      </div>
                       <div className="flex items-center gap-2 flex-1">
-                        <Label className="cursor-move">{label}</Label>
+                        <Label>{label}</Label>
                       </div>
                       <Switch
                         checked={visibleTiles[tileType] ?? true}
