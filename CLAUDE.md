@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication Guidelines
+
+When working with this codebase, Claude should:
+- **Ask for clarification** when requirements are ambiguous or more context is needed
+- **Say "I don't know"** when genuinely uncertain rather than guessing or making assumptions
+- **Flag potential issues** before implementing changes
+- **Suggest alternatives** when a better approach exists
+- **Be honest about limitations** - accuracy over assumptions
+
 ## Development Commands
 
 ### Running the Application
