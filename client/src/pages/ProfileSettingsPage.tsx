@@ -66,7 +66,7 @@ export default function ProfileSettingsPage() {
       setUsernameError(null);
 
       try {
-        const response = await fetch(getApiUrl(`/api/validate?type=username&username=${encodeURIComponent(username)}`));
+        const response = await fetch(getApiUrl(`/api/users?validate=username&username=${encodeURIComponent(username)}`));
         const data = await response.json();
 
         if (data.success) {
