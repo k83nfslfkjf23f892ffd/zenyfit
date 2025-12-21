@@ -91,32 +91,29 @@ export default function ChallengesPage() {
 
   const fetchData = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const idToken = await user.getIdToken(true);
-      
-      const [challengesRes, invitesRes, usersRes] = await Promise.all([
+
+      const [challengesRes, invitesRes] = await Promise.all([
         fetch(getApiUrl("/api/challenges"), {
           headers: { Authorization: `Bearer ${idToken}` },
         }),
         fetch(getApiUrl("/api/invites"), {
           headers: { Authorization: `Bearer ${idToken}` },
         }),
-        fetch(getApiUrl("/api/users"), {
-          headers: { Authorization: `Bearer ${idToken}` },
-        }),
       ]);
-      
+
       if (challengesRes.ok) {
         const data = await challengesRes.json();
         if (data.success) {
           setChallenges(data.challenges || []);
         }
       }
-      
+
       if (invitesRes.ok) {
         const data = await invitesRes.json();
         if (data.success) {
@@ -136,7 +133,23 @@ export default function ChallengesPage() {
           setPreviousInviteCount(newInvites.length);
         }
       }
-      
+    } catch (err) {
+      console.error("Error fetching challenges data:", err);
+      setError("Failed to load challenges");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    if (!user || allUsers.length > 0) return; // Skip if already loaded
+
+    try {
+      const idToken = await user.getIdToken(true);
+      const usersRes = await fetch(getApiUrl("/api/users"), {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
       if (usersRes.ok) {
         const data = await usersRes.json();
         if (data.success) {
@@ -144,10 +157,7 @@ export default function ChallengesPage() {
         }
       }
     } catch (err) {
-      console.error("Error fetching challenges data:", err);
-      setError("Failed to load challenges");
-    } finally {
-      setLoading(false);
+      console.error("Error fetching users:", err);
     }
   };
 
@@ -759,12 +769,13 @@ export default function ChallengesPage() {
               </div>
             )}
             
-            <Button 
+            <Button
               onClick={() => {
                 setIsCreating(true);
                 generateRandomGoal();
+                fetchUsers();
               }}
-              className="w-full py-6 rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 h-auto" 
+              className="w-full py-6 rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 h-auto"
               variant="ghost"
             >
               + Create Challenge
