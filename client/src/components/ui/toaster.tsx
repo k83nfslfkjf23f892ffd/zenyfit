@@ -8,10 +8,12 @@ export function Toaster() {
       richColors
       expand
       visibleToasts={3}
+      offset="60px"
       toastOptions={{
         style: {
-          marginTop: 'env(safe-area-inset-top, 0px)',
+          zIndex: 9999,
         },
+        className: 'mt-safe-top',
       }}
     />
   );

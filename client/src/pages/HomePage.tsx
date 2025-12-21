@@ -593,6 +593,8 @@ export default function HomePage() {
                 return (
                   <div
                     key={section}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, section)}
                     className={cn(
                       "flex items-center gap-2 p-3 rounded-lg transition-all",
                       draggedItem === section
@@ -605,10 +607,8 @@ export default function HomePage() {
                     <div
                       draggable
                       onDragStart={(e) => handleDragStart(e, section)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, section)}
                       onDragEnd={handleDragEnd}
-                      className="cursor-move touch-none p-1"
+                      className="cursor-move p-1 touch-none"
                     >
                       <GripVertical size={18} className="text-muted-foreground" />
                     </div>
@@ -639,6 +639,8 @@ export default function HomePage() {
                   return (
                     <div
                       key={tileType}
+                      onDragOver={handleTileDragOver}
+                      onDrop={(e) => handleTileDrop(e, tileType)}
                       className={cn(
                         "flex items-center gap-2 p-3 rounded-lg transition-all",
                         draggedTile === tileType
@@ -651,10 +653,8 @@ export default function HomePage() {
                       <div
                         draggable
                         onDragStart={(e) => handleTileDragStart(e, tileType)}
-                        onDragOver={handleTileDragOver}
-                        onDrop={(e) => handleTileDrop(e, tileType)}
                         onDragEnd={() => setDraggedTile(null)}
-                        className="cursor-move touch-none p-1"
+                        className="cursor-move p-1 touch-none"
                       >
                         <GripVertical size={18} className="text-muted-foreground" />
                       </div>
