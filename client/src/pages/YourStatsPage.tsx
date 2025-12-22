@@ -364,7 +364,7 @@ export default function YourStatsPage() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-3 py-3 rounded-lg border border-input bg-background text-sm min-h-[48px]"
+                className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
               >
                 {exerciseTypes.map(type => (
                   <option key={type} value={type}>
@@ -378,7 +378,7 @@ export default function YourStatsPage() {
               <select
                 value={filterDateRange}
                 onChange={(e) => setFilterDateRange(Number(e.target.value))}
-                className="w-full px-3 py-3 rounded-lg border border-input bg-background text-sm min-h-[48px]"
+                className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
               >
                 <option value={7}>Last 7 days</option>
                 <option value={14}>Last 14 days</option>
