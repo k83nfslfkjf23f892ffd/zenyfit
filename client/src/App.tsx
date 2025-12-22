@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeFirebase, getFirebaseInstances } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { syncOfflineWorkouts } from "@/lib/offline-sync";
+import { toast } from "sonner";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/HomePage";
 import AuthPage from "@/pages/AuthPage";
@@ -72,11 +74,25 @@ function App() {
       try {
         await initializeFirebase();
         const { auth } = getFirebaseInstances();
-        
+
         if (auth) {
-          unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe = onAuthStateChanged(auth, async (user) => {
             setIsAuthenticated(!!user);
             setLoading(false);
+
+            // Sync offline workouts when user is authenticated and online
+            if (user && navigator.onLine) {
+              try {
+                const syncedCount = await syncOfflineWorkouts();
+                if (syncedCount > 0) {
+                  toast.success(`Synced ${syncedCount} offline workout${syncedCount > 1 ? 's' : ''}`, {
+                    description: "Your workouts have been uploaded to the cloud"
+                  });
+                }
+              } catch (error) {
+                console.error("Failed to sync offline workouts:", error);
+              }
+            }
           });
         } else {
           setLoading(false);

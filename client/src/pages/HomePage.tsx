@@ -505,6 +505,74 @@ export default function HomePage() {
       .reduce((acc, curr) => acc + curr.amount, 0);
   });
 
+  // Calculate workout streak
+  const calculateStreak = () => {
+    if (exerciseLogs.length === 0) return 0;
+
+    const sortedLogs = [...exerciseLogs].sort((a, b) => b.timestamp - a.timestamp);
+    const uniqueDays = new Set<string>();
+
+    sortedLogs.forEach(log => {
+      const dateStr = new Date(log.timestamp).toDateString();
+      uniqueDays.add(dateStr);
+    });
+
+    const daysArray = Array.from(uniqueDays).sort((a, b) =>
+      new Date(b).getTime() - new Date(a).getTime()
+    );
+
+    let streak = 0;
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+    // Check if today or yesterday has a workout
+    if (daysArray.length === 0 || (daysArray[0] !== today && daysArray[0] !== yesterday)) {
+      return 0;
+    }
+
+    let currentDate = new Date(daysArray[0]);
+    streak = 1;
+
+    for (let i = 1; i < daysArray.length; i++) {
+      const prevDate = new Date(daysArray[i]);
+      const diffDays = Math.floor((currentDate.getTime() - prevDate.getTime()) / 86400000);
+
+      if (diffDays === 1) {
+        streak++;
+        currentDate = prevDate;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  };
+
+  const workoutStreak = calculateStreak();
+
+  // Get last workout timestamp
+  const lastWorkout = exerciseLogs.length > 0
+    ? exerciseLogs.reduce((latest, log) => log.timestamp > latest.timestamp ? log : latest, exerciseLogs[0])
+    : null;
+
+  // Calculate this week's stats
+  const getWeeklyStats = () => {
+    const now = Date.now();
+    const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const weekLogs = exerciseLogs.filter(log => log.timestamp >= weekAgo);
+
+    return {
+      totalWorkouts: weekLogs.length,
+      totalXP: weekLogs.reduce((sum, log) => sum + (log.xpGained || 0), 0),
+      pushups: weekLogs.filter(e => e.exerciseType === "push-up").reduce((acc, curr) => acc + curr.amount, 0),
+      pullups: weekLogs.filter(e => e.exerciseType === "pull-up").reduce((acc, curr) => acc + curr.amount, 0),
+      dips: weekLogs.filter(e => e.exerciseType === "dip").reduce((acc, curr) => acc + curr.amount, 0),
+      run: weekLogs.filter(e => e.exerciseType === "run").reduce((acc, curr) => acc + curr.amount, 0),
+    };
+  };
+
+  const weeklyStats = getWeeklyStats();
+
   const toggleSync = () => {
     const newState = !isOnline;
     setIsOnline(newState);
@@ -547,6 +615,90 @@ export default function HomePage() {
           </button>
         </div>
       </header>
+
+      {/* Streak and Last Workout Info */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <Card className="border-none shadow-md dark:bg-zinc-900">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Flame className="text-orange-500 fill-orange-500" size={20} />
+              <span className="text-xs font-medium text-muted-foreground">Streak</span>
+            </div>
+            <p className="text-2xl font-bold">{workoutStreak} {workoutStreak === 1 ? 'day' : 'days'}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {workoutStreak >= 7 ? "Amazing! 🔥" : workoutStreak >= 3 ? "Keep going! 💪" : workoutStreak > 0 ? "Start strong!" : "Start today!"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-md dark:bg-zinc-900">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="text-primary" size={20} />
+              <span className="text-xs font-medium text-muted-foreground">Last Workout</span>
+            </div>
+            <p className="text-sm font-semibold">
+              {lastWorkout
+                ? new Date(lastWorkout.timestamp).toLocaleDateString() === new Date().toLocaleDateString()
+                  ? format(new Date(lastWorkout.timestamp), "HH:mm")
+                  : format(new Date(lastWorkout.timestamp), "MMM d")
+                : "None yet"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {lastWorkout
+                ? new Date(lastWorkout.timestamp).toLocaleDateString() === new Date().toLocaleDateString()
+                  ? "Today"
+                  : format(new Date(lastWorkout.timestamp), "EEEE")
+                : "Log your first!"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Weekly Summary */}
+      {weeklyStats.totalWorkouts > 0 && (
+        <Card className="border-none shadow-md dark:bg-zinc-900 mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="text-green-500" size={20} />
+                <h3 className="text-sm font-semibold">This Week</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{weeklyStats.totalWorkouts} workouts</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              {weeklyStats.pushups > 0 && (
+                <div>
+                  <p className="text-muted-foreground">Push-ups</p>
+                  <p className="font-semibold">{weeklyStats.pushups}</p>
+                </div>
+              )}
+              {weeklyStats.pullups > 0 && (
+                <div>
+                  <p className="text-muted-foreground">Pull-ups</p>
+                  <p className="font-semibold">{weeklyStats.pullups}</p>
+                </div>
+              )}
+              {weeklyStats.dips > 0 && (
+                <div>
+                  <p className="text-muted-foreground">Dips</p>
+                  <p className="font-semibold">{weeklyStats.dips}</p>
+                </div>
+              )}
+              {weeklyStats.run > 0 && (
+                <div>
+                  <p className="text-muted-foreground">Running</p>
+                  <p className="font-semibold">{weeklyStats.run.toFixed(1)} km</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-xs text-muted-foreground">Total XP this week</p>
+              <p className="text-lg font-bold text-primary">+{weeklyStats.totalXP}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sectionOrder.map(sectionType => renderSection(sectionType))}
 
