@@ -25,6 +25,13 @@ npm run preview      # Preview production build
 - API requests to `/api/*` are proxied to `http://localhost:3000` in development
 - For production, Vercel handles API routing via serverless functions
 
+### Deployment
+**IMPORTANT**: When the user says "deploy", they mean **deploy to GitHub** (commit and push changes).
+- This repository is connected to Vercel for automatic deployments
+- Pushing to the `main` branch triggers automatic deployment to production
+- DO NOT use `vercel` CLI commands unless explicitly requested
+- Follow the standard git commit workflow as documented in this file
+
 ## Architecture Overview
 
 ### Monorepo Structure
