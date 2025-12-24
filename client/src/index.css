@@ -168,3 +168,27 @@ body {
   border-radius: 0.75rem;
   background-color: hsl(var(--primary) / 0.1);
 }
+
+/* Force custom select dropdowns on all platforms (prevent native Android select) */
+[role="combobox"],
+[data-radix-select-trigger] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Ensure select dropdown content always renders as overlay, never native */
+[data-radix-select-content] {
+  position: fixed !important;
+  transform-origin: var(--radix-select-content-transform-origin);
+  will-change: transform, opacity;
+}
+
+/* Improve mobile touch targets for select items */
+@media (pointer: coarse) {
+  [data-radix-select-item] {
+    min-height: 48px;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
