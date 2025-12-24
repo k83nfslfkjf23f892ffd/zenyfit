@@ -165,11 +165,30 @@ export default function LogPage() {
   const predefinedUnits = ["reps", "km", "miles", "seconds", "meters", "minutes"];
   const allUnits = [...predefinedUnits, ...addedUnits];
 
+  // Listen for service worker messages about synced workouts
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'WORKOUT_SYNCED' && event.data?.success) {
+          toast({
+            title: "Workout Synced!",
+            description: "Your offline workout has been synced successfully.",
+          });
+          // Refresh profile to show updated XP
+          refreshProfile();
+        }
+      };
+
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+      return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+    }
+  }, [toast, refreshProfile]);
+
   // Load saved exercise type and custom exercises on mount
   useEffect(() => {
     const savedType = localStorage.getItem("lastExerciseType");
     const savedCustom = localStorage.getItem("lastCustomExercise");
-    
+
     // Load custom exercises from localStorage (don't overwrite them!)
     const saved = localStorage.getItem("customExercises");
     if (saved) {
@@ -284,18 +303,39 @@ export default function LogPage() {
       });
       
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || "Failed to log workout");
       }
-      
-      // Refresh the user profile to get updated XP/level
+
+      // Handle offline queued workouts
+      if (result.queued) {
+        toast({
+          title: "Workout Queued",
+          description: `${finalAmount} ${unit} of ${exerciseName} saved offline. Will sync when online.`,
+        });
+
+        // Show notification for offline workout
+        workoutNotification(exerciseName, finalAmount);
+
+        // Reset form for offline workouts
+        if (isCustomMode) {
+          setCustomExerciseName("");
+          setIsCustomMode(false);
+          setSelectedCustom(null);
+        }
+        setAmount(0);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Online workout logging - refresh profile and show XP
       await refreshProfile();
-      
-      const xpMessage = result.leveledUp 
+
+      const xpMessage = result.leveledUp
         ? `+${result.xpGained} XP! You leveled up to Level ${result.newLevel}!`
         : `+${result.xpGained} XP`;
-      
+
       toast({
         title: "Workout Logged!",
         description: `${finalAmount} ${unit} of ${exerciseName}. ${xpMessage}`,
