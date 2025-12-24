@@ -120,14 +120,21 @@ export default async function handler(req, res) {
 - Each custom exercise earns 5 XP per unit by default
 - Quick actions: Array of predefined amounts for fast logging (e.g., `[5, 10, 25, 50]`)
 
-#### 9. PWA Service Worker
+#### 9. PWA Service Worker & Offline Support
 - Located at `client/public/sw.js`
 - Registered in `client/src/main.tsx`
 - **Caching strategy**:
   - Static assets: Cache on install
   - API calls: Network-first with cache fallback
   - HTML: Falls back to cached homepage when offline
-- **Cache name**: `zenyfit-cache-v1`
+  - Workout logging: Queued to IndexedDB when offline, syncs when online
+- **Cache name**: `zenyfit-v2`
+- **Offline persistence**:
+  - Firebase config cached in localStorage
+  - User profile cached in localStorage
+  - Firestore IndexedDB persistence enabled
+  - Auth persistence via browserLocalPersistence
+- **Background sync**: Queued workouts automatically sync when connection is restored
 
 ## Type Safety and Validation
 
@@ -225,15 +232,7 @@ All **reads** require authentication, with additional constraints:
 **Critical**: The last major update introduced bugs and undesired features and was **reverted**. The current codebase is the stable state from before that update. Exercise caution when making large architectural changes.
 
 ### Known Incomplete Features
-1. **Revert Workout**: Button exists in `LogPage.tsx` (line 874-880) but only shows a toast without actually deleting from database
-2. **Challenge Invites**: `challengeInvites` collection exists but acceptance/rejection workflow is incomplete
-3. **Leaderboard Trends**: Queries `/users/{userId}/workouts` subcollection which may not be consistently populated alongside `exercise_logs`
-4. **Milestones**: Tracked in component state but not persisted to Firestore
-5. **Avatar Cropping**: UI exists but functionality may be incomplete
-
-### Data Consistency Concerns
-- **Leaderboard trend API** (`/api/leaderboard-trend`) uses a subcollection pattern that may not match the main `exercise_logs` collection structure
-- When fixing workout logging, ensure both `exercise_logs` collection AND user's `workouts` subcollection are updated if trend data is critical
+None! All previously incomplete features have been implemented.
 
 ## Common Patterns
 

@@ -139,29 +139,9 @@ async function handleLogWorkout(req: VercelRequest, res: VercelResponse) {
       createdAt: new Date().toISOString(),
     };
 
-    // Use batch write for atomicity - all writes succeed or all fail
-    const batch = db.batch();
-
     // Write to exercise_logs collection
     const logRef = db.collection("exercise_logs").doc();
-    batch.set(logRef, logEntry);
-
-    // Write to user's workouts subcollection for trend data
-    const workoutSubcollectionRef = db.collection("users").doc(userId).collection("workouts").doc();
-    batch.set(workoutSubcollectionRef, {
-      exerciseType: sanitizedExerciseType,
-      amount,
-      timestamp,
-      xpGained,
-    });
-
-    // Update log with subcollection ID reference
-    batch.update(logRef, {
-      workoutSubcollectionId: workoutSubcollectionRef.id,
-    });
-
-    // Commit all writes atomically
-    await batch.commit();
+    await logRef.set(logEntry);
 
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();
@@ -354,16 +334,9 @@ async function handleDeleteWorkout(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Delete the log, subcollection entry, and update user in a batch
+    // Delete the log and update user in a batch
     const batch = db.batch();
     batch.delete(logRef);
-
-    // Also delete from workouts subcollection if tracked
-    if (logData.workoutSubcollectionId) {
-      const workoutSubRef = db.collection("users").doc(userId).collection("workouts").doc(logData.workoutSubcollectionId);
-      batch.delete(workoutSubRef);
-    }
-
     batch.update(userRef, updateData);
     await batch.commit();
 

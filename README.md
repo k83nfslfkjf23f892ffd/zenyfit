@@ -161,6 +161,12 @@ zenyfit/
 - ✅ **Code Cleanup** - Removed 24 unused UI components (-2,900 lines)
 - ✅ **Bug Fixes** - Fixed critical bugs in challenges, notifications, and hooks
 - ✅ **Performance** - Reduced bundle size significantly
+- ✅ **Challenge Invites** - Complete accept/reject workflow with notifications
+- ✅ **Leaderboard Trends** - Fixed data consistency by migrating to `exercise_logs` collection
+- ✅ **Persistent Achievements** - Milestones now saved to Firestore with unlock timestamps
+- ✅ **Avatar Cropping** - Full image upload with auto-crop, resize, and circular clipping
+- ✅ **Offline Authentication** - Firebase config and user profile cached for offline startup
+- ✅ **Firestore Persistence** - IndexedDB persistence for offline data access
 
 ## Contributing
 

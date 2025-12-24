@@ -71,11 +71,15 @@ async function handleGetAchievements(req: VercelRequest, res: VercelResponse) {
     const userId = user.userId;
 
     // Get user data
-    const userDoc = await db.collection("users").doc(userId).get();
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
     if (!userDoc.exists) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
     const userData = userDoc.data()!;
+
+    // Get existing unlocked achievements from user document
+    const existingAchievements: Array<{ achievementId: string; unlockedAt: number }> = userData.achievements || [];
 
     // Get workout count
     const logsSnapshot = await db.collection("exercise_logs")
@@ -118,8 +122,11 @@ async function handleGetAchievements(req: VercelRequest, res: VercelResponse) {
       currentDate -= dayMs;
     }
 
-    // Check which achievements are unlocked
-    const unlockedAchievements = ACHIEVEMENTS.filter(achievement => {
+    // Get IDs of already unlocked achievements
+    const previouslyUnlockedIds = new Set(existingAchievements.map(a => a.achievementId));
+
+    // Check which achievements should be unlocked based on current progress
+    const currentlyUnlockedAchievements = ACHIEVEMENTS.filter(achievement => {
       switch (achievement.id) {
         // Workout milestones
         case "first_workout": return totalWorkouts >= 1;
@@ -177,11 +184,35 @@ async function handleGetAchievements(req: VercelRequest, res: VercelResponse) {
 
         default: return false;
       }
-    }).map(a => a.id);
+    });
+
+    // Find newly unlocked achievements
+    const newlyUnlocked = currentlyUnlockedAchievements.filter(
+      a => !previouslyUnlockedIds.has(a.id)
+    );
+
+    // Persist newly unlocked achievements to user document
+    if (newlyUnlocked.length > 0) {
+      const now = Date.now();
+      const newAchievements = newlyUnlocked.map(a => ({
+        achievementId: a.id,
+        unlockedAt: now,
+      }));
+
+      await userRef.update({
+        achievements: [...existingAchievements, ...newAchievements],
+      });
+
+      // Update existing achievements array for response
+      existingAchievements.push(...newAchievements);
+    }
+
+    const unlockedAchievementIds = existingAchievements.map(a => a.achievementId);
 
     // Get progress for locked achievements
     const achievementsWithProgress = ACHIEVEMENTS.map(achievement => {
-      const isUnlocked = unlockedAchievements.includes(achievement.id);
+      const unlockedData = existingAchievements.find(a => a.achievementId === achievement.id);
+      const isUnlocked = !!unlockedData;
       let progress = 0;
       let total = 1;
 
@@ -215,6 +246,7 @@ async function handleGetAchievements(req: VercelRequest, res: VercelResponse) {
       return {
         ...achievement,
         unlocked: isUnlocked,
+        unlockedAt: unlockedData?.unlockedAt,
         progress: isUnlocked ? total : progress,
         total,
       };
@@ -223,7 +255,8 @@ async function handleGetAchievements(req: VercelRequest, res: VercelResponse) {
     return res.json({
       success: true,
       achievements: achievementsWithProgress,
-      totalUnlocked: unlockedAchievements.length,
+      newlyUnlocked: newlyUnlocked.map(a => a.id),
+      totalUnlocked: unlockedAchievementIds.length,
       totalAchievements: ACHIEVEMENTS.length,
     });
   } catch (error: any) {

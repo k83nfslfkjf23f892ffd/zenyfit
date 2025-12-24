@@ -105,20 +105,18 @@ async function handleTrend(req: VercelRequest, res: VercelResponse) {
     last7Dates.forEach(d => dateTotals[d.dateKey] = 0);
 
     if (topUserIds.length > 0) {
-      // Use collection group query to get all workouts at once instead of N+1 queries
-      const workoutsSnapshot = await db.collectionGroup("workouts")
+      // Query exercise_logs for top users (more consistent than subcollections)
+      const logsSnapshot = await db.collection("exercise_logs")
         .where("timestamp", ">=", sevenDaysAgo)
         .get();
 
-      // Filter to only top users' workouts and aggregate
-      workoutsSnapshot.docs.forEach(doc => {
-        // Extract userId from the document path (workouts are in users/{userId}/workouts/{workoutId})
-        const pathParts = doc.ref.path.split('/');
-        const userId = pathParts[1]; // users/[userId]/workouts/[workoutId]
+      // Filter to only top users' logs and aggregate
+      logsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const userId = data.userId;
 
-        // Only count workouts from top users
+        // Only count logs from top users
         if (topUserIds.includes(userId)) {
-          const data = doc.data();
           const dateKey = getDateKey(data.timestamp);
           if (dateTotals.hasOwnProperty(dateKey)) {
             dateTotals[dateKey] += data.amount || 0;

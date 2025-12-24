@@ -61,21 +61,33 @@ export function useAuth() {
 
           if (firebaseUser && db) {
             const userDocRef = doc(db, "users", firebaseUser.uid);
-            
+
             unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
               if (docSnap.exists()) {
-                setUserProfile({
+                const profile = {
                   id: docSnap.id,
                   ...docSnap.data(),
-                } as UserProfile);
+                } as UserProfile;
+                setUserProfile(profile);
+                // Cache profile for offline use
+                localStorage.setItem(`user_profile_${firebaseUser.uid}`, JSON.stringify(profile));
               } else {
                 setUserProfile(null);
               }
               setLoading(false);
             }, (err) => {
               console.error("Error fetching user profile:", err);
-              setError("Failed to load user profile");
-              setLoading(false);
+
+              // Try to use cached profile when offline
+              const cachedProfile = localStorage.getItem(`user_profile_${firebaseUser.uid}`);
+              if (cachedProfile) {
+                console.log("Using cached user profile for offline mode");
+                setUserProfile(JSON.parse(cachedProfile));
+                setLoading(false);
+              } else {
+                setError("Failed to load user profile");
+                setLoading(false);
+              }
             });
           } else {
             setUserProfile(null);

@@ -76,3 +76,11 @@ export const signInSchema = z.object({
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
+
+// Achievement schema
+export const achievementSchema = z.object({
+  achievementId: z.string(),
+  unlockedAt: z.number(), // Timestamp when unlocked
+});
+
+export type Achievement = z.infer<typeof achievementSchema>;
