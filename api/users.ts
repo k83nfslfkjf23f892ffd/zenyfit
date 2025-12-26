@@ -38,7 +38,7 @@ async function handleGetUsers(req: VercelRequest, res: VercelResponse) {
   // Handle validation requests (username availability check)
   if (req.query.validate === 'username') {
     // Rate limit to prevent enumeration attacks
-    if (await rateLimit(req, res, RateLimits.READ)) {
+    if (rateLimit(req, res, RateLimits.READ)) {
       return; // Rate limit exceeded
     }
 
@@ -105,7 +105,7 @@ async function handleGetUsers(req: VercelRequest, res: VercelResponse) {
 
 async function handleInviteCodeValidation(req: VercelRequest, res: VercelResponse) {
   // Rate limit to prevent enumeration attacks
-  if (await rateLimit(req, res, RateLimits.READ)) {
+  if (rateLimit(req, res, RateLimits.READ)) {
     return; // Rate limit exceeded
   }
 
@@ -146,7 +146,7 @@ async function handleInviteCodeValidation(req: VercelRequest, res: VercelRespons
 
 async function handleSignup(req: VercelRequest, res: VercelResponse) {
   // Rate limit: 5 requests per 15 minutes
-  if (await rateLimit(req, res, RateLimits.AUTH)) {
+  if (rateLimit(req, res, RateLimits.AUTH)) {
     return; // Rate limit exceeded
   }
 

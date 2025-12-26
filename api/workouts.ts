@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Rate limit write operations
   if (req.method === "POST" || req.method === "DELETE") {
-    if (await rateLimit(req, res, RateLimits.WRITE)) {
+    if (rateLimit(req, res, RateLimits.WRITE)) {
       return; // Rate limit exceeded
     }
   }
