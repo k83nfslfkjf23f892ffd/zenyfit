@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 /**
  * CORS middleware for API endpoints
  * Allows requests from:
- * - Vercel production domain (VERCEL_URL or NEXT_PUBLIC_VERCEL_URL)
+ * - Vercel production domain (VERCEL_URL)
  * - Vercel preview domains (*.vercel.app)
  * - Localhost for development
  */
@@ -19,7 +19,7 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse): boolean
   ];
 
   // Add Vercel production URL if available
-  const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+  const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl) {
     allowedOrigins.push(`https://${vercelUrl}`);
   }
