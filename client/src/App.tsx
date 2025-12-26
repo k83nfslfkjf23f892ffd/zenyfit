@@ -10,7 +10,7 @@ import { initializeFirebase, getFirebaseInstances } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { syncOfflineWorkouts } from "@/lib/offline-sync";
 import { toast } from "sonner";
-import NotFound from "@/pages/not-found";
+import NotFound from "@/pages/NotFoundPage";
 import HomePage from "@/pages/HomePage";
 import AuthPage from "@/pages/AuthPage";
 import ChallengesPage from "@/pages/ChallengesPage";

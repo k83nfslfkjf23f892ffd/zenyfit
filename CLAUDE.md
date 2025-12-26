@@ -47,7 +47,7 @@ zenyfit/
 
 #### 1. Authentication Flow
 - **Client**: Uses Firebase Auth with email/password (emails are `username@zenyfit.local`)
-- **Server**: Validates ID tokens via Firebase Admin SDK (`verifyAuthToken` in `api/lib/firebase-admin.ts`)
+- **Server**: Validates ID tokens via Firebase Admin SDK (`verifyAuthToken` in `lib/firebase-admin.ts`)
 - **Pattern**: Client authenticates with Firebase → Gets ID token → Sends to API in `Authorization: Bearer <token>` header → Server verifies token
 - **Important**: All protected API routes must call `verifyAuthToken()` before processing
 
@@ -61,7 +61,7 @@ zenyfit/
 #### 3. API Architecture
 Each file in `/api` corresponds to a serverless function:
 - Exports a default function that handles HTTP requests
-- Must initialize Firebase Admin via `getAdminInstances()` from `api/lib/firebase-admin.ts`
+- Must initialize Firebase Admin via `getAdminInstances()` from `lib/firebase-admin.ts`
 - Should use `cors()` middleware for cross-origin requests
 - Path: `/api/filename` (e.g., `api/workouts.ts` → `/api/workouts`)
 
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
 - Singleton pattern: checks `firebaseInitialized` flag
 - Sets persistence to `browserLocalPersistence`
 
-**Server-side** (`api/lib/firebase-admin.ts`):
+**Server-side** (`lib/firebase-admin.ts`):
 - Uses service account key from env vars
 - Singleton pattern: `adminApp`, `adminDb`, `adminAuth`
 - Call `getAdminInstances()` to get instances
@@ -154,7 +154,6 @@ export default async function handler(req, res) {
 ```typescript
 "@"         → "client/src"
 "@shared"   → "shared"
-"@assets"   → "attached_assets"
 ```
 
 Use these imports consistently:
@@ -179,20 +178,17 @@ import { useAuth } from "@/hooks/use-auth";
 - **API routes**: Auto-detected from `/api` directory
 
 ### Environment Variables
-**Required for client** (prefixed with `VITE_`):
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-
 **Required for server**:
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_SERVICE_ACCOUNT_KEY` (entire JSON service account key as string)
-- `MASTER_INVITE_CODE` (bootstrap invite code for first users)
+- `FIREBASE_PROJECT_ID` - Firebase project ID
+- `FIREBASE_SERVICE_ACCOUNT_KEY` - Entire JSON service account key as string
+- `FIREBASE_API_KEY` - Firebase web API key (served to client via /api/config)
+- `FIREBASE_AUTH_DOMAIN` - Firebase auth domain (served to client via /api/config)
+- `FIREBASE_STORAGE_BUCKET` - Firebase storage bucket (served to client via /api/config)
+- `FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID (served to client via /api/config)
+- `FIREBASE_APP_ID` - Firebase app ID (served to client via /api/config)
+- `MASTER_INVITE_CODE` - Bootstrap invite code for first users
 
-**Note**: Client-side env vars are exposed in the browser. Keep secrets server-side only.
+**Important**: The client does NOT use VITE_ environment variables. Instead, Firebase config is fetched from the `/api/config` endpoint at runtime. This keeps all secrets server-side only, even those needed by the client.
 
 ## Database Schema (Firestore)
 

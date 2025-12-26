@@ -69,16 +69,15 @@ Go to your Vercel project settings and add all environment variables from `.env.
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `VITE_FIREBASE_API_KEY` | Firebase web API key | Yes |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain | Yes |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID | Yes |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | Yes |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | Yes |
-| `VITE_FIREBASE_APP_ID` | Firebase app ID | Yes |
 | `FIREBASE_PROJECT_ID` | Firebase project ID (server) | Yes |
-| `FIREBASE_CLIENT_EMAIL` | Service account email | Yes |
-| `FIREBASE_PRIVATE_KEY` | Service account private key | Yes |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Entire service account JSON key | Yes |
+| `FIREBASE_API_KEY` | Firebase web API key (client) | Yes |
+| `FIREBASE_AUTH_DOMAIN` | Firebase auth domain (client) | Yes |
+| `FIREBASE_STORAGE_BUCKET` | Firebase storage bucket (client) | Yes |
+| `FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID (client) | Yes |
+| `FIREBASE_APP_ID` | Firebase app ID (client) | Yes |
 | `MASTER_INVITE_CODE` | Master code for first signups | Yes |
+| `ADMIN_USER_IDS` | Comma-separated Firebase UIDs with admin access | No |
 
 ## Local Development
 
@@ -97,14 +96,19 @@ The app will be available at `http://localhost:5000`
 ```
 zenyfit/
 ├── api/                    # Vercel serverless functions
-│   ├── lib/               # Firebase Admin setup
+│   ├── achievements.ts    # Achievement tracking
+│   ├── admin.ts           # Admin dashboard (stats, user management)
 │   ├── challenges.ts      # Challenge CRUD
-│   ├── invite-codes.ts    # Invite code generation
-│   ├── leaderboard.ts     # Rankings API
-│   ├── leaderboard-trend.ts # Trend data API
-│   ├── signup.ts          # User registration
-│   ├── users.ts           # User profile
-│   └── workouts.ts        # Exercise logging + deletion
+│   ├── config.ts          # Firebase client config
+│   ├── invites.ts         # Invite codes & challenge invitations
+│   ├── leaderboard.ts     # Rankings & trend data
+│   ├── social.ts          # Follow/unfollow, user search, feed
+│   ├── users.ts           # User registration, profile updates
+│   └── workouts.ts        # Exercise logging & deletion
+├── lib/                   # Firebase Admin SDK setup (root level)
+│   ├── firebase-admin.ts  # Admin initialization & auth verification
+│   ├── cors.ts            # CORS middleware
+│   └── rate-limit.ts      # In-memory rate limiting
 ├── client/
 │   ├── public/
 │   │   ├── manifest.json  # PWA manifest
@@ -139,19 +143,22 @@ zenyfit/
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/signup` | POST | Create new user with invite code |
-| `/api/users` | GET | Get all users (limited fields) |
-| `/api/users` | PUT | Update user profile (avatar, username) |
-| `/api/workouts` | GET | Retrieve workout logs |
+| `/api/config` | GET | Get Firebase client configuration |
+| `/api/users` | GET | Get all users OR validate username |
+| `/api/users` | POST | User signup OR validate invite code |
+| `/api/users` | PUT | Update user profile (avatar, username, milestones) |
+| `/api/workouts` | GET | Retrieve workout logs (pagination support) |
 | `/api/workouts` | POST | Log a new workout |
 | `/api/workouts` | DELETE | Delete/revert a workout |
+| `/api/achievements` | GET | Get user achievements with progress |
 | `/api/challenges` | GET | Get user's challenges |
-| `/api/challenges` | POST | Create or join challenge |
-| `/api/leaderboard` | GET | Global rankings by exercise type |
-| `/api/leaderboard-trend` | GET | Top 10 users' 7-day trends |
-| `/api/invite-codes` | GET/POST/DELETE | Invite code management |
-| `/api/validate-invite-code` | POST | Validate invite code |
-| `/api/invites` | GET/POST/DELETE | Challenge invitations |
+| `/api/challenges` | POST | Create, join, or invite to challenge |
+| `/api/challenges` | PATCH | Update challenge |
+| `/api/challenges` | DELETE | Delete challenge |
+| `/api/leaderboard` | GET | Global rankings (with pagination and trend data) |
+| `/api/invites` | GET/POST/DELETE | Invite code and challenge invitation management |
+| `/api/social` | GET/POST | User search, follow/unfollow, followers, feed |
+| `/api/admin` | GET/POST | Admin-only platform management (requires admin role) |
 
 ## Recent Improvements
 
