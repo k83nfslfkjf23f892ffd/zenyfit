@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -10,6 +11,17 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // Upload source maps to Sentry for better error stack traces
+    sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Only upload source maps in production builds
+      disable: process.env.NODE_ENV !== 'production',
+      sourcemaps: {
+        assets: './dist/public/**',
+      },
+    }),
   ],
   optimizeDeps: {
     exclude: [],
@@ -31,6 +43,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    sourcemap: true, // Generate source maps for Sentry
     rollupOptions: {
       output: {
         manualChunks: {

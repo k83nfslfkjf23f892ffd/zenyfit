@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2, GripVertical } from "lucide-react";
+import { Activity, Flame, TrendingUp, Zap, Wifi, WifiOff, Settings, ArrowUp, Loader2, GripVertical, Dumbbell, Trophy } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { WorkoutLogSkeleton, ChallengeCardSkeleton } from "@/components/ui/skeletons";
+import { Onboarding } from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +85,26 @@ export default function HomePage() {
   const [loadingChallenges, setLoadingChallenges] = useState(true);
   const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if user should see onboarding
+  useEffect(() => {
+    if (user && userProfile) {
+      const hasCompletedOnboarding = localStorage.getItem('onboardingCompleted');
+      // Show onboarding to new users (created in last 5 minutes) who haven't completed it
+      const isNewUser = userProfile.createdAt && (Date.now() - userProfile.createdAt < 5 * 60 * 1000);
+      if (isNewUser && !hasCompletedOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user, userProfile]);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('onboardingCompleted', 'true');
+    setShowOnboarding(false);
+  };
 
   useEffect(() => {
     const fetchWorkoutLogs = async () => {
@@ -370,13 +393,24 @@ export default function HomePage() {
             
             <div className="space-y-4">
               {loadingChallenges ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
+                <>
+                  {[1, 2].map((i) => (
+                    <ChallengeCardSkeleton key={i} />
+                  ))}
+                </>
               ) : challenges.length === 0 ? (
                 <Card className="border-none shadow-sm dark:bg-zinc-900">
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-muted-foreground">No active challenges. Create or join one!</p>
+                  <CardContent className="p-4">
+                    <EmptyState
+                      icon={Trophy}
+                      title="No active challenges"
+                      description="Join or create a challenge to compete with friends and push your limits!"
+                      action={{
+                        label: "Browse Challenges",
+                        onClick: () => setLocation("/challenges"),
+                      }}
+                      className="py-6"
+                    />
                   </CardContent>
                 </Card>
               ) : (
@@ -427,11 +461,21 @@ export default function HomePage() {
             </h2>
             <div className="bg-card dark:bg-zinc-900 rounded-2xl p-4 shadow-sm space-y-4">
               {loadingLogs ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
+                <>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <WorkoutLogSkeleton key={i} />
+                  ))}
+                </>
               ) : exerciseLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No workout logs yet. Start logging!</p>
+                <EmptyState
+                  icon={Dumbbell}
+                  title="No workouts yet"
+                  description="Start logging your exercises to track your progress and earn XP!"
+                  action={{
+                    label: "Log Workout",
+                    onClick: () => setLocation("/log"),
+                  }}
+                />
               ) : (
                 <>
                   {exerciseLogs.slice(0, 5).map(log => {
@@ -585,6 +629,8 @@ export default function HomePage() {
 
   return (
     <Layout>
+      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
+
       <header className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
           <button 

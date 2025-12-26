@@ -12,6 +12,7 @@ import { PushupIcon, DipsIcon } from "@/pages/LogPage";
 import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
 import { useLocation } from "wouter";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ExerciseLog {
   id: string;
@@ -403,8 +404,19 @@ export default function YourStatsPage() {
         <Card className="border-none shadow-md dark:bg-zinc-900 overflow-hidden">
           <CardContent className="pt-2 px-4 pb-4">
             {loadingLogs ? (
-              <div className="h-40 flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <div className="flex flex-col lg:flex-row gap-6 p-6">
+                <div className="flex-1 flex items-center justify-center">
+                  <Skeleton className="w-64 h-64 rounded-full" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="w-4 h-4 rounded" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : exerciseCounts.length > 0 ? (
               <div className="flex flex-col lg:flex-row gap-6">

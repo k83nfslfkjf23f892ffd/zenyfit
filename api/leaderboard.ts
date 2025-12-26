@@ -40,8 +40,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleRankings(req: VercelRequest, res: VercelResponse) {
   try {
     const { db } = getAdminInstances();
-    const { type = "all", limit: limitParam = "20" } = req.query;
+    const {
+      type = "all",
+      limit: limitParam = "20",
+      offset: offsetParam = "0"
+    } = req.query;
+
     const limitNum = Math.min(parseInt(limitParam as string) || 20, 100);
+    const offsetNum = Math.max(parseInt(offsetParam as string) || 0, 0);
 
     let orderField = "xp";
     if (type === "pull-up") orderField = "totalPullups";
@@ -49,15 +55,20 @@ async function handleRankings(req: VercelRequest, res: VercelResponse) {
     else if (type === "dip") orderField = "totalDips";
     else if (type === "run") orderField = "totalRunningKm";
 
+    // Get users with offset support
     const usersSnapshot = await db.collection("users")
       .orderBy(orderField, "desc")
+      .offset(offsetNum)
       .limit(limitNum)
       .get();
+
+    // Check if there are more results
+    const hasMore = usersSnapshot.docs.length === limitNum;
 
     const rankings = usersSnapshot.docs.map((doc, index) => {
       const data = doc.data();
       return {
-        rank: index + 1,
+        rank: offsetNum + index + 1, // Adjust rank based on offset
         userId: doc.id,
         username: data.username,
         avatar: data.avatar,
@@ -67,7 +78,7 @@ async function handleRankings(req: VercelRequest, res: VercelResponse) {
       };
     });
 
-    return res.json({ success: true, rankings });
+    return res.json({ success: true, rankings, hasMore });
   } catch (error: any) {
     console.error("Leaderboard error:", error);
     return res.status(500).json({ success: false, error: error.message || "Failed to get leaderboard" });

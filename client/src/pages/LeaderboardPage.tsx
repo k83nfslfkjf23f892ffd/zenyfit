@@ -8,6 +8,7 @@ import { getApiUrl } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from "recharts";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { LeaderboardEntrySkeleton } from "@/components/ui/skeletons";
 
 interface RankingUser {
   rank: number;
@@ -35,6 +36,8 @@ function GlobalLeaderboard() {
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [rankings, setRankings] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch leaderboard data
@@ -42,24 +45,26 @@ function GlobalLeaderboard() {
     const fetchLeaderboard = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
-        const response = await fetch(getApiUrl(`/api/leaderboard?type=${type}&limit=20`));
-        
+        const response = await fetch(getApiUrl(`/api/leaderboard?type=${type}&limit=20&offset=0`));
+
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success && data.rankings) {
           const rankingsWithMe = data.rankings.map((r: RankingUser) => ({
             ...r,
             isMe: user?.uid === r.userId,
           }));
           setRankings(rankingsWithMe);
+          setHasMore(data.hasMore || false);
         } else {
           setRankings([]);
+          setHasMore(false);
           if (!data.success) {
             setError(data.error || "Failed to load rankings");
           }
@@ -68,6 +73,7 @@ function GlobalLeaderboard() {
         console.error("Failed to fetch leaderboard:", err);
         setError(err instanceof Error ? err.message : "Failed to connect to server");
         setRankings([]);
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
@@ -75,6 +81,35 @@ function GlobalLeaderboard() {
 
     fetchLeaderboard();
   }, [type, user?.uid]);
+
+  // Load more rankings
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const response = await fetch(getApiUrl(`/api/leaderboard?type=${type}&limit=20&offset=${rankings.length}`));
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.rankings) {
+        const newRankingsWithMe = data.rankings.map((r: RankingUser) => ({
+          ...r,
+          isMe: user?.uid === r.userId,
+        }));
+        setRankings(prev => [...prev, ...newRankingsWithMe]);
+        setHasMore(data.hasMore || false);
+      }
+    } catch (err) {
+      console.error("Failed to load more rankings:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Load saved view mode from localStorage on mount
   useEffect(() => {
@@ -325,9 +360,11 @@ function GlobalLeaderboard() {
               </span>
            </div>
            {loading ? (
-             <div className="flex items-center justify-center p-8">
-               <Loader2 className="w-6 h-6 animate-spin text-primary" />
-             </div>
+             <>
+               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                 <LeaderboardEntrySkeleton key={i} />
+               ))}
+             </>
            ) : error ? (
              <div className="p-8 text-center">
                <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
@@ -347,38 +384,59 @@ function GlobalLeaderboard() {
                <p>No rankings yet. Be the first to log a workout!</p>
              </div>
            ) : (
-             <div className="divide-y">
-               {rankings.map((rankUser) => (
-                 <div key={rankUser.rank} className={cn(
-                   "flex items-center justify-between p-4 hover:bg-muted/20 dark:hover:bg-zinc-800/50 transition-colors border-b dark:border-zinc-700 last:border-0",
-                   rankUser.isMe && "bg-gradient-to-r from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10"
-                 )}>
-                   <div className="flex items-center gap-4">
-                     <div className={cn(
-                       "w-6 text-center font-bold",
-                       rankUser.rank === 1 ? "text-yellow-500" :
-                       rankUser.rank === 2 ? "text-gray-400" :
-                       rankUser.rank === 3 ? "text-amber-600" : "text-muted-foreground dark:text-zinc-400"
-                     )}>
-                       {rankUser.rank}
+             <>
+               <div className="divide-y">
+                 {rankings.map((rankUser) => (
+                   <div key={rankUser.rank} className={cn(
+                     "flex items-center justify-between p-4 hover:bg-muted/20 dark:hover:bg-zinc-800/50 transition-colors border-b dark:border-zinc-700 last:border-0",
+                     rankUser.isMe && "bg-gradient-to-r from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10"
+                   )}>
+                     <div className="flex items-center gap-4">
+                       <div className={cn(
+                         "w-6 text-center font-bold",
+                         rankUser.rank === 1 ? "text-yellow-500" :
+                         rankUser.rank === 2 ? "text-gray-400" :
+                         rankUser.rank === 3 ? "text-amber-600" : "text-muted-foreground dark:text-zinc-400"
+                       )}>
+                         {rankUser.rank}
+                       </div>
+                       <div className="relative">
+                         <img src={rankUser.avatar} className="w-10 h-10 rounded-full bg-muted dark:bg-zinc-800" />
+                       </div>
+                       <div>
+                         <p className={cn("font-medium text-sm dark:text-white font-semibold", rankUser.isMe && "text-primary")}>
+                           {rankUser.username}
+                         </p>
+                         <p className="text-[10px] text-muted-foreground dark:text-zinc-400 capitalize">Level {rankUser.level || 1}</p>
+                       </div>
                      </div>
-                     <div className="relative">
-                       <img src={rankUser.avatar} className="w-10 h-10 rounded-full bg-muted dark:bg-zinc-800" />
-                     </div>
-                     <div>
-                       <p className={cn("font-medium text-sm dark:text-white font-semibold", rankUser.isMe && "text-primary")}>
-                         {rankUser.username}
-                       </p>
-                       <p className="text-[10px] text-muted-foreground dark:text-zinc-400 capitalize">Level {rankUser.level || 1}</p>
+                     <div className="text-right">
+                        <span className={cn("font-heading font-bold block", rankUser.isMe ? "text-primary text-lg" : "dark:text-white")}>{rankUser.score}</span>
+                        <span className="text-[10px] text-muted-foreground dark:text-zinc-400 uppercase">{type === "run" ? "km" : "XP"}</span>
                      </div>
                    </div>
-                   <div className="text-right">
-                      <span className={cn("font-heading font-bold block", rankUser.isMe ? "text-primary text-lg" : "dark:text-white")}>{rankUser.score}</span>
-                      <span className="text-[10px] text-muted-foreground dark:text-zinc-400 uppercase">{type === "run" ? "km" : "XP"}</span>
-                   </div>
+                 ))}
+               </div>
+               {hasMore && (
+                 <div className="p-4 border-t dark:border-zinc-700">
+                   <Button
+                     onClick={loadMore}
+                     disabled={loadingMore}
+                     variant="outline"
+                     className="w-full"
+                   >
+                     {loadingMore ? (
+                       <>
+                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                         Loading...
+                       </>
+                     ) : (
+                       'Load More'
+                     )}
+                   </Button>
                  </div>
-               ))}
-             </div>
+               )}
+             </>
            )}
         </CardContent>
       </Card>

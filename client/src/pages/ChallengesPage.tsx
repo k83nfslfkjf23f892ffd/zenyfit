@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Clock, Check, X, Globe, Lock, Bell, ArrowLeft, Loader2, AlertCircle, UserPlus } from "lucide-react";
+import { Trophy, Clock, Check, X, Globe, Lock, Bell, ArrowLeft, Loader2, AlertCircle, UserPlus, Target, Award, Search } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChallengeCardSkeleton } from "@/components/ui/skeletons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -710,8 +712,10 @@ export default function ChallengesPage() {
       <h1 className="text-2xl font-heading font-bold mb-6">Challenges</h1>
       
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <ChallengeCardSkeleton key={i} />
+          ))}
         </div>
       ) : error ? (
         <div className="text-center py-12">
@@ -782,10 +786,11 @@ export default function ChallengesPage() {
             </Button>
             
             {myChallenges.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <Trophy className="mx-auto mb-4 opacity-20" size={48} />
-                <p>No active challenges yet. Create one to get started!</p>
-              </div>
+              <EmptyState
+                icon={Target}
+                title="No active challenges"
+                description="Create your first challenge to start competing with friends and tracking your fitness goals!"
+              />
             ) : (
               myChallenges.map(challenge => (
                 <ChallengeCard
@@ -802,10 +807,11 @@ export default function ChallengesPage() {
           
           <TabsContent value="done" className="space-y-4">
             {doneChallenges.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <Trophy className="mx-auto mb-4 opacity-20" size={48} />
-                <p>No completed challenges yet. Keep going!</p>
-              </div>
+              <EmptyState
+                icon={Award}
+                title="No completed challenges"
+                description="Finish your active challenges to see them here. You've got this!"
+              />
             ) : (
               doneChallenges.map(challenge => (
                 <ChallengeCard 
@@ -822,10 +828,11 @@ export default function ChallengesPage() {
           <TabsContent value="discover">
             <div className="space-y-4">
               {discoverChallenges.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Trophy className="mx-auto mb-4 opacity-20" size={48} />
-                  <p>No public challenges available. Create one to get started!</p>
-                </div>
+                <EmptyState
+                  icon={Search}
+                  title="No public challenges"
+                  description="Be the first to create a public challenge and invite the community to join!"
+                />
               ) : (
                 discoverChallenges.map(challenge => (
                   <ChallengeCard 
