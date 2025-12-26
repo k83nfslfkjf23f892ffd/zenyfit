@@ -13,16 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface ExerciseLog {
-  id: string;
-  exerciseType: string;
-  amount: number;
-  unit: string;
-  xpGained: number;
-  timestamp: number;
-  isCustom?: boolean;
-}
+import type { ExerciseLog } from "@shared/types";
 
 export default function YourStatsPage() {
   const { toast } = useToast();

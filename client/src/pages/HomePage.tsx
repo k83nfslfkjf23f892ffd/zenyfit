@@ -17,6 +17,7 @@ import { useLocation } from "wouter";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
 import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
+import type { ExerciseLog, Challenge } from "@shared/types";
 
 const EXERCISE_ICONS = {
   "push-up": PushupIcon,
@@ -32,30 +33,6 @@ const CUSTOM_EXERCISE_COLORS = [
   { bg: "bg-violet-500/10", text: "text-violet-500", hex: "#a78bfa" },
   { bg: "bg-rose-500/10", text: "text-rose-500", hex: "#f43f5e" },
 ];
-
-interface ExerciseLog {
-  id: string;
-  exerciseType: string;
-  amount: number;
-  unit: string;
-  xpGained: number;
-  timestamp: number;
-  isCustom?: boolean;
-}
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  goal: number;
-  startDate: number;
-  endDate: number;
-  participants: Array<{ userId: string; progress: number; avatar: string; username: string }>;
-  participantIds: string[];
-  isPublic: boolean;
-  colors?: { from: string; to: string };
-}
 
 export default function HomePage() {
   const { toast } = useToast();

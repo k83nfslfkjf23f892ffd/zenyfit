@@ -6,15 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp, BarChart3, Calendar, Target, Flame, Award } from "lucide-react";
-
-type ExerciseLog = {
-  id: string;
-  exerciseType: string;
-  amount: number;
-  timestamp: number;
-  xpGained: number;
-  unit?: string;
-};
+import type { ExerciseLog } from "@shared/types";
 
 type DailyStats = {
   date: string;

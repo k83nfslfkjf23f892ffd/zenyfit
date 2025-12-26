@@ -19,38 +19,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  goal: number;
-  startDate: number;
-  endDate: number;
-  isPublic: boolean;
-  createdBy: string;
-  participantIds: string[];
-  participants: {
-    userId: string;
-    username: string;
-    avatar: string;
-    progress: number;
-    joinedAt: number;
-  }[];
-  colors: { from: string; to: string };
-}
-
-interface ChallengeInvite {
-  id: string;
-  challengeId: string;
-  challengeTitle: string;
-  challengeType: string;
-  invitedBy: string;
-  invitedByUsername: string;
-  invitedByAvatar: string;
-  createdAt: number;
-}
+import type { Challenge, ChallengeInvite } from "@shared/types";
 
 interface AppUser {
   id: string;

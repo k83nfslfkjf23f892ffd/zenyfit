@@ -450,8 +450,8 @@ Get user's challenges (participating or created).
       ],
       "participantIds": ["user123"],
       "colors": {
-        "primary": "#6C5CE7",
-        "secondary": "#00B894"
+        "from": "#6C5CE7",
+        "to": "#00B894"
       }
     }
   ]
@@ -473,13 +473,16 @@ Create a new challenge.
 {
   "idToken": "eyJhbGc...",
   "title": "100 Pull-ups Challenge",
-  "description": "Complete 100 pull-ups in 7 days",
-  "type": "pull-up",
+  "exerciseType": "pull-up",
   "goal": 100,
-  "startDate": 1234567890,
-  "endDate": 1235172690,
+  "durationDays": 7,
+  "startDate": "2024-01-01T00:00:00Z",
   "isPublic": true,
-  "invitedUserIds": ["user456", "user789"]
+  "inviteeIds": ["user456", "user789"],
+  "colors": {
+    "from": "#6C5CE7",
+    "to": "#00B894"
+  }
 }
 ```
 
