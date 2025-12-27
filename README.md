@@ -24,7 +24,6 @@ Previous versions of this app are archived as Git tags:
 - **Hosting:** Vercel
 - **Database:** Firebase Firestore
 - **Authentication:** Firebase Auth
-- **Styling:** Tailwind CSS + shadcn/ui
 
 ## 📱 Features
 
