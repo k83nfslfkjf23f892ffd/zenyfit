@@ -9,18 +9,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **clean slate rebuild** of the ZenyFit fitness tracking PWA. The project currently contains only specifications - no code has been implemented yet.
 
-## Previous Versions
-
-Old code is preserved as Git tags (not branches):
-- `v1.0-old-app` - Most recent backup before rebuild
-- `v0.9-old-version` - Older version
-
-**To view old code:**
-```bash
-git checkout v1.0-old-app
-git checkout main  # return to current
-```
-
 ## Build Specifications
 
 All project requirements are documented in the `prompts/` folder:
@@ -101,16 +89,7 @@ WEB_PUSH_EMAIL
 10. **Push Notifications** - Web Push API, requested after signup
 11. **Admin Panel** - User management, stats, moderation, system health
 
-## Database Schema (Firestore)
-
-**Collections:**
-- `users` - Profiles (level, XP, stats, isAdmin, isBanned, pushSubscription)
-- `exercise_logs` - Workout entries (userId, type, amount, timestamp)
-- `custom_exercises` - User-defined exercises (max 12 per user)
-- `challenges` - Challenge definitions with participants array
-- `challengeInvites` - Pending invitations
-- `inviteCodes` - Registration codes (10 chars, max 5 per user)
-- `pushSubscriptions` - Web Push subscriptions (supports multiple devices)
+_(For detailed database schema, API endpoints, and XP calculations, see `prompts/prompt.md`)_
 
 ## Development Workflow
 
@@ -127,11 +106,6 @@ Since this is a fresh start with no code yet:
 - Build pages step-by-step
 - Implement features incrementally
 
-**Branch Strategy:**
-- `main` - Production branch (deploys to Vercel)
-- `dev` - Development branch (creates Vercel preview URLs)
-- Feature branches - Merge to `dev`, then to `main`
-
 ## Important Notes
 
 - This is a **rebuild from scratch** - do not reference old code without checking tags
@@ -140,3 +114,11 @@ Since this is a fresh start with no code yet:
 - Mobile-first design (320px-428px optimized)
 - PWA must work offline (critical requirement)
 - Username is permanent after signup (warn users during registration)
+
+## User Preferences
+
+**Deployment:**
+When the user says "deploy", they mean **commit and push changes to GitHub**. The repository is connected to Vercel for automatic deployments, so pushing to GitHub (main branch) will trigger production deployment automatically. Do NOT use `vercel` CLI commands unless explicitly requested.
+
+**Testing:**
+When the user says "test", they mean **start local development server for testing** (`npm run dev`). Open the app in the browser at `http://localhost:3000` to test changes locally before deploying.
