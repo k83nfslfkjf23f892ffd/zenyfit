@@ -18,7 +18,6 @@ import YourStatsPage from "@/pages/YourStatsPage";
 import LogPage from "@/pages/LogPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
-import SocialPage from "@/pages/SocialPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import AchievementsPage from "@/pages/AchievementsPage";
 import AdminPage from "@/pages/AdminPage";
@@ -39,7 +38,6 @@ function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
       <Route path="/auth" component={AuthPage} />
       <Route path="/challenges" component={ChallengesPage} />
       <Route path="/leaderboard" component={LeaderboardPage} />
-      <Route path="/social" component={SocialPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/achievements" component={AchievementsPage} />
       <Route path="/admin" component={AdminPage} />

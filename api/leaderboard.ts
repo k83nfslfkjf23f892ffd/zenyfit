@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getAdminInstances, verifyRequiredEnvVars, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
+import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
 import { setCorsHeaders } from "../lib/cors.js";
 
 function getDateKey(timestamp: number): string {
@@ -39,6 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 async function handleRankings(req: VercelRequest, res: VercelResponse) {
   try {
+    // Verify authentication
+    const user = await verifyAuthToken(req.headers.authorization as string);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
     const { db } = getAdminInstances();
     const {
       type = "all",
@@ -87,6 +93,12 @@ async function handleRankings(req: VercelRequest, res: VercelResponse) {
 
 async function handleTrend(req: VercelRequest, res: VercelResponse) {
   try {
+    // Verify authentication
+    const user = await verifyAuthToken(req.headers.authorization as string);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
     const { db } = getAdminInstances();
 
     const now = Date.now();

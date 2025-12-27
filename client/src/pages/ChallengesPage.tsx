@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { Challenge, ChallengeInvite } from "@shared/types";
@@ -36,7 +36,6 @@ const CHALLENGE_TEMPLATES = [
 ];
 
 export default function ChallengesPage() {
-  const { toast } = useToast();
   const { user, userProfile } = useAuth();
   const { requestPermission, challengeInviteNotification } = useNotifications();
   const [challenges, setChallenges] = useState<Challenge[]>([]);

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Edit2, Palette, Sun, Moon, LogOut, RotateCcw, Upload, Copy, Trash2, UserPlus, Plus, ArrowLeft, Share2, Loader2, CheckCircle2, XCircle, Shield } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useThemeToggle } from "@/hooks/use-theme";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,7 +19,6 @@ interface InviteCodeData {
 }
 
 export default function ProfileSettingsPage() {
-  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { user, userProfile, logout } = useAuth();
   const [isAvatarCustomizing, setIsAvatarCustomizing] = useState(false);

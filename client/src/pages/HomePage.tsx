@@ -11,7 +11,7 @@ import { WorkoutLogSkeleton, ChallengeCardSkeleton } from "@/components/ui/skele
 import { Onboarding } from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useThemeToggle } from "@/hooks/use-theme";
 import { useLocation } from "wouter";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
@@ -35,7 +35,6 @@ const CUSTOM_EXERCISE_COLORS = [
 ];
 
 export default function HomePage() {
-  const { toast } = useToast();
   const { user, userProfile } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [isCustomizingHome, setIsCustomizingHome] = useState(false);

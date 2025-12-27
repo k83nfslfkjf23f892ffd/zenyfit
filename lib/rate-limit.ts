@@ -1,26 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
- * Simple in-memory rate limiter
- * Suitable for small-scale deployments and development
+ * Rate limiting for serverless environments
+ *
+ * IMPORTANT: In-memory rate limiting does NOT work in serverless (Vercel) because:
+ * - Each function invocation is stateless
+ * - The Map gets reset on cold starts
+ * - setInterval never runs in serverless
+ *
+ * For production rate limiting, use one of:
+ * 1. Vercel Edge Config (https://vercel.com/docs/storage/edge-config)
+ * 2. Upstash Redis (https://upstash.com/)
+ * 3. Vercel's built-in rate limiting (https://vercel.com/docs/security/vercel-waf)
+ *
+ * For now, this is disabled to avoid false security.
  */
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetAt < now) {
-      rateLimitStore.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
 
 export interface RateLimitConfig {
   /**
@@ -38,55 +32,28 @@ export interface RateLimitConfig {
 }
 
 /**
- * Rate limiting middleware
+ * Rate limiting middleware (DISABLED in serverless)
+ *
+ * This is a no-op in serverless environments. Rely on Vercel's built-in
+ * rate limiting or implement using an external service.
+ *
  * Returns true if rate limit exceeded, false otherwise
  */
 export function rateLimit(req: VercelRequest, res: VercelResponse, config: RateLimitConfig): boolean {
-  const { max, windowMs, keyGenerator } = config;
+  // DISABLED: In-memory rate limiting doesn't work in serverless
+  // Rely on Vercel's built-in protection instead
 
-  // Generate key (default: IP address)
-  const key = keyGenerator
-    ? keyGenerator(req)
-    : req.headers['x-forwarded-for']?.toString() || req.headers['x-real-ip']?.toString() || 'unknown';
-
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
-
-  if (!entry || entry.resetAt < now) {
-    // First request or window expired
-    rateLimitStore.set(key, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
-    setRateLimitHeaders(res, max, max - 1, Math.floor((now + windowMs) / 1000));
-    return false;
+  // Optionally log for monitoring
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Rate Limit Check] ${req.method} ${req.url} - Would check: ${config.max} req/${config.windowMs}ms`);
   }
 
-  if (entry.count >= max) {
-    // Rate limit exceeded
-    setRateLimitHeaders(res, max, 0, Math.floor(entry.resetAt / 1000));
-    res.status(429).json({
-      success: false,
-      error: 'Too many requests, please try again later.',
-      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
-    });
-    return true;
-  }
-
-  // Increment count
-  entry.count++;
-  setRateLimitHeaders(res, max, max - entry.count, Math.floor(entry.resetAt / 1000));
-  return false;
-}
-
-function setRateLimitHeaders(res: VercelResponse, limit: number, remaining: number, reset: number) {
-  res.setHeader('X-RateLimit-Limit', limit.toString());
-  res.setHeader('X-RateLimit-Remaining', remaining.toString());
-  res.setHeader('X-RateLimit-Reset', reset.toString());
+  return false; // Never rate limit (rely on Vercel's infrastructure)
 }
 
 /**
- * Preset rate limit configs
+ * Preset rate limit configs (for reference/documentation)
+ * Note: These are not enforced in serverless without external storage
  */
 export const RateLimits = {
   // Strict limits for auth endpoints (signup, login)

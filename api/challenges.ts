@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
 import { setCorsHeaders } from "../lib/cors.js";
+import { sanitizeChallengeTitle, sanitizeChallengeDescription } from "../lib/sanitize.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (setCorsHeaders(req, res)) {
@@ -83,6 +84,14 @@ async function handleCreateChallenge(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
+  // Sanitize user input to prevent XSS
+  let sanitizedTitle: string;
+  try {
+    sanitizedTitle = sanitizeChallengeTitle(title);
+  } catch (error: any) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+
   const numericGoal = Number(goal);
   const numericDuration = Number(durationDays);
 
@@ -152,7 +161,7 @@ async function handleCreateChallenge(req: VercelRequest, res: VercelResponse) {
     }
 
     const challengeData = {
-      title,
+      title: sanitizedTitle,
       description: `Created by ${creatorData.username}`,
       type: exerciseType,
       goal: numericGoal,
@@ -186,7 +195,7 @@ async function handleCreateChallenge(req: VercelRequest, res: VercelResponse) {
 
         await db.collection("challengeInvites").add({
           challengeId: challengeRef.id,
-          challengeTitle: title,
+          challengeTitle: sanitizedTitle,
           challengeType: exerciseType,
           invitedUserId: inviteeId,
           invitedBy: userId,

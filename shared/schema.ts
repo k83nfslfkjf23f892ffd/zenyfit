@@ -4,7 +4,7 @@ import { z } from "zod";
 export const userSchema = z.object({
   id: z.string().optional(), // Firestore doc ID
   username: z.string().min(3).max(20),
-  password: z.string().min(6).max(100),
+  password: z.string().min(7).max(100),
   avatar: z.string().optional(),
   level: z.number().default(1),
   xp: z.number().default(0),
@@ -62,8 +62,8 @@ export type Challenge = z.infer<typeof challengeSchema>;
 // Auth schema
 export const signUpSchema = z.object({
   username: z.string().min(3).max(20),
-  password: z.string().min(6),
-  confirmPassword: z.string().min(6),
+  password: z.string().min(7),
+  confirmPassword: z.string().min(7),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],

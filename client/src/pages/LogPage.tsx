@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useAuth } from "@/hooks/use-auth";
 import { getFirebaseInstances } from "@/lib/firebase";
@@ -140,7 +140,6 @@ function isStandardExerciseType(type: string): type is StandardExerciseType {
 
 export default function LogPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const { workoutNotification, levelUpNotification } = useNotifications();
   const { user, refreshProfile } = useAuth();
   const [type, setType] = useState<"push-up" | "pull-up" | "dip" | "run">("push-up");

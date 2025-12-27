@@ -3,7 +3,7 @@ import Layout from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { getApiUrl } from "@/lib/api";
 import { Trophy, Award, Lock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -22,7 +22,6 @@ type Achievement = {
 
 export default function AchievementsPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");

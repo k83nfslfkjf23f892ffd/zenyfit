@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getAdminInstances, verifyRequiredEnvVars, verifyAuthToken, verifyTokenFromBody, initializeFirebaseAdmin } from "../lib/firebase-admin.js";
 import { setCorsHeaders } from "../lib/cors.js";
 import { rateLimit, RateLimits } from "../lib/rate-limit.js";
+import { sanitizeUsername } from "../lib/sanitize.js";
 
 function generateAvatar(username: string): string {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
@@ -158,11 +159,14 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
-  if (username.length < 3 || username.length > 20) {
+  // Sanitize username to prevent XSS
+  const sanitizedUsername = sanitizeUsername(username);
+
+  if (sanitizedUsername.length < 3 || sanitizedUsername.length > 20) {
     return res.status(400).json({ success: false, error: "Username must be 3-20 characters" });
   }
 
-  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+  if (!/^[a-zA-Z0-9_]+$/.test(sanitizedUsername)) {
     return res.status(400).json({ success: false, error: "Username can only contain letters, numbers, and underscores" });
   }
 
@@ -176,14 +180,14 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { db, auth } = getAdminInstances();
-    const email = `${username.toLowerCase()}@zenyfit.local`;
+    const email = `${sanitizedUsername.toLowerCase()}@zenyfit.local`;
 
     let userRecord;
     try {
       userRecord = await auth.createUser({
         email,
         password,
-        displayName: username,
+        displayName: sanitizedUsername,
       });
       createdUserId = userRecord.uid;
     } catch (authError: any) {
@@ -213,16 +217,16 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
 
         transaction.update(inviteCodeRef, {
           used: true,
-          usedBy: username,
+          usedBy: sanitizedUsername,
           usedAt: Date.now(),
         });
       }
 
       const userRef = db.collection("users").doc(userRecord.uid);
       transaction.set(userRef, {
-        username,
+        username: sanitizedUsername,
         email,
-        avatar: generateAvatar(username),
+        avatar: generateAvatar(sanitizedUsername),
         level: 1,
         xp: 0,
         totalPullups: 0,
@@ -317,22 +321,25 @@ async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
     const oldUsername = userData?.username;
 
     if (username !== undefined) {
-      if (username.length < 3 || username.length > 20) {
+      // Sanitize username to prevent XSS
+      const sanitizedUsername = sanitizeUsername(username);
+
+      if (sanitizedUsername.length < 3 || sanitizedUsername.length > 20) {
         return res.status(400).json({ success: false, error: "Username must be 3-20 characters" });
       }
-      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      if (!/^[a-zA-Z0-9_]+$/.test(sanitizedUsername)) {
         return res.status(400).json({ success: false, error: "Username can only contain letters, numbers, and underscores" });
       }
 
       const existingUser = await db.collection("users")
-        .where("username", "==", username)
+        .where("username", "==", sanitizedUsername)
         .get();
 
       if (!existingUser.empty && existingUser.docs[0].id !== userId) {
         return res.status(400).json({ success: false, error: "Username already taken" });
       }
 
-      updateData.username = username;
+      updateData.username = sanitizedUsername;
     }
 
     if (milestones !== undefined) {

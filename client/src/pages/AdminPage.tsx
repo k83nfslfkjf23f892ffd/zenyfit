@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { getApiUrl } from "@/lib/api";
 import { Users, Activity, Trophy, Zap, Shield, Ban, Trash2, Search, TrendingUp, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,6 @@ type RecentActivity = {
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);

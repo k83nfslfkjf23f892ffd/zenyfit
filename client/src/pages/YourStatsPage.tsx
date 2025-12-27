@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from "recharts";
 import { Zap, TrendingUp, Activity, Plus, X, Award, ArrowUp, Loader2, BarChart3, Trophy } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PushupIcon, DipsIcon } from "@/pages/LogPage";
 import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api";
@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ExerciseLog } from "@shared/types";
 
 export default function YourStatsPage() {
-  const { toast } = useToast();
   const { user, userProfile } = useAuth();
   const [, setLocation] = useLocation();
   const [customExercisesData, setCustomExercisesData] = useState<Array<{ name: string; unit: string; buttons: number[] }>>([]);
