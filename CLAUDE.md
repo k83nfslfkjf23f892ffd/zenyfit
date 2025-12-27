@@ -45,7 +45,6 @@ Contains all design requirements:
 - **Hosting:** Vercel
 - **Database:** Firebase Firestore
 - **Authentication:** Firebase Auth
-- **Styling:** Tailwind CSS + shadcn/ui
 - **PWA:** Service worker + IndexedDB for offline
 - **Push Notifications:** Web Push API (web-push npm package)
 
