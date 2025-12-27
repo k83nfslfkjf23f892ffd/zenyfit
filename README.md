@@ -7,14 +7,16 @@ Fresh rebuild of the fitness tracking PWA with XP/leveling, challenges, and lead
 **Current Phase:** Design
 **Started:** December 27, 2025
 
-## 📦 Old Version
+## 📦 Old Versions
 
-The previous version of this app is preserved in the `backup-v1-old-app` branch.
+Previous versions of this app are archived as Git tags:
+- `v1.0-old-app` - Most recent backup
+- `v0.9-old-version` - Older version
 
 ## 📋 Build Specifications
 
-- **Design Brief:** See `design-brief.md` for complete UI/UX specifications
-- **Build Spec:** See `prompt.md` for complete functional requirements
+- **Design Brief:** See `prompts/design-brief.md` for complete UI/UX specifications
+- **Build Spec:** See `prompts/prompt.md` for complete functional requirements
 
 ## 🛠️ Tech Stack
 
