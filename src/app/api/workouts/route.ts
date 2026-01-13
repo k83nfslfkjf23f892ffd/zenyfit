@@ -98,44 +98,49 @@ export async function POST(request: NextRequest) {
 
     await batch.commit();
 
-    // Check for active challenges that match this exercise type
-    // Query challenges where user is a participant and challenge is active
-    const now = Date.now();
-    const challengesSnapshot = await db
-      .collection('challenges')
-      .where('participantIds', 'array-contains', userId)
-      .where('endDate', '>', now)
-      .get();
+    // Check for active challenges that match this exercise type (non-blocking)
+    // If this fails, workout is still logged successfully
+    try {
+      const now = Date.now();
+      const challengesSnapshot = await db
+        .collection('challenges')
+        .where('participantIds', 'array-contains', userId)
+        .where('endDate', '>', now)
+        .get();
 
-    // Update matching challenges
-    const challengeUpdates: Promise<unknown>[] = [];
+      // Update matching challenges
+      const challengeUpdates: Promise<unknown>[] = [];
 
-    for (const challengeDoc of challengesSnapshot.docs) {
-      const challengeData = challengeDoc.data();
+      for (const challengeDoc of challengesSnapshot.docs) {
+        const challengeData = challengeDoc.data();
 
-      // Check if challenge type matches the exercise type
-      if (challengeData.type === type) {
-        // Update participant's progress
-        const participants = challengeData.participants || [];
-        const participantIndex = participants.findIndex(
-          (p: { userId: string }) => p.userId === userId
-        );
-
-        if (participantIndex !== -1) {
-          participants[participantIndex].progress =
-            (participants[participantIndex].progress || 0) + amount;
-
-          challengeUpdates.push(
-            challengeDoc.ref.update({
-              participants,
-            })
+        // Check if challenge type matches the exercise type
+        if (challengeData.type === type) {
+          // Update participant's progress
+          const participants = challengeData.participants || [];
+          const participantIndex = participants.findIndex(
+            (p: { userId: string }) => p.userId === userId
           );
+
+          if (participantIndex !== -1) {
+            participants[participantIndex].progress =
+              (participants[participantIndex].progress || 0) + amount;
+
+            challengeUpdates.push(
+              challengeDoc.ref.update({
+                participants,
+              })
+            );
+          }
         }
       }
-    }
 
-    // Wait for all challenge updates to complete
-    await Promise.all(challengeUpdates);
+      // Wait for all challenge updates to complete
+      await Promise.all(challengeUpdates);
+    } catch (challengeError) {
+      // Log but don't fail the workout
+      console.error('Error updating challenges (workout still logged):', challengeError);
+    }
 
     return NextResponse.json(
       {

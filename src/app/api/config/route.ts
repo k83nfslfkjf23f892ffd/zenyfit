@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
       storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
       messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
       appId: process.env.FIREBASE_APP_ID,
+      webPushPublicKey: process.env.WEB_PUSH_PUBLIC_KEY || null,
     };
 
-    // Validate that all required env vars are present
-    const missingVars = Object.entries(config)
-      .filter(([, value]) => !value)
-      .map(([key]) => key);
+    // Validate that all required env vars are present (webPushPublicKey is optional)
+    const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+    const missingVars = requiredKeys.filter(key => !config[key as keyof typeof config]);
 
     if (missingVars.length > 0) {
       console.error('Missing Firebase config vars:', missingVars);
