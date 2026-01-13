@@ -65,6 +65,19 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  // Memoized close handlers to prevent useEffect re-runs in celebration components
+  const closeLevelUp = useCallback(() => {
+    setLevelUpState((prev) => ({ ...prev, isVisible: false }));
+  }, []);
+
+  const closeWorkout = useCallback(() => {
+    setWorkoutState((prev) => ({ ...prev, isVisible: false }));
+  }, []);
+
+  const closeAchievement = useCallback(() => {
+    setAchievementState((prev) => ({ ...prev, isVisible: false }));
+  }, []);
+
   // Connect level-up detection from auth context
   useEffect(() => {
     if (setOnLevelUpCallback) {
@@ -84,7 +97,7 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
       <LevelUpCelebration
         isVisible={levelUpState.isVisible}
         newLevel={levelUpState.level}
-        onClose={() => setLevelUpState((prev) => ({ ...prev, isVisible: false }))}
+        onClose={closeLevelUp}
       />
 
       <WorkoutCelebration
@@ -92,7 +105,7 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
         xpGained={workoutState.xpGained}
         exerciseType={workoutState.exerciseType}
         amount={workoutState.amount}
-        onClose={() => setWorkoutState((prev) => ({ ...prev, isVisible: false }))}
+        onClose={closeWorkout}
       />
 
       <AchievementUnlock
@@ -100,7 +113,7 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
         title={achievementState.title}
         description={achievementState.description}
         icon={achievementState.icon}
-        onClose={() => setAchievementState((prev) => ({ ...prev, isVisible: false }))}
+        onClose={closeAchievement}
       />
     </CelebrationContext.Provider>
   );

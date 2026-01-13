@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Flame, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fadeVariants, springVariants } from '@/lib/animations';
 import { animateValue } from '@/lib/animations';
 
@@ -22,20 +22,39 @@ export function WorkoutCelebration({
   onClose,
 }: WorkoutCelebrationProps) {
   const [displayXP, setDisplayXP] = useState(0);
+  const onCloseRef = useRef(onClose);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the ref up to date
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (isVisible && xpGained > 0) {
       // Animate XP counter
       animateValue(0, xpGained, 800, setDisplayXP);
 
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
       // Auto-close after 2.5 seconds
-      const timer = setTimeout(() => {
-        onClose();
+      timerRef.current = setTimeout(() => {
+        onCloseRef.current();
       }, 2500);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+      };
+    } else if (!isVisible) {
+      // Reset display XP when hidden
+      setDisplayXP(0);
     }
-  }, [isVisible, xpGained, onClose]);
+  }, [isVisible, xpGained]);
 
   const motivationalMessages = [
     'Great work!',

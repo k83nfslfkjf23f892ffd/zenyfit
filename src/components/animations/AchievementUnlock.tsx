@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Award, Star } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { achievementVariants, fadeVariants } from '@/lib/animations';
 
 interface AchievementUnlockProps {
@@ -20,16 +20,33 @@ export function AchievementUnlock({
   icon,
   onClose,
 }: AchievementUnlockProps) {
+  const onCloseRef = useRef(onClose);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the ref up to date
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (isVisible) {
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
       // Auto-close after 4 seconds
-      const timer = setTimeout(() => {
-        onClose();
+      timerRef.current = setTimeout(() => {
+        onCloseRef.current();
       }, 4000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+      };
     }
-  }, [isVisible, onClose]);
+  }, [isVisible]);
 
   return (
     <AnimatePresence>

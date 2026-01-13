@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Sparkles, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { confettiVariants, fadeVariants } from '@/lib/animations';
 
 interface LevelUpCelebrationProps {
@@ -17,18 +17,38 @@ export function LevelUpCelebration({
   onClose,
 }: LevelUpCelebrationProps) {
   const [showConfetti, setShowConfetti] = useState(false);
+  const onCloseRef = useRef(onClose);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the ref up to date
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (isVisible) {
       setShowConfetti(true);
+
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
       // Auto-close after 3 seconds
-      const timer = setTimeout(() => {
-        onClose();
+      timerRef.current = setTimeout(() => {
+        onCloseRef.current();
       }, 3000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+      };
+    } else {
+      // Reset confetti when hidden
+      setShowConfetti(false);
     }
-  }, [isVisible, onClose]);
+  }, [isVisible]);
 
   // Generate confetti particles
   const confettiCount = 30;
