@@ -28,15 +28,16 @@ export async function GET(request: NextRequest) {
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    // Build query
-    let query = db
-      .collection('exercise_logs')
-      .where('timestamp', '>', sevenDaysAgo)
-      .orderBy('timestamp', 'asc');
+    // Build query - equality filters first, then inequality filters
+    let query: FirebaseFirestore.Query = db.collection('exercise_logs');
 
     if (userId) {
       query = query.where('userId', '==', userId);
     }
+
+    query = query
+      .where('timestamp', '>', sevenDaysAgo)
+      .orderBy('timestamp', 'asc');
 
     const snapshot = await query.get();
 

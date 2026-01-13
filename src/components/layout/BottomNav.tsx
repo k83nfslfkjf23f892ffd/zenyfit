@@ -18,21 +18,20 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center justify-around px-2 py-2 pb-[env(safe-area-inset-bottom)]">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 rounded-lg px-4 py-2 text-xs font-medium transition-colors',
+                'flex items-center justify-center rounded-lg p-3 transition-colors',
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5', isActive && 'fill-primary')} />
-              <span>{label}</span>
+              <Icon className={cn('h-7 w-7', isActive && 'fill-primary')} />
             </Link>
           );
         })}

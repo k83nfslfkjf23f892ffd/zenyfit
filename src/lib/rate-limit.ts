@@ -23,7 +23,7 @@ export const RATE_LIMITS = {
   PUBLIC_MODERATE: { maxRequests: 10, windowMs: 60 * 1000 },   // 10 per minute
 
   // Authenticated endpoints (user-based)
-  WRITE_HEAVY: { maxRequests: 30, windowMs: 60 * 60 * 1000 },  // 30 per hour
+  WRITE_HEAVY: { maxRequests: 200, windowMs: 60 * 60 * 1000 }, // 200 per hour (workouts are individual sets)
   READ_HEAVY: { maxRequests: 100, windowMs: 60 * 60 * 1000 },  // 100 per hour
   MODERATE: { maxRequests: 50, windowMs: 60 * 60 * 1000 },     // 50 per hour
 

@@ -173,67 +173,64 @@ export default function ChallengesPage() {
                 const isParticipant = challenge.participantIds.includes(user.id);
 
                 return (
-                  <Card key={challenge.id} className="hover:border-primary transition-colors">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle>{challenge.title}</CardTitle>
-                          {challenge.description && (
-                            <CardDescription className="mt-1">
-                              {challenge.description}
-                            </CardDescription>
+                  <Link key={challenge.id} href={`/challenges/${challenge.id}`}>
+                    <Card className="hover:border-primary transition-colors cursor-pointer">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle>{challenge.title}</CardTitle>
+                            {challenge.description && (
+                              <CardDescription className="mt-1">
+                                {challenge.description}
+                              </CardDescription>
+                            )}
+                          </div>
+                          {challenge.isPublic && (
+                            <span className="text-xs rounded-full bg-primary/10 px-2 py-1 text-primary">
+                              Public
+                            </span>
                           )}
                         </div>
-                        {challenge.isPublic && (
-                          <span className="text-xs rounded-full bg-primary/10 px-2 py-1 text-primary">
-                            Public
-                          </span>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Challenge Info */}
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-muted-foreground" />
-                          <span className="capitalize">{challenge.type}</span>
-                          <span className="text-muted-foreground">
-                            • {challenge.goal} {challenge.type === 'running' ? 'km' : 'reps'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 justify-end">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            {daysRemaining > 0 ? `${daysRemaining}d left` : 'Ended'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Progress (if participant) */}
-                      {isParticipant && (
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Your Progress</span>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Challenge Info */}
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Target className="h-4 w-4 text-muted-foreground" />
+                            <span className="capitalize">{challenge.type}</span>
                             <span className="text-muted-foreground">
-                              {Math.floor(userProgress)} / {challenge.goal}
+                              • {challenge.goal} {challenge.type === 'running' ? 'km' : 'reps'}
                             </span>
                           </div>
-                          <Progress value={progressPercent} />
+                          <div className="flex items-center gap-2 justify-end">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              {daysRemaining > 0 ? `${daysRemaining}d left` : 'Ended'}
+                            </span>
+                          </div>
                         </div>
-                      )}
 
-                      {/* Participants */}
-                      <div className="flex items-center justify-between">
+                        {/* Progress (if participant) */}
+                        {isParticipant && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Your Progress</span>
+                              <span className="text-muted-foreground">
+                                {Math.floor(userProgress)} / {challenge.goal}
+                              </span>
+                            </div>
+                            <Progress value={progressPercent} />
+                          </div>
+                        )}
+
+                        {/* Participants */}
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Users className="h-4 w-4" />
                           <span>{challenge.participants.length} participants</span>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/challenges/${challenge.id}`}>View Details</Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 );
               })
             )}

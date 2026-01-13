@@ -191,13 +191,7 @@ export default function ProfilePage() {
 
         {/* Actions */}
         <Card>
-          <CardContent className="pt-6 space-y-3">
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/profile/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Link>
-            </Button>
+          <CardContent className="pt-6">
             <Button
               variant="outline"
               className="w-full justify-start text-destructive hover:text-destructive"

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Dumbbell, Loader2 } from 'lucide-react';
+import { Dumbbell, Loader2, Undo2 } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pullups');
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
+  const [reverting, setReverting] = useState(false);
   const [recentWorkouts, setRecentWorkouts] = useState<Array<{
     id: string;
     type: string;
@@ -68,6 +69,41 @@ export default function DashboardPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts]);
 
+  const handleRevertWorkout = async (workoutId: string) => {
+    if (reverting) return;
+
+    setReverting(true);
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/workouts/${workoutId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to revert workout');
+        return;
+      }
+
+      toast.success(`Workout reverted (-${data.xpDeducted} XP)`);
+      fetchRecentWorkouts();
+    } catch (error) {
+      console.error('Error reverting workout:', error);
+      toast.error('An error occurred');
+    } finally {
+      setReverting(false);
+    }
+  };
+
   const handleLogWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -105,12 +141,8 @@ export default function DashboardPage() {
         return;
       }
 
-      // Show workout celebration animation
+      // Show workout celebration animation (this already shows XP earned)
       showWorkoutComplete(data.xpEarned, selectedExercise, amountNum);
-
-      toast.success(
-        `+${data.xpEarned} XP earned!${data.leveledUp ? ' Level up! 🎉' : ''}`
-      );
 
       // Reset form
       setAmount('');
@@ -278,7 +310,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {recentWorkouts.map((workout) => (
+                {recentWorkouts.map((workout, index) => (
                   <div
                     key={workout.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -289,12 +321,28 @@ export default function DashboardPage() {
                         {workout.amount} {workout.type === 'running' ? 'km' : 'reps'}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-primary">
-                        +{workout.xpEarned} XP
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(workout.timestamp).toLocaleDateString()}
+                    <div className="flex items-center gap-3">
+                      {index === 0 && (
+                        <button
+                          onClick={() => handleRevertWorkout(workout.id)}
+                          disabled={reverting}
+                          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                          title="Undo this workout"
+                        >
+                          {reverting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Undo2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
+                      <div className="text-right">
+                        <div className="font-semibold text-primary">
+                          +{workout.xpEarned} XP
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(workout.timestamp).toLocaleDateString()}
+                        </div>
                       </div>
                     </div>
                   </div>
