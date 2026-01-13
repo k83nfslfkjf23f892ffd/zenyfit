@@ -4,15 +4,15 @@
 
 @layer base {
   :root {
-    /* Theme colors - dynamically set by ThemeProvider */
-    --background: 10 10 10;
-    --foreground: 255 255 255;
-    --primary: 196 69 105;
+    /* Theme colors - dynamically set by ThemeProvider (default: Original Legacy) */
+    --background: 255 255 255;
+    --foreground: 0 0 0;
+    --primary: 59 130 246;
     --primary-foreground: 255 255 255;
-    --secondary: 139 30 20;
-    --accent: 196 69 105;
-    --muted: 30 30 30;
-    --border: 196 69 105;
+    --secondary: 37 99 235;
+    --accent: 59 130 246;
+    --muted: 243 244 246;
+    --border: 229 231 235;
 
     /* Derived colors for UI components */
     --card: var(--background);
@@ -38,16 +38,11 @@
   * {
     @apply border-border;
   }
-  html {
-    /* Handle iOS safe areas */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
+    /* Keep content above iOS home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }

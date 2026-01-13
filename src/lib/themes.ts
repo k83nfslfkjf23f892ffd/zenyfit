@@ -358,4 +358,4 @@ export function getThemeById(id: string): Theme | undefined {
   return themes.find((t) => t.id === id);
 }
 
-export const defaultTheme = themes[0]; // Timepage V2
+export const defaultTheme = themes.find(t => t.id === 'legacy-original') || themes[0];
