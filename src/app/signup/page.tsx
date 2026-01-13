@@ -13,8 +13,9 @@ import { useAuth } from '@/lib/auth-context';
 
 function SignupForm() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const searchParams = useSearchParams();
+  const [signupComplete, setSignupComplete] = useState(false);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +35,13 @@ function SignupForm() {
       setInviteCode(invite);
     }
   }, [searchParams]);
+
+  // Redirect to dashboard once signup is complete and user is authenticated
+  useEffect(() => {
+    if (signupComplete && user) {
+      router.replace('/dashboard');
+    }
+  }, [signupComplete, user, router]);
 
   // Validate username availability
   useEffect(() => {
@@ -126,8 +134,8 @@ function SignupForm() {
 
       toast.success('Account created successfully!');
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Mark signup complete - redirect will happen via useEffect when user state updates
+      setSignupComplete(true);
     } catch (error) {
       console.error('Signup error:', error);
       toast.error('An error occurred. Please try again.');

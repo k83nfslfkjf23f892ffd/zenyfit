@@ -115,11 +115,8 @@ export default function DashboardPage() {
       // Reset form
       setAmount('');
 
-      // Refresh workouts
+      // Refresh workouts list
       fetchRecentWorkouts();
-
-      // Force auth context to refresh user data
-      window.location.reload();
     } catch (error) {
       console.error('Error logging workout:', error);
       toast.error('An error occurred');
