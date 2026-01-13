@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Trophy, Medal } from 'lucide-react';
 import { toast } from 'sonner';
+import { LeaderboardSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
 
 type RankingType = 'xp' | 'pullups' | 'pushups' | 'dips' | 'running';
 
@@ -74,9 +75,9 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <LeaderboardSkeleton />
+      </AppLayout>
     );
   }
 
@@ -122,8 +123,21 @@ export default function LeaderboardPage() {
 
               <TabsContent value={activeTab} className="mt-4 space-y-3">
                 {loadingRankings ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="space-y-3">
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                        <Skeleton className="h-6 w-12" />
+                        <SkeletonAvatar />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Skeleton className="h-5 w-16 ml-auto" />
+                          <Skeleton className="h-3 w-8 ml-auto" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : rankings.length === 0 ? (
                   <p className="py-12 text-center text-sm text-muted-foreground">

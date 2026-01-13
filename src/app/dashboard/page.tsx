@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Dumbbell, Loader2 } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
+import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 type ExerciseType = 'pullups' | 'pushups' | 'dips' | 'running';
 
@@ -136,9 +137,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <DashboardSkeleton />
+      </AppLayout>
     );
   }
 
@@ -260,8 +261,19 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {loadingWorkouts ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <div className="text-right space-y-2">
+                      <Skeleton className="h-4 w-16 ml-auto" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : recentWorkouts.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Loader2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChallengeDetailSkeleton } from '@/components/ui/skeleton';
 
 interface Challenge {
   id: string;
@@ -107,9 +108,9 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
 
   if (loading || loadingChallenge) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <ChallengeDetailSkeleton />
+      </AppLayout>
     );
   }
 

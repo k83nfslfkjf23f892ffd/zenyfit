@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Settings, LogOut, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProfileSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -75,9 +76,9 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <ProfileSkeleton />
+      </AppLayout>
     );
   }
 
@@ -116,7 +117,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">Total Workouts</span>
               </div>
               {loadingStats ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Skeleton className="h-9 w-16" />
               ) : (
                 <div className="text-3xl font-bold">{stats.totalWorkouts}</div>
               )}
@@ -130,7 +131,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">This Week</span>
               </div>
               {loadingStats ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Skeleton className="h-9 w-16" />
               ) : (
                 <div className="text-3xl font-bold">{stats.thisWeekWorkouts}</div>
               )}
@@ -144,7 +145,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">Week XP</span>
               </div>
               {loadingStats ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Skeleton className="h-9 w-16" />
               ) : (
                 <div className="text-3xl font-bold text-primary">{stats.thisWeekXP}</div>
               )}
