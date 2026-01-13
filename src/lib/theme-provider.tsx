@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="data-theme"
-      defaultTheme="timepage-v2"
+      defaultTheme="legacy-original"
       themes={themes.map((t) => t.id)}
       enableSystem={false}
       disableTransitionOnChange={false}
