@@ -11,7 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <CelebrationProvider>
           {children}
-          <Toaster position="top-center" offset="calc(16px + env(safe-area-inset-top))" />
+          <Toaster position="top-center" />
         </CelebrationProvider>
       </AuthProvider>
     </ThemeProvider>

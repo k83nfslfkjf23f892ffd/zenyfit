@@ -44,3 +44,8 @@
     min-height: -webkit-fill-available;
   }
 }
+
+/* Sonner toast notifications - respect iOS safe area */
+[data-sonner-toaster][data-y-position="top"] {
+  top: calc(16px + env(safe-area-inset-top)) !important;
+}
