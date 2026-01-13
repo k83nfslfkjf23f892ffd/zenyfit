@@ -42,8 +42,5 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    /* Keep content within iOS safe areas */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
   }
 }
