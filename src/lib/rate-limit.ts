@@ -135,16 +135,12 @@ export function rateLimitByUser(
  */
 export function cleanupRateLimits(): void {
   const now = Date.now();
-  let cleaned = 0;
 
   for (const [key, record] of rateLimitMap.entries()) {
     if (now > record.resetTime) {
       rateLimitMap.delete(key);
-      cleaned++;
     }
   }
-
-  // Silently cleanup expired entries
 }
 
 // Cleanup every 10 minutes
