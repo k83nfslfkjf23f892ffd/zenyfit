@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 function SignupForm() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const searchParams = useSearchParams();
 
   const [username, setUsername] = useState('');
@@ -119,10 +121,13 @@ function SignupForm() {
         return;
       }
 
+      // Auto sign in after successful registration
+      await signIn(username, password);
+
       toast.success('Account created successfully!');
 
-      // Redirect to login
-      router.push('/login');
+      // Redirect to dashboard
+      router.push('/dashboard');
     } catch (error) {
       console.error('Signup error:', error);
       toast.error('An error occurred. Please try again.');
