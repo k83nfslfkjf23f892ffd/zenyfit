@@ -2,122 +2,166 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Status
+## Communication Guidelines
 
-**Current Phase:** Fresh start - Design phase
-**Started:** December 27, 2025
+When working with this codebase, Claude should:
+- **Ask for clarification** when requirements are ambiguous or more context is needed
+- **Say "I don't know"** when genuinely uncertain rather than guessing or making assumptions
+- **Flag potential issues** before implementing changes
+- **Suggest alternatives** when a better approach exists
+- **Be honest about limitations** - accuracy over assumptions
 
-This is a **clean slate rebuild** of the ZenyFit fitness tracking PWA. The project currently contains only specifications - no code has been implemented yet.
+## Development Commands
 
-## Build Specifications
+### Running the Application
+```bash
+npm run dev          # Start Next.js dev server on http://localhost:3001
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
 
-All project requirements are documented in the `prompts/` folder:
+### Deployment
+**IMPORTANT**: When the user says "deploy", they mean **deploy to GitHub** (commit and push changes).
+- This repository is connected to Vercel for automatic deployments
+- Pushing to the `main` branch triggers automatic deployment to production
+- DO NOT use `vercel` CLI commands unless explicitly requested
 
-### **`prompts/prompt.md`** - Complete Functional Specification
-Contains the full technical requirements:
-- Platform: Next.js + Vercel + Firebase Firestore
-- Authentication: Firebase Auth (invite-code only, username-based)
-- Security model (all writes server-side, XP calculations server-controlled)
-- 11 core features (workout logging, XP/leveling, challenges, leaderboard, etc.)
-- Database schema (Firestore collections)
-- API endpoints (Next.js API routes)
-- Critical technical constraints
+## Architecture Overview
 
-**Key Architecture Decisions:**
-- Use Next.js API routes for ALL backend (not standalone Vercel functions)
-- Usernames are permanent (3-12 chars, act as display names)
-- Custom exercises: max 12 per user, stored in Firestore, earn 0 XP
-- XP system: Pull-ups (15 XP), Push-ups (3 XP), Dips (12 XP), Running (30 XP/km)
-- Offline support: Queue workouts in IndexedDB, auto-sync when online
+### Project Structure
+```
+zenyfit/
+├── src/
+│   ├── app/              # Next.js App Router pages and API routes
+│   │   ├── api/          # API route handlers
+│   │   └── [page]/       # Page components
+│   ├── components/       # React components
+│   │   ├── ui/           # shadcn/ui components
+│   │   ├── admin/        # Admin panel components
+│   │   ├── charts/       # Recharts data visualization
+│   │   └── animations/   # Framer Motion animations
+│   └── lib/              # Utilities, Firebase, auth context
+├── shared/               # Shared Zod schemas and constants
+├── public/               # Static assets, PWA icons, manifest
+└── prompts/              # Design briefs and prompts
+```
 
-### **`prompts/design-brief.md`** - Complete UI/UX Specification
-Contains all design requirements:
-- 9 main pages (signup, login, dashboard, leaderboard, challenges, profile, settings, admin)
-- Components/modals (workout logger, create challenge, celebrations, etc.)
-- Design system (colors, typography, spacing, animations)
-- User flows (signup, log workout, create challenge, join challenge)
-- Mobile-first design approach (320px-428px optimized)
-- PWA requirements (offline support, installable)
+### Key Architectural Patterns
 
-## Tech Stack
+#### 1. Authentication Flow
+- **Client**: Firebase Auth with email/password (emails are `username@zenyfit.local`)
+- **Server**: Validates ID tokens via Firebase Admin SDK (`verifyAuthToken` in `src/lib/firebase-admin.ts`)
+- **Context**: `AuthProvider` in `src/lib/auth-context.tsx` manages auth state
+- **Pattern**: Client authenticates → Gets ID token → Sends `Authorization: Bearer <token>` header → Server verifies
 
-- **Framework:** Next.js (React)
-- **Hosting:** Vercel
-- **Database:** Firebase Firestore
-- **Authentication:** Firebase Auth
-- **PWA:** Service worker + IndexedDB for offline
-- **Push Notifications:** Web Push API (web-push npm package)
+#### 2. Data Integrity Model
+**All writes to Firestore happen server-side only** (via API routes) to prevent cheating:
+- XP calculations are server-controlled
+- Challenge progress updates use Firestore transactions
+- Firestore rules deny all client-side writes except avatar/username/theme on own profile
+
+#### 3. API Architecture (Next.js App Router)
+API routes are in `src/app/api/[route]/route.ts`:
+- Export named functions: `GET`, `POST`, `PATCH`, `DELETE`
+- Use `NextRequest` and `NextResponse` from `next/server`
+- All routes implement rate limiting via `src/lib/rate-limit.ts`
+- Protected routes verify auth token before processing
+
+Example pattern:
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
+import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const decodedToken = await verifyAuthToken(authHeader);
+  if (!decodedToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const rateLimitResponse = rateLimitByUser(decodedToken, '/api/route', RATE_LIMITS.MODERATE);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const { db } = getAdminInstances();
+  // ... handle request
+}
+```
+
+#### 4. XP and Leveling System
+**XP Rates** (defined in `shared/constants.ts`):
+- Pull-ups: 15 XP/rep
+- Push-ups: 3 XP/rep
+- Dips: 12 XP/rep
+- Running: 30 XP/km
+- Custom exercises: 0 XP (tracking only)
+
+**Level Calculation**:
+- Levels 1-10: Fixed thresholds `[0, 500, 1500, 3000, 5000, 8000, 12000, 17000, 23000, 30000]`
+- Level 11+: Additional 7000 XP per level
+
+#### 5. Theme System
+- 24 themes defined in `src/lib/themes.ts`
+- Theme provider injects CSS variables dynamically
+- Uses `next-themes` for dark/light mode support
+- User theme preference stored in Firestore and localStorage
+
+#### 6. Security Features
+- **Rate Limiting**: All API endpoints protected (IP-based for public, user-based for authenticated)
+- **Input Sanitization**: `src/lib/sanitize.ts` for XSS prevention
+- **Security Headers**: CSP, HSTS, X-Frame-Options, etc. in `next.config.js`
+- **Firestore Rules**: Strict read/write permissions in `firestore.rules`
+
+### Path Aliases (defined in `tsconfig.json`)
+```typescript
+"@/*"       → "src/*"
+"@shared/*" → "shared/*"
+```
 
 ## Environment Variables
+**Required for server**:
+- `FIREBASE_PROJECT_ID` - Firebase project ID
+- `FIREBASE_SERVICE_ACCOUNT_KEY` - Entire JSON service account key as string
+- `FIREBASE_API_KEY` - Firebase web API key
+- `FIREBASE_AUTH_DOMAIN` - Firebase auth domain
+- `FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
+- `FIREBASE_APP_ID` - Firebase app ID
+- `MASTER_INVITE_CODE` - Bootstrap invite code for first users
 
-Required for Firebase and push notifications:
-```
-FIREBASE_PROJECT_ID
-FIREBASE_SERVICE_ACCOUNT_KEY          # Full JSON as string
-FIREBASE_API_KEY
-FIREBASE_AUTH_DOMAIN
-FIREBASE_STORAGE_BUCKET
-FIREBASE_MESSAGING_SENDER_ID
-FIREBASE_APP_ID
-MASTER_INVITE_CODE
-WEB_PUSH_PUBLIC_KEY
-WEB_PUSH_PRIVATE_KEY
-WEB_PUSH_EMAIL
-```
+## Database Schema (Firestore)
 
-## Security Model
+### Collections
+1. **`users`**: User profiles (id, username, avatar, level, xp, totals, isAdmin, isBanned, theme, invitedBy, createdAt)
+2. **`exercise_logs`**: Workout records (userId, type, amount, timestamp, xpEarned, synced, isCustom)
+3. **`custom_exercises`**: User-defined exercises (userId, name, unit, quickActions, createdAt)
+4. **`challenges`**: Competition events (title, description, type, goal, dates, participants, participantIds, isPublic, colors, createdBy)
+5. **`challengeInvites`**: Pending invitations (challengeId, invitedUserId, invitedBy, status, timestamp)
+6. **`inviteCodes`**: Registration codes (code as doc ID, createdBy, used, usedBy, createdAt, usedAt)
+7. **`pushSubscriptions`**: Web push subscriptions (userId, endpoint, keys, createdAt)
 
-**Critical constraints:**
-- ALL database writes MUST go through Next.js API routes (never client-side)
-- XP calculations MUST happen server-side only
-- Sanitize all user inputs (prevent XSS)
-- Firestore security rules deny client writes, allow specific reads
-- Username format: `username@app.local` (internal Firebase Auth format)
+## UI Components
 
-## Core Features Overview
+### shadcn/ui
+- Components in `src/components/ui/`
+- Built on Radix UI primitives
+- Styled with Tailwind CSS
 
-1. **Workout Logging** - Track pull-ups, push-ups, dips, running + 12 custom exercises per user
-2. **XP & Leveling** - Gamification system with level progression
-3. **Challenges** - Time-based competitive goals (public or invite-only)
-4. **Leaderboard** - Global rankings by total XP or exercise type
-5. **Achievements** - Badges for milestones
-6. **User Profiles** - Stats, workout history, personal bests
-7. **Social Features** - Challenge invitations, activity feed
-8. **Invite System** - Generate 5 invite codes (10 chars), shareable URLs
-9. **PWA & Offline** - Queue workouts offline, auto-sync
-10. **Push Notifications** - Web Push API, requested after signup
-11. **Admin Panel** - User management, stats, moderation, system health
+### Toast Notifications
+- Uses `sonner` library
+- Import `toast` from `sonner` for notifications
 
-_(For detailed database schema, API endpoints, and XP calculations, see `prompts/prompt.md`)_
+### Charts
+- Recharts components in `src/components/charts/`
+- XPHistoryChart, WorkoutDistributionChart, WeeklyActivityChart, UserGrowthChart
 
-## Development Workflow
+### Animations
+- Framer Motion components in `src/components/animations/`
+- LevelUpCelebration, WorkoutCelebration, AchievementUnlock
 
-Since this is a fresh start with no code yet:
-
-**Step 1: Design First (Current Phase)**
-- Create mockups/wireframes based on `prompts/design-brief.md`
-- Design all 9 pages + components
-- Choose colors, fonts, spacing
-
-**Step 2: Implementation (Future)**
-- Initialize Next.js project
-- Set up Firebase
-- Build pages step-by-step
-- Implement features incrementally
-
-## Important Notes
-
-- This is a **rebuild from scratch** - do not reference old code without checking tags
-- Specifications in `prompts/` folder are the source of truth
-- Follow Next.js best practices for project structure
-- Mobile-first design (320px-428px optimized)
-- PWA must work offline (critical requirement)
-- Username is permanent after signup (warn users during registration)
-
-## User Preferences
-
-**Deployment:**
-When the user says "deploy", they mean **commit and push changes to GitHub**. The repository is connected to Vercel for automatic deployments, so pushing to GitHub (main branch) will trigger production deployment automatically. Do NOT use `vercel` CLI commands unless explicitly requested.
-
-**Testing:**
-When the user says "test", they mean **start local development server for testing** (`npm run dev`). Open the app in the browser at `http://localhost:3000` to test changes locally before deploying.
+## PWA Features
+- Service worker at `public/sw.js`
+- Manifest at `public/manifest.json`
+- Custom icons in `public/icons/`
+- Offline support with Firestore persistence

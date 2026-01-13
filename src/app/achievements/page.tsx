@@ -1,0 +1,138 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Award, Lock } from 'lucide-react';
+import { ACHIEVEMENTS, type Achievement } from '@shared/achievements';
+
+type Category = 'workout' | 'progress' | 'challenge' | 'social';
+
+export default function AchievementsPage() {
+  const router = useRouter();
+  const { user, loading, firebaseUser } = useAuth();
+
+  const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+  const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const [activeTab, setActiveTab] = useState<Category>('workout');
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  const fetchAchievements = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/achievements', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnlockedIds(data.unlockedAchievements || []);
+      }
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+    } finally {
+      setLoadingAchievements(false);
+    }
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (user && firebaseUser) {
+      fetchAchievements();
+    }
+  }, [user, firebaseUser, fetchAchievements]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const categorizedAchievements: Record<Category, Achievement[]> = {
+    workout: ACHIEVEMENTS.filter((a) => a.category === 'workout'),
+    progress: ACHIEVEMENTS.filter((a) => a.category === 'progress'),
+    challenge: ACHIEVEMENTS.filter((a) => a.category === 'challenge'),
+    social: ACHIEVEMENTS.filter((a) => a.category === 'social'),
+  };
+
+  const totalUnlocked = unlockedIds.length;
+  const totalAchievements = ACHIEVEMENTS.length;
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Award className="h-8 w-8" />
+            Achievements
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {totalUnlocked} / {totalAchievements} unlocked
+          </p>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Category)}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="workout">Workout</TabsTrigger>
+            <TabsTrigger value="progress">Progress</TabsTrigger>
+            <TabsTrigger value="challenge">Challenge</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+          </TabsList>
+
+          {(['workout', 'progress', 'challenge', 'social'] as Category[]).map((category) => (
+            <TabsContent key={category} value={category} className="mt-6 space-y-4">
+              {loadingAchievements ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                categorizedAchievements[category].map((achievement) => {
+                  const isUnlocked = unlockedIds.includes(achievement.id);
+
+                  return (
+                    <Card
+                      key={achievement.id}
+                      className={isUnlocked ? '' : 'opacity-50'}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start gap-4">
+                          <div className="text-4xl">{isUnlocked ? achievement.icon : '🔒'}</div>
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center gap-2">
+                              {achievement.title}
+                              {!isUnlocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                              {achievement.description}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  );
+                })
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+}
