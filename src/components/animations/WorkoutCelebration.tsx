@@ -72,19 +72,20 @@ export function WorkoutCelebration({
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           variants={fadeVariants}
           initial="hidden"
           animate="visible"
           exit="exit"
+          onClick={onClose}
         >
           <motion.div
-            className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl max-w-sm mx-4 pointer-events-auto"
+            className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl max-w-sm mx-4"
             variants={springVariants}
             initial="initial"
             animate="animate"
             exit="initial"
-            onClick={onClose}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Success icon */}
             <motion.div
