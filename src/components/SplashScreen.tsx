@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { APP_VERSION } from '@shared/constants';
 
 interface SplashScreenProps {
@@ -45,28 +44,17 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
           fadeOut ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        {/* App Name */}
-        <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+        {/* App Name with pulse animation */}
+        <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent animate-pulse">
           ZenyFit
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground font-medium">
+        <p className="mt-2 text-sm text-muted-foreground font-medium animate-pulse">
           Level up your fitness
         </p>
 
-        {/* Logo and version at bottom */}
-        <div className="absolute bottom-8 flex flex-col items-center gap-2">
-          <div className="relative h-12 w-12 overflow-hidden rounded-xl shadow-sm bg-background border">
-            <Image
-              src="/logo.svg"
-              alt="ZenyFit"
-              fill
-              className="object-contain p-1"
-              priority
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            v{APP_VERSION}
-          </div>
+        {/* Version at bottom */}
+        <div className="absolute bottom-8 text-xs text-muted-foreground">
+          v{APP_VERSION}
         </div>
       </div>
 
