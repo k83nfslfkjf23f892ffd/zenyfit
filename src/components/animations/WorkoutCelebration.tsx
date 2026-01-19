@@ -30,6 +30,18 @@ export function WorkoutCelebration({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // Disable scrolling when popup is visible
+  useEffect(() => {
+    if (isVisible) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isVisible]);
+
   useEffect(() => {
     if (isVisible && xpGained > 0) {
       // Animate XP counter
@@ -80,12 +92,11 @@ export function WorkoutCelebration({
           onClick={onClose}
         >
           <motion.div
-            className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl max-w-sm mx-4"
+            className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl max-w-sm mx-4 cursor-pointer"
             variants={springVariants}
             initial="initial"
             animate="animate"
             exit="initial"
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Success icon */}
             <motion.div
