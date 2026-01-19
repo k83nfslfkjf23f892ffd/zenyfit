@@ -38,18 +38,10 @@
   * {
     @apply border-border;
   }
-  html {
-    overflow: hidden;
-    height: 100%;
-  }
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    height: 100%;
-    overflow: auto;
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -59,24 +51,9 @@
 }
 
 /* Fix double-tap issue on touch devices */
-@media (hover: none) and (pointer: coarse) {
-  button,
-  a,
-  [role="button"] {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Disable hover states on touch devices */
-  button:hover,
-  a:hover,
-  [role="button"]:hover {
-    @apply transition-none;
-  }
-}
-
-/* Ensure touch action is immediate */
 button,
 a,
 [role="button"] {
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
