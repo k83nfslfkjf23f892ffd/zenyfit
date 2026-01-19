@@ -38,10 +38,18 @@
   * {
     @apply border-border;
   }
+  html {
+    overflow: hidden;
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
