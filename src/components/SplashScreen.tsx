@@ -49,7 +49,7 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
           ZenyFit
         </h1>
         <p className="mt-2 text-sm text-muted-foreground font-medium animate-pulse">
-          Level up your fitness
+          Level up yourself
         </p>
 
         {/* Version at bottom */}
