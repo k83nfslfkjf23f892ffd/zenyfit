@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -155,12 +154,12 @@ export default function LeaderboardPage() {
                         </div>
 
                         {/* Avatar */}
-                        <div className="relative h-10 w-10 overflow-hidden rounded-full bg-muted">
-                          <Image
+                        <div className="h-10 w-10 overflow-hidden rounded-full bg-muted flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
                             src={avatarUrl}
                             alt={ranking.username}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
                           />
                         </div>
 
