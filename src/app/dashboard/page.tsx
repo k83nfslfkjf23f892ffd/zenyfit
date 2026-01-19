@@ -586,7 +586,7 @@ export default function DashboardPage() {
                           +{workout.xpEarned} XP
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(workout.timestamp).toLocaleDateString()}
+                          {new Date(workout.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                         </div>
                       </div>
                     </div>
