@@ -45,9 +45,17 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
           fadeOut ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative h-24 w-24 animate-pulse">
+        {/* App Name */}
+        <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          ZenyFit
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground font-medium">
+          Level up your fitness
+        </p>
+
+        {/* Logo and version at bottom */}
+        <div className="absolute bottom-8 flex flex-col items-center gap-2">
+          <div className="relative h-10 w-10 opacity-60">
             <Image
               src="/logo.svg"
               alt="ZenyFit"
@@ -56,12 +64,9 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
               priority
             />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">ZenyFit</h1>
-        </div>
-
-        {/* Version at bottom */}
-        <div className="absolute bottom-8 text-xs text-muted-foreground">
-          v{APP_VERSION}
+          <div className="text-xs text-muted-foreground">
+            v{APP_VERSION}
+          </div>
         </div>
       </div>
 
