@@ -148,11 +148,6 @@ export default function LeaderboardPage() {
                           isCurrentUser ? 'border-primary bg-primary/5' : ''
                         }`}
                       >
-                        {/* Rank number */}
-                        <div className="w-6 text-center text-sm font-semibold text-muted-foreground">
-                          {ranking.rank}
-                        </div>
-
                         {/* Avatar */}
                         <div className="h-10 w-10 overflow-hidden rounded-full bg-muted flex-shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,9 +162,6 @@ export default function LeaderboardPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold truncate">
                               {ranking.username}
-                              {isCurrentUser && (
-                                <span className="ml-2 text-xs text-muted-foreground">(You)</span>
-                              )}
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground">

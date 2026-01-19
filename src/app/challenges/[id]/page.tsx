@@ -254,14 +254,8 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        #{index + 1}
-                      </span>
                       <span className="font-medium">
                         {participant.username}
-                        {isCurrentUser && (
-                          <span className="ml-2 text-xs text-muted-foreground">(You)</span>
-                        )}
                       </span>
                     </div>
                     <span className="font-bold text-primary">

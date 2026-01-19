@@ -17,7 +17,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background" style={{ touchAction: 'none' }}>
-      <div className="flex items-center justify-around px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {navItems.map(({ href, icon: Icon }) => {
           const isActive = pathname === href;
           return (
