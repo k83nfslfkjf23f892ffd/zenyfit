@@ -334,7 +334,23 @@ export default function DashboardPage() {
             <form onSubmit={handleLogWorkout} className="space-y-4">
               {/* Standard Exercise Type Selector */}
               <div className="space-y-2">
-                <Label>Exercise</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Exercise</Label>
+                  {!loadingCustomExercises && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className="h-7 text-xs"
+                    >
+                      <Link href="/dashboard/custom-exercise">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Link>
+                    </Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {(['pullups', 'pushups', 'dips', 'running'] as const).map((type) => (
                     <Button
@@ -354,24 +370,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Custom Exercises Section */}
-              {!loadingCustomExercises && (
+              {!loadingCustomExercises && customExercises.length > 0 && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Custom Exercises</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="h-7 text-xs"
-                    >
-                      <Link href="/dashboard/custom-exercise">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add
-                      </Link>
-                    </Button>
-                  </div>
-                  {customExercises.length > 0 ? (
+                  <Label className="text-muted-foreground">Custom</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {customExercises.map((exercise) => (
                         <div key={exercise.id} className="relative group">
@@ -408,11 +409,6 @@ export default function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No custom exercises yet.
-                    </p>
-                  )}
                   {selectedExercise === 'custom' && (
                     <p className="text-xs text-muted-foreground">
                       Custom exercises don&apos;t earn XP (tracking only)
