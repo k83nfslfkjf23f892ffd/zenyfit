@@ -19,16 +19,20 @@ ZenyFit is a gamified fitness tracking application that turns workouts into an R
 
 ## Features
 
-- **Workout Logging** - Track pull-ups, push-ups, dips, running + custom exercises
-- **XP & Leveling** - Earn XP for workouts and level up
-- **24 Themes** - User-selectable color schemes
+- **Workout Logging** - Track pull-ups, push-ups, dips, running with quick-add buttons
+- **Custom Exercises** - Create your own exercises with custom units and quick actions (tracking only, no XP)
+- **XP & Leveling** - Earn XP for standard workouts and level up
+- **24 Themes** - User-selectable color schemes with dark/light mode
 - **Challenges** - Create and join time-based fitness competitions
-- **Leaderboards** - Global rankings with filters and trends
-- **Achievements** - Unlock milestones and badges
+  - Public challenges anyone can join
+  - Private challenges with invitation system
+  - Invite users by username, accept/decline invitations
+- **Leaderboards** - Global rankings with filters (XP, pull-ups, push-ups, dips, running)
+- **Achievements** - Unlock 16+ milestones across workout, progress, challenge, and social categories
 - **Offline Support** - PWA with offline workout queuing
 - **Push Notifications** - Challenge invites, level-ups, milestones
-- **Admin Panel** - User management, statistics, moderation
-- **Invite-Only** - Registration via invite codes
+- **Admin Panel** - User management, statistics, moderation, invite codes, system health
+- **Invite-Only** - Registration via invite codes (users can generate up to 5 codes)
 
 ---
 
