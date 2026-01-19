@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Dumbbell, Loader2, Undo2, Plus, X, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { Dumbbell, Loader2, Undo2, Plus, Trash2 } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
@@ -48,11 +49,6 @@ export default function DashboardPage() {
   // Custom exercises state
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [loadingCustomExercises, setLoadingCustomExercises] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newExerciseName, setNewExerciseName] = useState('');
-  const [newExerciseUnit, setNewExerciseUnit] = useState('reps');
-  const [newExerciseQuickActions, setNewExerciseQuickActions] = useState('5,10,15,20');
-  const [creatingExercise, setCreatingExercise] = useState(false);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,61 +100,6 @@ export default function DashboardPage() {
       setLoadingCustomExercises(false);
     }
   }, [firebaseUser]);
-
-  const handleCreateCustomExercise = async () => {
-    if (!newExerciseName.trim()) {
-      toast.error('Please enter an exercise name');
-      return;
-    }
-
-    setCreatingExercise(true);
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
-      }
-
-      // Parse quick actions
-      const quickActions = newExerciseQuickActions
-        .split(',')
-        .map((s) => parseFloat(s.trim()))
-        .filter((n) => !isNaN(n) && n > 0)
-        .slice(0, 6);
-
-      const response = await fetch('/api/exercises/custom', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: newExerciseName.trim(),
-          unit: newExerciseUnit.trim() || 'reps',
-          quickActions,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to create exercise');
-        return;
-      }
-
-      toast.success(`Created "${newExerciseName}"`);
-      setShowCreateModal(false);
-      setNewExerciseName('');
-      setNewExerciseUnit('reps');
-      setNewExerciseQuickActions('5,10,15,20');
-      fetchCustomExercises();
-    } catch (error) {
-      console.error('Error creating custom exercise:', error);
-      toast.error('An error occurred');
-    } finally {
-      setCreatingExercise(false);
-    }
-  };
 
   const handleDeleteCustomExercise = async (exerciseId: string) => {
     setDeletingExerciseId(exerciseId);
@@ -421,11 +362,13 @@ export default function DashboardPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setShowCreateModal(true)}
+                      asChild
                       className="h-7 text-xs"
                     >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add
+                      <Link href="/dashboard/custom-exercise">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Link>
                     </Button>
                   </div>
                   {customExercises.length > 0 ? (
@@ -556,9 +499,27 @@ export default function DashboardPage() {
                 {recentWorkouts.map((workout, index) => (
                   <div
                     key={workout.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
+                    className="flex items-center gap-3 rounded-lg border p-3"
                   >
-                    <div>
+                    {/* Revert button on the left (only for most recent) */}
+                    {index === 0 ? (
+                      <button
+                        onClick={() => handleRevertWorkout(workout.id)}
+                        disabled={reverting}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        title="Undo this workout"
+                      >
+                        {reverting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Undo2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    ) : (
+                      <div className="w-10" />
+                    )}
+
+                    <div className="flex-1">
                       <div className="font-medium capitalize">
                         {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : workout.type}
                       </div>
@@ -566,28 +527,13 @@ export default function DashboardPage() {
                         {workout.amount} {workout.type === 'custom' ? (workout.customExerciseUnit || 'reps') : (workout.type === 'running' ? 'km' : 'reps')}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {index === 0 && (
-                        <button
-                          onClick={() => handleRevertWorkout(workout.id)}
-                          disabled={reverting}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                          title="Undo this workout"
-                        >
-                          {reverting ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Undo2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      )}
-                      <div className="text-right">
-                        <div className="font-semibold text-primary">
-                          +{workout.xpEarned} XP
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(workout.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                        </div>
+
+                    <div className="text-right">
+                      <div className="font-semibold text-primary">
+                        +{workout.xpEarned} XP
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(workout.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                       </div>
                     </div>
                   </div>
@@ -598,79 +544,6 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Create Custom Exercise Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Create Custom Exercise</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowCreateModal(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription>
-                Custom exercises are for tracking only (no XP)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="exerciseName">Exercise Name</Label>
-                <Input
-                  id="exerciseName"
-                  value={newExerciseName}
-                  onChange={(e) => setNewExerciseName(e.target.value)}
-                  placeholder="e.g., Squats, Meditation, etc."
-                  maxLength={50}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="exerciseUnit">Unit</Label>
-                <Input
-                  id="exerciseUnit"
-                  value={newExerciseUnit}
-                  onChange={(e) => setNewExerciseUnit(e.target.value)}
-                  placeholder="e.g., reps, minutes, sets"
-                  maxLength={20}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quickActions">Quick Add Values (comma-separated)</Label>
-                <Input
-                  id="quickActions"
-                  value={newExerciseQuickActions}
-                  onChange={(e) => setNewExerciseQuickActions(e.target.value)}
-                  placeholder="e.g., 5,10,15,20"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Up to 6 values for quick selection
-                </p>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateCustomExercise}
-                  disabled={creatingExercise || !newExerciseName.trim()}
-                  className="flex-1"
-                >
-                  {creatingExercise && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {creatingExercise ? 'Creating...' : 'Create'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </AppLayout>
   );
 }
