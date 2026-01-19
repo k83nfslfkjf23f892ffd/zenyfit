@@ -20,6 +20,7 @@ export default function ProfilePage() {
     thisWeekWorkouts: 0,
     totalXP: 0,
     thisWeekXP: 0,
+    achievementsCount: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -34,22 +35,35 @@ export default function ProfilePage() {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
 
-      // Fetch activity trend to calculate stats
-      const response = await fetch(`/api/leaderboard/trend?userId=${user?.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Fetch activity trend and achievements in parallel
+      const [trendResponse, achievementsResponse] = await Promise.all([
+        fetch(`/api/leaderboard/trend?userId=${user?.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('/api/achievements', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        setStats({
-          totalWorkouts: data.totalWorkouts || 0,
-          thisWeekWorkouts: data.totalWorkouts || 0, // Last 7 days
-          totalXP: data.totalXp || 0,
-          thisWeekXP: data.totalXp || 0, // Last 7 days
-        });
+      let trendData = { totalWorkouts: 0, totalXp: 0 };
+      let achievementsCount = 0;
+
+      if (trendResponse.ok) {
+        trendData = await trendResponse.json();
       }
+
+      if (achievementsResponse.ok) {
+        const achievementsData = await achievementsResponse.json();
+        achievementsCount = achievementsData.unlockedAchievements?.length || 0;
+      }
+
+      setStats({
+        totalWorkouts: trendData.totalWorkouts || 0,
+        thisWeekWorkouts: trendData.totalWorkouts || 0,
+        totalXP: trendData.totalXp || 0,
+        thisWeekXP: trendData.totalXp || 0,
+        achievementsCount,
+      });
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -158,7 +172,11 @@ export default function ProfilePage() {
                 <Award className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Achievements</span>
               </div>
-              <div className="text-3xl font-bold">0</div>
+              {loadingStats ? (
+                <Skeleton className="h-9 w-16" />
+              ) : (
+                <div className="text-3xl font-bold">{stats.achievementsCount}</div>
+              )}
             </CardContent>
           </Card>
         </div>

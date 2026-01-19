@@ -64,7 +64,9 @@ export const userSchema = z.object({
 export const exerciseLogSchema = z.object({
   id: z.string().optional(),
   userId: z.string(),
-  type: z.enum(['pullups', 'pushups', 'dips', 'running']),
+  type: z.enum(['pullups', 'pushups', 'dips', 'running', 'custom']),
+  customExerciseId: z.string().optional(), // required when type is 'custom'
+  customExerciseName: z.string().optional(), // denormalized for display
   amount: z.number().positive('Amount must be positive'),
   timestamp: z.number(), // timestamp
   xpEarned: z.number().int().min(0).default(0),

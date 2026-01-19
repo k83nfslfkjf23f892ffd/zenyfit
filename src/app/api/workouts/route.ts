@@ -46,10 +46,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, amount } = validation.data;
+    const { type, amount, customExerciseId } = validation.data;
 
-    // Calculate XP earned (server-side only)
-    const xpRate = XP_RATES[type as keyof typeof XP_RATES] || 0;
+    // For custom exercises, verify it exists and belongs to user
+    let customExerciseName: string | undefined;
+    let customExerciseUnit: string | undefined;
+    if (type === 'custom') {
+      if (!customExerciseId) {
+        return NextResponse.json(
+          { error: 'Custom exercise ID is required for custom type' },
+          { status: 400 }
+        );
+      }
+
+      const customExerciseDoc = await db
+        .collection('custom_exercises')
+        .doc(customExerciseId)
+        .get();
+
+      if (!customExerciseDoc.exists) {
+        return NextResponse.json(
+          { error: 'Custom exercise not found' },
+          { status: 404 }
+        );
+      }
+
+      const customExerciseData = customExerciseDoc.data()!;
+      if (customExerciseData.userId !== userId) {
+        return NextResponse.json(
+          { error: 'Custom exercise does not belong to you' },
+          { status: 403 }
+        );
+      }
+
+      customExerciseName = customExerciseData.name;
+      customExerciseUnit = customExerciseData.unit;
+    }
+
+    // Calculate XP earned (server-side only) - custom exercises earn 0 XP
+    const xpRate = type === 'custom' ? 0 : (XP_RATES[type as keyof typeof XP_RATES] || 0);
     const xpEarned = Math.floor(amount * xpRate);
 
     // Get current user data
@@ -65,17 +100,19 @@ export async function POST(request: NextRequest) {
 
     const userData = userDoc.data()!;
 
-    // Calculate new totals and XP
-    const newTotals = {
-      ...userData.totals,
-      [type]: (userData.totals[type] || 0) + amount,
-    };
+    // Calculate new totals and XP (only update totals for standard exercises)
+    const newTotals = type === 'custom'
+      ? userData.totals
+      : {
+          ...userData.totals,
+          [type]: (userData.totals[type] || 0) + amount,
+        };
     const newXp = userData.xp + xpEarned;
     const newLevel = calculateLevel(newXp);
 
     // Create exercise log
     const logRef = db.collection('exercise_logs').doc();
-    const logData = {
+    const logData: Record<string, unknown> = {
       id: logRef.id,
       userId,
       type,
@@ -83,8 +120,15 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
       xpEarned,
       synced: true,
-      isCustom: false,
+      isCustom: type === 'custom',
     };
+
+    // Add custom exercise fields if applicable
+    if (type === 'custom') {
+      logData.customExerciseId = customExerciseId;
+      logData.customExerciseName = customExerciseName;
+      logData.customExerciseUnit = customExerciseUnit;
+    }
 
     // Use a batch write to update user and create log atomically
     const batch = db.batch();

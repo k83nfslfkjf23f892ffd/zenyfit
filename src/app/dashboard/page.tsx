@@ -11,11 +11,18 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Dumbbell, Loader2, Undo2 } from 'lucide-react';
+import { Dumbbell, Loader2, Undo2, Plus, X, Trash2 } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
-type ExerciseType = 'pullups' | 'pushups' | 'dips' | 'running';
+type ExerciseType = 'pullups' | 'pushups' | 'dips' | 'running' | 'custom';
+
+interface CustomExercise {
+  id: string;
+  name: string;
+  unit: string;
+  quickActions: number[];
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,6 +30,7 @@ export default function DashboardPage() {
   const { showWorkoutComplete } = useCelebration();
 
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pullups');
+  const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
   const [reverting, setReverting] = useState(false);
@@ -32,8 +40,20 @@ export default function DashboardPage() {
     amount: number;
     xpEarned: number;
     timestamp: number;
+    customExerciseName?: string;
+    customExerciseUnit?: string;
   }>>([]);
   const [loadingWorkouts, setLoadingWorkouts] = useState(true);
+
+  // Custom exercises state
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const [loadingCustomExercises, setLoadingCustomExercises] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newExerciseName, setNewExerciseName] = useState('');
+  const [newExerciseUnit, setNewExerciseUnit] = useState('reps');
+  const [newExerciseQuickActions, setNewExerciseQuickActions] = useState('5,10,15,20');
+  const [creatingExercise, setCreatingExercise] = useState(false);
+  const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -63,11 +83,128 @@ export default function DashboardPage() {
     }
   }, [firebaseUser]);
 
+  const fetchCustomExercises = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/exercises/custom', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCustomExercises(data.exercises || []);
+      }
+    } catch (error) {
+      console.error('Error fetching custom exercises:', error);
+    } finally {
+      setLoadingCustomExercises(false);
+    }
+  }, [firebaseUser]);
+
+  const handleCreateCustomExercise = async () => {
+    if (!newExerciseName.trim()) {
+      toast.error('Please enter an exercise name');
+      return;
+    }
+
+    setCreatingExercise(true);
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      // Parse quick actions
+      const quickActions = newExerciseQuickActions
+        .split(',')
+        .map((s) => parseFloat(s.trim()))
+        .filter((n) => !isNaN(n) && n > 0)
+        .slice(0, 6);
+
+      const response = await fetch('/api/exercises/custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newExerciseName.trim(),
+          unit: newExerciseUnit.trim() || 'reps',
+          quickActions,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to create exercise');
+        return;
+      }
+
+      toast.success(`Created "${newExerciseName}"`);
+      setShowCreateModal(false);
+      setNewExerciseName('');
+      setNewExerciseUnit('reps');
+      setNewExerciseQuickActions('5,10,15,20');
+      fetchCustomExercises();
+    } catch (error) {
+      console.error('Error creating custom exercise:', error);
+      toast.error('An error occurred');
+    } finally {
+      setCreatingExercise(false);
+    }
+  };
+
+  const handleDeleteCustomExercise = async (exerciseId: string) => {
+    setDeletingExerciseId(exerciseId);
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/exercises/custom/${exerciseId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete exercise');
+        return;
+      }
+
+      toast.success('Exercise deleted');
+
+      // If this exercise was selected, reset selection
+      if (selectedCustomExercise?.id === exerciseId) {
+        setSelectedExercise('pullups');
+        setSelectedCustomExercise(null);
+      }
+
+      fetchCustomExercises();
+    } catch (error) {
+      console.error('Error deleting custom exercise:', error);
+      toast.error('An error occurred');
+    } finally {
+      setDeletingExerciseId(null);
+    }
+  };
+
   useEffect(() => {
     if (user && firebaseUser) {
       fetchRecentWorkouts();
+      fetchCustomExercises();
     }
-  }, [user, firebaseUser, fetchRecentWorkouts]);
+  }, [user, firebaseUser, fetchRecentWorkouts, fetchCustomExercises]);
 
   const handleRevertWorkout = async (workoutId: string) => {
     if (reverting) return;
@@ -113,6 +250,12 @@ export default function DashboardPage() {
       return;
     }
 
+    // Validate custom exercise selection
+    if (selectedExercise === 'custom' && !selectedCustomExercise) {
+      toast.error('Please select a custom exercise');
+      return;
+    }
+
     setLogging(true);
 
     try {
@@ -122,16 +265,22 @@ export default function DashboardPage() {
         return;
       }
 
+      const body: Record<string, unknown> = {
+        type: selectedExercise,
+        amount: amountNum,
+      };
+
+      if (selectedExercise === 'custom' && selectedCustomExercise) {
+        body.customExerciseId = selectedCustomExercise.id;
+      }
+
       const response = await fetch('/api/workouts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          type: selectedExercise,
-          amount: amountNum,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -141,8 +290,11 @@ export default function DashboardPage() {
         return;
       }
 
-      // Show workout celebration animation (this already shows XP earned)
-      showWorkoutComplete(data.xpEarned, selectedExercise, amountNum);
+      // Show workout celebration animation
+      const exerciseName = selectedExercise === 'custom' && selectedCustomExercise
+        ? selectedCustomExercise.name
+        : selectedExercise;
+      showWorkoutComplete(data.xpEarned, exerciseName, amountNum);
 
       // Reset form
       setAmount('');
@@ -157,11 +309,29 @@ export default function DashboardPage() {
     }
   };
 
-  const quickAmounts: Record<ExerciseType, number[]> = {
+  const standardQuickAmounts: Record<string, number[]> = {
     pullups: [5, 10, 15, 20],
     pushups: [10, 25, 50, 100],
     dips: [5, 10, 15, 20],
     running: [1, 3, 5, 10],
+  };
+
+  // Get quick amounts for current selection
+  const getQuickAmounts = () => {
+    if (selectedExercise === 'custom' && selectedCustomExercise) {
+      return selectedCustomExercise.quickActions.length > 0
+        ? selectedCustomExercise.quickActions
+        : [5, 10, 15, 20];
+    }
+    return standardQuickAmounts[selectedExercise] || [5, 10, 15, 20];
+  };
+
+  // Get unit label for current selection
+  const getUnitLabel = () => {
+    if (selectedExercise === 'custom' && selectedCustomExercise) {
+      return selectedCustomExercise.unit;
+    }
+    return selectedExercise === 'running' ? 'km' : 'reps';
   };
 
   if (loading) {
@@ -221,16 +391,19 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogWorkout} className="space-y-4">
-              {/* Exercise Type Selector */}
+              {/* Standard Exercise Type Selector */}
               <div className="space-y-2">
                 <Label>Exercise</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(['pullups', 'pushups', 'dips', 'running'] as ExerciseType[]).map((type) => (
+                  {(['pullups', 'pushups', 'dips', 'running'] as const).map((type) => (
                     <Button
                       key={type}
                       type="button"
                       variant={selectedExercise === type ? 'default' : 'outline'}
-                      onClick={() => setSelectedExercise(type)}
+                      onClick={() => {
+                        setSelectedExercise(type);
+                        setSelectedCustomExercise(null);
+                      }}
                       className="capitalize"
                     >
                       {type}
@@ -239,15 +412,81 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* Custom Exercises Section */}
+              {!loadingCustomExercises && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Custom Exercises</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCreateModal(true)}
+                      className="h-7 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                  {customExercises.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {customExercises.map((exercise) => (
+                        <div key={exercise.id} className="relative group">
+                          <Button
+                            type="button"
+                            variant={
+                              selectedExercise === 'custom' && selectedCustomExercise?.id === exercise.id
+                                ? 'default'
+                                : 'outline'
+                            }
+                            onClick={() => {
+                              setSelectedExercise('custom');
+                              setSelectedCustomExercise(exercise);
+                            }}
+                            className="w-full truncate pr-8"
+                          >
+                            {exercise.name}
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCustomExercise(exercise.id);
+                            }}
+                            disabled={deletingExerciseId === exercise.id}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
+                          >
+                            {deletingExerciseId === exercise.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No custom exercises yet. Create one to track any activity!
+                    </p>
+                  )}
+                  {selectedExercise === 'custom' && (
+                    <p className="text-xs text-muted-foreground">
+                      Custom exercises don&apos;t earn XP (tracking only)
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Amount Input */}
               <div className="space-y-2">
                 <Label htmlFor="amount">
-                  Amount ({selectedExercise === 'running' ? 'km' : 'reps'})
+                  Amount ({getUnitLabel()})
                 </Label>
                 <Input
                   id="amount"
                   type="number"
-                  step={selectedExercise === 'running' ? '0.1' : '1'}
+                  step={selectedExercise === 'running' || (selectedExercise === 'custom' && selectedCustomExercise?.unit === 'km') ? '0.1' : '1'}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
@@ -259,7 +498,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <Label>Quick Add</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {quickAmounts[selectedExercise].map((qty) => (
+                  {getQuickAmounts().map((qty) => (
                     <Button
                       key={qty}
                       type="button"
@@ -274,7 +513,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Submit Button */}
-              <Button type="submit" className="w-full" disabled={logging}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={logging || (selectedExercise === 'custom' && !selectedCustomExercise)}
+              >
                 {logging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {logging ? 'Logging...' : 'Log Workout'}
               </Button>
@@ -316,9 +559,11 @@ export default function DashboardPage() {
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <div>
-                      <div className="font-medium capitalize">{workout.type}</div>
+                      <div className="font-medium capitalize">
+                        {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : workout.type}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        {workout.amount} {workout.type === 'running' ? 'km' : 'reps'}
+                        {workout.amount} {workout.type === 'custom' ? (workout.customExerciseUnit || 'reps') : (workout.type === 'running' ? 'km' : 'reps')}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -352,6 +597,80 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Custom Exercise Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Create Custom Exercise</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription>
+                Custom exercises are for tracking only (no XP)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="exerciseName">Exercise Name</Label>
+                <Input
+                  id="exerciseName"
+                  value={newExerciseName}
+                  onChange={(e) => setNewExerciseName(e.target.value)}
+                  placeholder="e.g., Squats, Meditation, etc."
+                  maxLength={50}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exerciseUnit">Unit</Label>
+                <Input
+                  id="exerciseUnit"
+                  value={newExerciseUnit}
+                  onChange={(e) => setNewExerciseUnit(e.target.value)}
+                  placeholder="e.g., reps, minutes, sets"
+                  maxLength={20}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quickActions">Quick Add Values (comma-separated)</Label>
+                <Input
+                  id="quickActions"
+                  value={newExerciseQuickActions}
+                  onChange={(e) => setNewExerciseQuickActions(e.target.value)}
+                  placeholder="e.g., 5,10,15,20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Up to 6 values for quick selection
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateCustomExercise}
+                  disabled={creatingExercise || !newExerciseName.trim()}
+                  className="flex-1"
+                >
+                  {creatingExercise && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {creatingExercise ? 'Creating...' : 'Create'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </AppLayout>
   );
 }

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Target, Plus, Clock, Users } from 'lucide-react';
+import { Target, Plus, Clock, Users, Mail, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChallengesSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
 
@@ -26,6 +26,24 @@ interface Challenge {
   participantIds: string[];
 }
 
+interface ChallengeInvite {
+  id: string;
+  challengeId: string;
+  challengeTitle: string;
+  invitedByUsername: string;
+  timestamp: number;
+  challenge?: {
+    id: string;
+    title: string;
+    type: string;
+    goal: number;
+  };
+  inviter?: {
+    username: string;
+    avatar?: string;
+  };
+}
+
 export default function ChallengesPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
@@ -33,6 +51,9 @@ export default function ChallengesPage() {
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [invites, setInvites] = useState<ChallengeInvite[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(true);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -67,11 +88,74 @@ export default function ChallengesPage() {
     }
   }, [firebaseUser]);
 
+  const fetchInvites = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/challenges/invites', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setInvites(data.invites || []);
+      }
+    } catch (error) {
+      console.error('Error fetching invites:', error);
+    } finally {
+      setLoadingInvites(false);
+    }
+  }, [firebaseUser]);
+
+  const handleRespondToInvite = async (inviteId: string, action: 'accept' | 'decline') => {
+    setRespondingTo(inviteId);
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch('/api/challenges/invites', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ inviteId, action }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to respond to invite');
+        return;
+      }
+
+      toast.success(action === 'accept' ? 'Challenge joined!' : 'Invite declined');
+
+      // Refresh both invites and challenges
+      fetchInvites();
+      if (activeTab === 'my') {
+        fetchChallenges('my');
+      }
+    } catch (error) {
+      console.error('Error responding to invite:', error);
+      toast.error('An error occurred');
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   useEffect(() => {
     if (user && firebaseUser) {
       fetchChallenges(activeTab);
+      fetchInvites();
     }
-  }, [user, firebaseUser, activeTab, fetchChallenges]);
+  }, [user, firebaseUser, activeTab, fetchChallenges, fetchInvites]);
 
   const getDaysRemaining = (endDate: number) => {
     const now = Date.now();
@@ -112,6 +196,66 @@ export default function ChallengesPage() {
             </Link>
           </Button>
         </div>
+
+        {/* Pending Invitations */}
+        {!loadingInvites && invites.length > 0 && (
+          <Card className="border-primary/50 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Challenge Invitations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {invites.map((invite) => (
+                <div
+                  key={invite.id}
+                  className="flex items-center justify-between rounded-lg border bg-background p-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">
+                      {invite.challenge?.title || invite.challengeTitle}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Invited by {invite.inviter?.username || invite.invitedByUsername}
+                      {invite.challenge && (
+                        <> • {invite.challenge.type} • Goal: {invite.challenge.goal}</>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 ml-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRespondToInvite(invite.id, 'decline')}
+                      disabled={respondingTo === invite.id}
+                    >
+                      {respondingTo === invite.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleRespondToInvite(invite.id, 'accept')}
+                      disabled={respondingTo === invite.id}
+                    >
+                      {respondingTo === invite.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Join
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'my' | 'public')}>
           <TabsList className="grid w-full grid-cols-2">
