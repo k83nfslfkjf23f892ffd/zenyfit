@@ -55,12 +55,12 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
 
         {/* Logo and version at bottom */}
         <div className="absolute bottom-8 flex flex-col items-center gap-2">
-          <div className="relative h-10 w-10 opacity-60">
+          <div className="relative h-12 w-12 overflow-hidden rounded-xl shadow-sm bg-background border">
             <Image
               src="/logo.svg"
               alt="ZenyFit"
               fill
-              className="object-contain"
+              className="object-contain p-1"
               priority
             />
           </div>

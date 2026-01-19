@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Trophy, Medal } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { LeaderboardSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
+import { getAvatarDisplayUrl } from '@/lib/avatar';
 
 type RankingType = 'xp' | 'pullups' | 'pushups' | 'dips' | 'running';
 
@@ -85,13 +87,6 @@ export default function LeaderboardPage() {
     return null;
   }
 
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
-    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
-    if (rank === 3) return <Medal className="h-5 w-5 text-amber-600" />;
-    return <span className="text-sm font-semibold text-muted-foreground">#{rank}</span>;
-  };
-
   const getScoreLabel = (type: RankingType) => {
     if (type === 'xp') return 'XP';
     if (type === 'running') return 'km';
@@ -146,6 +141,7 @@ export default function LeaderboardPage() {
                 ) : (
                   rankings.map((ranking) => {
                     const isCurrentUser = ranking.id === user.id;
+                    const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
                     return (
                       <div
                         key={ranking.id}
@@ -153,13 +149,24 @@ export default function LeaderboardPage() {
                           isCurrentUser ? 'border-primary bg-primary/5' : ''
                         }`}
                       >
-                        <div className="flex w-12 justify-center">
-                          {getRankIcon(ranking.rank)}
+                        {/* Rank number */}
+                        <div className="w-6 text-center text-sm font-semibold text-muted-foreground">
+                          {ranking.rank}
                         </div>
 
-                        <div className="flex-1">
+                        {/* Avatar */}
+                        <div className="relative h-10 w-10 overflow-hidden rounded-full bg-muted">
+                          <Image
+                            src={avatarUrl}
+                            alt={ranking.username}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">
+                            <span className="font-semibold truncate">
                               {ranking.username}
                               {isCurrentUser && (
                                 <span className="ml-2 text-xs text-muted-foreground">(You)</span>
