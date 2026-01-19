@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Settings, LogOut, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
+import { Settings, LogOut, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileSkeleton, Skeleton } from '@/components/ui/skeleton';
 

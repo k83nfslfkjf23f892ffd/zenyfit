@@ -7,9 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, Trophy, UserPlus, X } from 'lucide-react';
+import { Loader2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChallengeDetailSkeleton } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
@@ -35,9 +33,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   const [loadingChallenge, setLoadingChallenge] = useState(true);
   const [joining, setJoining] = useState(false);
   const [challengeId, setChallengeId] = useState<string>('');
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteUsername, setInviteUsername] = useState('');
-  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     params.then((p) => setChallengeId(p.id));
@@ -109,43 +104,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
       toast.error('An error occurred');
     } finally {
       setJoining(false);
-    }
-  };
-
-  const handleInvite = async () => {
-    if (!inviteUsername.trim()) {
-      toast.error('Please enter a username');
-      return;
-    }
-
-    setInviting(true);
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) return;
-
-      const response = await fetch(`/api/challenges/${challengeId}/invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ username: inviteUsername.trim() }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(data.message || 'Invitation sent!');
-        setShowInviteModal(false);
-        setInviteUsername('');
-      } else {
-        toast.error(data.error || 'Failed to send invitation');
-      }
-    } catch (error) {
-      console.error('Error inviting user:', error);
-      toast.error('An error occurred');
-    } finally {
-      setInviting(false);
     }
   };
 
@@ -221,28 +179,14 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
         {/* Participants Leaderboard */}
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  Participants
-                </CardTitle>
-                <CardDescription>{challenge.participants.length} competing</CardDescription>
-              </div>
-              {isParticipant && daysRemaining > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowInviteModal(true)}
-                >
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  Invite
-                </Button>
-              )}
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Participants
+            </CardTitle>
+            <CardDescription>{challenge.participants.length} competing</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {sortedParticipants.map((participant, index) => {
+            {sortedParticipants.map((participant) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
               const isCurrentUser = participant.userId === user.id;
 
@@ -278,63 +222,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           </CardContent>
         </Card>
       </div>
-
-      {/* Invite Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Invite to Challenge</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowInviteModal(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription>
-                Invite someone to join &quot;{challenge.title}&quot;
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="inviteUsername">Username</Label>
-                <Input
-                  id="inviteUsername"
-                  value={inviteUsername}
-                  onChange={(e) => setInviteUsername(e.target.value)}
-                  placeholder="Enter username"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleInvite();
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowInviteModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleInvite}
-                  disabled={inviting || !inviteUsername.trim()}
-                  className="flex-1"
-                >
-                  {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {inviting ? 'Sending...' : 'Send Invite'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </AppLayout>
   );
 }
