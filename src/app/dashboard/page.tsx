@@ -410,7 +410,7 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      No custom exercises yet. Create one to track any activity!
+                      No custom exercises yet.
                     </p>
                   )}
                   {selectedExercise === 'custom' && (
