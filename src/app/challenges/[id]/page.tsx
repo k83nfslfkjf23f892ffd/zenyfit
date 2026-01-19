@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Trophy, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChallengeDetailSkeleton } from '@/components/ui/skeleton';
+import { getAvatarDisplayUrl } from '@/lib/avatar';
 
 interface Challenge {
   id: string;
@@ -254,6 +255,14 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 overflow-hidden rounded-full bg-muted flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getAvatarDisplayUrl(participant.avatar, participant.username)}
+                          alt={participant.username}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
                       <span className="font-medium">
                         {participant.username}
                       </span>
