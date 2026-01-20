@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   getUserAvatar,
   getRandomFitnessAvatar,
@@ -65,6 +65,11 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     if (isValidAvatarUrl(customUrl)) {
       addToHistory(customUrl);
     }
+  };
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(customUrl);
+    toast.success('URL copied!');
   };
 
   const handleSave = async () => {
@@ -189,18 +194,24 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
         {/* Avatar URL */}
         <div className="space-y-3">
           <Label htmlFor="avatar-url">Avatar URL</Label>
-          <Input
+          <textarea
             id="avatar-url"
-            type="url"
             placeholder="https://example.com/avatar.png"
             value={customUrl}
             onChange={(e) => setCustomUrl(e.target.value)}
-            className="text-xs"
+            rows={2}
+            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />
-          <Button onClick={handleCustomUrl} className="w-full gap-2">
-            <Link className="w-4 h-4" />
-            Use URL
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCopyUrl} className="flex-1 gap-2">
+              <Copy className="w-4 h-4" />
+              Copy
+            </Button>
+            <Button onClick={handleCustomUrl} className="flex-1 gap-2">
+              <Link className="w-4 h-4" />
+              Use
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
