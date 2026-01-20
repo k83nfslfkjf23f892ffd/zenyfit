@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link, Save, Loader2 } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2, Undo2 } from 'lucide-react';
 import {
   getUserAvatar,
   getRandomFitnessAvatar,
@@ -19,7 +19,7 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
-  const [customUrl, setCustomUrl] = useState('');
+  const [customUrl, setCustomUrl] = useState(currentAvatar || '');
   const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
   const [saving, setSaving] = useState(false);
 
@@ -28,6 +28,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
   const handleRandomize = () => {
     const newUrl = getRandomFitnessAvatar();
     setPreviewUrl(newUrl);
+    setCustomUrl(newUrl);
   };
 
   const handleCustomUrl = () => {
@@ -41,9 +42,16 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     setSaving(true);
     try {
       await onSave(previewUrl);
+      setCustomUrl(previewUrl);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRevert = () => {
+    const savedUrl = currentAvatar || getUserAvatar(username);
+    setPreviewUrl(savedUrl);
+    setCustomUrl(currentAvatar || '');
   };
 
   return (
@@ -74,10 +82,16 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
             )}
           </div>
           {hasChanges && (
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Saving...' : 'Save Avatar'}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleRevert} disabled={saving} className="gap-2">
+                <Undo2 className="w-4 h-4" />
+                Revert
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -93,12 +107,12 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
           </Button>
         </div>
 
-        {/* Custom URL */}
+        {/* Avatar URL */}
         <div className="space-y-3">
-          <Label htmlFor="custom-avatar">Custom Avatar URL</Label>
+          <Label htmlFor="avatar-url">Avatar URL</Label>
           <div className="flex gap-2">
             <Input
-              id="custom-avatar"
+              id="avatar-url"
               type="url"
               placeholder="https://example.com/avatar.png"
               value={customUrl}
