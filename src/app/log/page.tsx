@@ -69,6 +69,10 @@ export default function LogPage() {
   const [userPresets, setUserPresets] = useState<Record<string, number[]> | null>(null);
   const [savingPresets, setSavingPresets] = useState(false);
 
+  // Drag and drop for reordering
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -403,6 +407,47 @@ export default function LogPage() {
     savePresets(newPresets);
   };
 
+  // Reorder presets via drag and drop
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const currentPresets = getPresets();
+    const newOrder = [...currentPresets];
+    const [removed] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(index, 0, removed);
+
+    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
+      ? selectedCustomExercise.id
+      : selectedExercise;
+
+    const newPresets = {
+      ...userPresets,
+      [exerciseKey]: newOrder,
+    };
+
+    savePresets(newPresets);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -561,17 +606,25 @@ export default function LogPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-4 gap-2">
-              {presets.map((preset) => (
-                <div key={preset} className="relative">
+              {presets.map((preset, index) => (
+                <div
+                  key={preset}
+                  className={`relative ${editMode ? 'cursor-grab active:cursor-grabbing' : ''} ${dragOverIndex === index ? 'ring-2 ring-primary ring-offset-2 rounded-md' : ''}`}
+                  draggable={editMode}
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={() => handleDrop(index)}
+                  onDragEnd={handleDragEnd}
+                >
                   <Button
                     type="button"
                     variant="outline"
-                    className={`w-full h-12 text-lg font-semibold ${editMode ? 'pr-6' : ''}`}
+                    className={`w-full h-12 text-lg font-semibold ${editMode ? 'pl-6' : ''} ${dragIndex === index ? 'opacity-50' : ''}`}
                     onClick={() => handleQuickAdd(preset)}
-                    onMouseDown={() => handleLongPressStart(preset)}
+                    onMouseDown={() => !editMode && handleLongPressStart(preset)}
                     onMouseUp={handleLongPressEnd}
                     onMouseLeave={handleLongPressEnd}
-                    onTouchStart={() => handleLongPressStart(preset)}
+                    onTouchStart={() => !editMode && handleLongPressStart(preset)}
                     onTouchEnd={handleLongPressEnd}
                     disabled={logging || savingPresets}
                   >
