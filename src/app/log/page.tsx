@@ -610,8 +610,8 @@ export default function LogPage() {
                 ) : (
                   <Button
                     type="button"
-                    variant="dashed"
-                    className="h-12"
+                    variant="outline"
+                    className="h-12 border-dashed"
                     onClick={() => setShowAddPreset(true)}
                   >
                     <Plus className="h-4 w-4" />
