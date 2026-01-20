@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { LIMITS } from '@shared/constants';
 import { ThemeSelector } from '@/components/ThemeSelector';
@@ -24,7 +24,7 @@ interface InviteCode {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, loading, firebaseUser } = useAuth();
+  const { user, loading, firebaseUser, signOutUser } = useAuth();
 
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(true);
@@ -125,6 +125,17 @@ export default function SettingsPage() {
       const data = await response.json();
       toast.error(data.error || 'Failed to save avatar');
       throw new Error(data.error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      toast.success('Logged out successfully');
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out');
     }
   };
 
@@ -288,6 +299,20 @@ export default function SettingsPage() {
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Log Out */}
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              variant="outline"
+              className="w-full justify-start text-destructive hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log Out
+            </Button>
           </CardContent>
         </Card>
       </div>

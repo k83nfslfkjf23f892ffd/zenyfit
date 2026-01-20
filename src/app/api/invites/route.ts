@@ -3,6 +3,15 @@ import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { LIMITS } from '@shared/constants';
 
+interface InviteCodeData {
+  code: string;
+  createdBy: string;
+  used: boolean;
+  usedBy: string | null;
+  createdAt: number;
+  usedAt: number | null;
+}
+
 /**
  * GET /api/invites
  * Get all invite codes created by the authenticated user
@@ -24,16 +33,18 @@ export async function GET(request: NextRequest) {
     const { db } = getAdminInstances();
 
     // Get all invite codes created by this user
+    // Note: No orderBy to avoid requiring composite index (max 5 codes, sorted in memory)
     const snapshot = await db
       .collection('inviteCodes')
       .where('createdBy', '==', userId)
-      .orderBy('createdAt', 'desc')
       .get();
 
-    const inviteCodes = snapshot.docs.map((doc) => ({
-      code: doc.id,
-      ...doc.data(),
-    }));
+    const inviteCodes = snapshot.docs
+      .map((doc) => ({
+        code: doc.id,
+        ...doc.data(),
+      } as InviteCodeData))
+      .sort((a, b) => b.createdAt - a.createdAt);
 
     return NextResponse.json(
       {

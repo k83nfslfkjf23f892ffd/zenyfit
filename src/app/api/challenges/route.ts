@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     let challenges: unknown[] = [];
 
     if (filter === 'public') {
-      // Get public challenges
+      // Get public challenges (excluding ones user has already joined)
       const snapshot = await db
         .collection('challenges')
         .where('isPublic', '==', true)
@@ -155,7 +155,13 @@ export async function GET(request: NextRequest) {
         .limit(50)
         .get();
 
-      challenges = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // Filter out challenges the user is already participating in
+      challenges = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((challenge) => {
+          const participantIds = (challenge as { participantIds?: string[] }).participantIds || [];
+          return !participantIds.includes(userId);
+        });
     } else {
       // Get user's challenges
       const snapshot = await db
