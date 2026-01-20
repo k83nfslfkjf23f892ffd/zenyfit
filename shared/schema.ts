@@ -55,6 +55,7 @@ export const userSchema = z.object({
   invitedBy: z.string().optional(),
   createdAt: z.number(), // timestamp
   theme: z.string().optional(),
+  quickAddPresets: z.record(z.string(), z.array(z.number().positive()).max(8)).optional(),
 });
 
 // ============================================================================

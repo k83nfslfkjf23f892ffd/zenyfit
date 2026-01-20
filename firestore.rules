@@ -26,11 +26,11 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles
       allow read: if isAuthenticated();
 
-      // Users can only update their own avatar and username fields
+      // Users can only update their own avatar, username, theme, and quickAddPresets fields
       // All other updates must go through Admin SDK (server-side)
       allow update: if isOwner(userId) &&
                        request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['avatar', 'username', 'theme']);
+                         .hasOnly(['avatar', 'username', 'theme', 'quickAddPresets']);
 
       // Create and delete must be done via Admin SDK (server-side)
       allow create, delete: if false;
