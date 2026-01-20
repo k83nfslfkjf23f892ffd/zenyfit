@@ -50,19 +50,26 @@
   top: calc(16px + env(safe-area-inset-top)) !important;
 }
 
-/* Prevent long-press preview globally (PWA) */
+/* Make app feel native - prevent text selection and long-press preview */
 * {
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Fix double-tap and long-press issues on touch devices */
+/* Allow text selection only in inputs */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Fix double-tap issues on touch devices */
 button,
 a,
 [role="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 /* Ensure clickable cards don't trigger preview */
