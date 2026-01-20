@@ -26,7 +26,7 @@ export function BottomNav() {
       style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none' }}
       onContextMenu={preventContextMenu}
     >
-      <div className="flex">
+      <div className="flex items-center pt-2">
         {navItems.map(({ href, icon: Icon }) => {
           const isActive = pathname === href;
           return (
@@ -34,7 +34,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                'flex flex-1 items-center justify-center pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-colors',
+                'flex flex-1 items-center justify-center rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-colors',
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
