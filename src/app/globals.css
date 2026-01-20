@@ -50,10 +50,13 @@
   top: calc(16px + env(safe-area-inset-top)) !important;
 }
 
-/* Fix double-tap issue on touch devices */
+/* Fix double-tap and long-press issues on touch devices */
 button,
 a,
 [role="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
