@@ -72,7 +72,8 @@ export default function LogPage() {
   // Touch drag and drop
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const dragItemRef = useRef<HTMLDivElement | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [draggedValue, setDraggedValue] = useState<number | null>(null);
   const presetRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
@@ -410,10 +411,12 @@ export default function LogPage() {
   };
 
   // Touch drag handlers
-  const handleTouchStart = (index: number, e: React.TouchEvent) => {
+  const handleTouchStart = (index: number, e: React.TouchEvent, value: number) => {
     if (!editMode) return;
+    const touch = e.touches[0];
     setDraggedIndex(index);
-    dragItemRef.current = e.currentTarget as HTMLDivElement;
+    setDraggedValue(value);
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -421,11 +424,13 @@ export default function LogPage() {
     e.preventDefault();
 
     const touch = e.touches[0];
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+
     const elements = presetRefs.current;
 
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
-      if (el && i !== draggedIndex) {
+      if (el) {
         const rect = el.getBoundingClientRect();
         if (
           touch.clientX >= rect.left &&
@@ -433,7 +438,9 @@ export default function LogPage() {
           touch.clientY >= rect.top &&
           touch.clientY <= rect.bottom
         ) {
-          setDragOverIndex(i);
+          if (dragOverIndex !== i) {
+            setDragOverIndex(i);
+          }
           return;
         }
       }
@@ -461,6 +468,8 @@ export default function LogPage() {
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setDragPosition(null);
+    setDraggedValue(null);
   };
 
   if (loading) {
@@ -659,7 +668,7 @@ export default function LogPage() {
                     onMouseLeave={handleLongPressEnd}
                     onTouchStart={(e) => {
                       if (editMode) {
-                        handleTouchStart(index, e);
+                        handleTouchStart(index, e, preset);
                       } else {
                         handleLongPressStart(preset);
                       }
@@ -818,6 +827,22 @@ export default function LogPage() {
                 Log {(parseInt(sets) || 0) * (parseFloat(reps) || 0)} {getUnitLabel()}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating drag indicator */}
+      {dragPosition && draggedValue !== null && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{
+            left: dragPosition.x,
+            top: dragPosition.y,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-xl text-xl font-bold animate-pulse">
+            {draggedValue}
           </div>
         </div>
       )}
