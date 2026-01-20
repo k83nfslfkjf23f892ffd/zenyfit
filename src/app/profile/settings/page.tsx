@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Copy, Plus, Palette } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { LIMITS } from '@shared/constants';
 import { ThemeSelector } from '@/components/ThemeSelector';
@@ -104,32 +104,27 @@ export default function SettingsPage() {
     toast.success('Invite URL copied to clipboard!');
   };
 
-  const handleAvatarChange = async (avatarUrl: string) => {
+  const handleAvatarSave = async (avatarUrl: string) => {
     if (!user) return;
 
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) return;
+    const token = await firebaseUser?.getIdToken();
+    if (!token) throw new Error('Not authenticated');
 
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ avatar: avatarUrl }),
-      });
+    const response = await fetch(`/api/users/${user.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ avatar: avatarUrl }),
+    });
 
-      if (response.ok) {
-        toast.success('Avatar updated!');
-        // Auth context will update automatically via Firestore listener
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to update avatar');
-      }
-    } catch (error) {
-      console.error('Error updating avatar:', error);
-      toast.error('An error occurred');
+    if (response.ok) {
+      toast.success('Avatar saved!');
+    } else {
+      const data = await response.json();
+      toast.error(data.error || 'Failed to save avatar');
+      throw new Error(data.error);
     }
   };
 
@@ -175,7 +170,7 @@ export default function SettingsPage() {
         <AvatarPicker
           username={user.username}
           currentAvatar={user.avatar}
-          onAvatarChange={handleAvatarChange}
+          onSave={handleAvatarSave}
         />
 
         {/* Notifications */}
@@ -207,12 +202,21 @@ export default function SettingsPage() {
         {/* Invite Codes */}
         <Card>
           <CardHeader>
-            <CardTitle>Invite Codes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Invite Codes
+            </CardTitle>
             <CardDescription>
-              Share ZenyFit with friends ({inviteCodes.length} / {LIMITS.inviteCodes} codes used)
+              Share ZenyFit with friends
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Status summary */}
+            <div className="flex items-center justify-between text-sm p-3 rounded-lg bg-muted/50">
+              <span className="text-muted-foreground">Codes generated</span>
+              <span className="font-semibold">{inviteCodes.length} / {LIMITS.inviteCodes}</span>
+            </div>
+
             {loadingCodes ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -224,27 +228,51 @@ export default function SettingsPage() {
                     {inviteCodes.map((invite) => (
                       <div
                         key={invite.code}
-                        className="flex items-center justify-between rounded-lg border p-3"
+                        className={`rounded-lg border p-3 ${invite.used ? 'bg-muted/30' : ''}`}
                       >
-                        <div>
-                          <div className="font-mono font-semibold">{invite.code}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {invite.used ? 'Used' : 'Available'}
-                          </div>
+                        <div className="flex items-center justify-between">
+                          <div className="font-mono font-semibold text-sm">{invite.code}</div>
+                          {invite.used ? (
+                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                              <Check className="h-3 w-3" />
+                              Used
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
+                              <Clock className="h-3 w-3" />
+                              Available
+                            </span>
+                          )}
                         </div>
-                        {!invite.used && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyInviteUrl(invite.code)}
-                          >
-                            <Copy className="mr-2 h-3 w-3" />
-                            Copy URL
-                          </Button>
-                        )}
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-xs text-muted-foreground">
+                            {invite.used && invite.usedBy ? (
+                              <>Used by <span className="font-medium">{invite.usedBy}</span></>
+                            ) : (
+                              <>Created {new Date(invite.createdAt).toLocaleDateString()}</>
+                            )}
+                          </div>
+                          {!invite.used && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyInviteUrl(invite.code)}
+                              className="h-7 text-xs"
+                            >
+                              <Copy className="mr-1 h-3 w-3" />
+                              Copy
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
+                )}
+
+                {inviteCodes.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No invite codes yet. Generate one to invite friends!
+                  </p>
                 )}
 
                 {inviteCodes.length < LIMITS.inviteCodes && (

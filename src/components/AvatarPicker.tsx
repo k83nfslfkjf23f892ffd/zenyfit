@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2 } from 'lucide-react';
 import {
   FITNESS_AVATAR_STYLES,
   getUserAvatar,
@@ -17,31 +17,41 @@ import {
 interface AvatarPickerProps {
   username: string;
   currentAvatar?: string | null;
-  onAvatarChange: (avatarUrl: string) => void;
+  onSave: (avatarUrl: string) => Promise<void>;
 }
 
-export function AvatarPicker({ username, currentAvatar, onAvatarChange }: AvatarPickerProps) {
+export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
   const [selectedStyle, setSelectedStyle] = useState<AvatarStyle>('bottts');
-  const [customUrl, setCustomUrl] = useState(currentAvatar || '');
+  const [customUrl, setCustomUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges = previewUrl !== currentAvatar;
 
   const handleStyleChange = (style: AvatarStyle) => {
     setSelectedStyle(style);
     const newUrl = getUserAvatar(username, style);
     setPreviewUrl(newUrl);
-    onAvatarChange(newUrl);
   };
 
   const handleRandomize = () => {
     const newUrl = getRandomFitnessAvatar();
     setPreviewUrl(newUrl);
-    onAvatarChange(newUrl);
   };
 
   const handleCustomUrl = () => {
     if (isValidAvatarUrl(customUrl)) {
       setPreviewUrl(customUrl);
-      onAvatarChange(customUrl);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!hasChanges) return;
+    setSaving(true);
+    try {
+      await onSave(previewUrl);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -58,15 +68,26 @@ export function AvatarPicker({ username, currentAvatar, onAvatarChange }: Avatar
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Preview */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-3">
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
               alt="Avatar preview"
-              className="w-32 h-32 rounded-full border-4 border-primary"
+              className={`w-32 h-32 rounded-full border-4 ${hasChanges ? 'border-yellow-500' : 'border-primary'}`}
             />
+            {hasChanges && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-yellow-500 text-yellow-950 px-2 py-0.5 rounded-full font-medium">
+                Unsaved
+              </span>
+            )}
           </div>
+          {hasChanges && (
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'Saving...' : 'Save Avatar'}
+            </Button>
+          )}
         </div>
 
         {/* Generated Avatars */}
