@@ -50,13 +50,28 @@
   top: calc(16px + env(safe-area-inset-top)) !important;
 }
 
+/* Prevent long-press preview globally (PWA) */
+* {
+  -webkit-touch-callout: none;
+}
+
 /* Fix double-tap and long-press issues on touch devices */
 button,
 a,
 [role="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Ensure clickable cards don't trigger preview */
+a > div,
+a > * {
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+a {
+  pointer-events: auto;
 }
