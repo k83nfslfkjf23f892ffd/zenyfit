@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import Link from 'next/link';
-import { Loader2, Info, Dumbbell } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
+import { WorkoutDistributionChart } from '@/components/charts/WorkoutDistributionChart';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -179,13 +179,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Log Workout CTA */}
-        <Button asChild size="lg" className="w-full h-14 text-lg">
-          <Link href="/log">
-            <Dumbbell className="h-5 w-5 mr-2" />
-            Log Workout
-          </Link>
-        </Button>
+        {/* Workout Distribution Chart */}
+        <WorkoutDistributionChart
+          data={[
+            { name: 'Pull-ups', value: user.totals?.pullups || 0, color: 'hsl(var(--chart-1))' },
+            { name: 'Push-ups', value: user.totals?.pushups || 0, color: 'hsl(var(--chart-2))' },
+            { name: 'Dips', value: user.totals?.dips || 0, color: 'hsl(var(--chart-3))' },
+            { name: 'Running', value: user.totals?.running || 0, color: 'hsl(var(--chart-4))' },
+          ].filter(item => item.value > 0)}
+          title="Workout Distribution"
+          description="Your training focus"
+        />
 
         {/* Recent Activity */}
         <Card>
