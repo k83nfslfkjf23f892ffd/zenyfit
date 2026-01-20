@@ -687,21 +687,33 @@ export default function LogPage() {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              {presets.map((preset, index) => (
+              {presets.map((preset, index) => {
+                // Calculate if this element should shift for insertion
+                const shouldShiftRight = draggedIndex !== null && dragOverIndex !== null && dragOverIndex <= index && draggedIndex !== index;
+                const shouldShiftLeft = draggedIndex !== null && dragOverIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && draggedIndex !== index;
+
+                return (
                 <div
                   key={preset}
                   ref={(el) => { presetRefs.current[index] = el; }}
                   className={`relative transition-all duration-150 ${
                     draggedIndex === index ? 'opacity-0' : ''
                   }`}
+                  style={{
+                    transform: shouldShiftRight && dragOverIndex === index
+                      ? 'translateX(8px)'
+                      : shouldShiftLeft
+                        ? 'translateX(-8px)'
+                        : 'none',
+                  }}
                 >
                   {/* Insertion indicator - show line before this element when dragOverIndex matches */}
-                  {draggedIndex !== null && dragOverIndex === index && (
-                    <div className="absolute -left-1.5 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
+                  {draggedIndex !== null && dragOverIndex === index && draggedIndex !== index && (
+                    <div className="absolute -left-2 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
                   )}
                   {/* Insertion indicator - show line after this element (only for last item when inserting at end) */}
-                  {draggedIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && (
-                    <div className="absolute -right-1.5 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
+                  {draggedIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && draggedIndex !== index && (
+                    <div className="absolute -right-2 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
                   )}
                   <Button
                     type="button"
@@ -742,7 +754,8 @@ export default function LogPage() {
                     </button>
                   )}
                 </div>
-              ))}
+              );
+              })}
 
               {/* Add preset button in edit mode */}
               {editMode && presets.length < 8 && (
