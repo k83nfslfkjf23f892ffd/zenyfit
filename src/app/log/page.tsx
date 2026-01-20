@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, Check, Undo2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Pencil, Check, Undo2, GripVertical, X } from 'lucide-react';
 import { DEFAULT_QUICK_ADD_PRESETS } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -69,6 +69,11 @@ export default function LogPage() {
   const [userPresets, setUserPresets] = useState<Record<string, number[]> | null>(null);
   const [savingPresets, setSavingPresets] = useState(false);
 
+  // Touch drag and drop
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragItemRef = useRef<HTMLDivElement | null>(null);
+  const presetRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -404,26 +409,58 @@ export default function LogPage() {
     savePresets(newPresets);
   };
 
-  // Move preset left or right
-  const handleMovePreset = (index: number, direction: 'left' | 'right') => {
-    const currentPresets = getPresets();
-    const newIndex = direction === 'left' ? index - 1 : index + 1;
+  // Touch drag handlers
+  const handleTouchStart = (index: number, e: React.TouchEvent) => {
+    if (!editMode) return;
+    setDraggedIndex(index);
+    dragItemRef.current = e.currentTarget as HTMLDivElement;
+  };
 
-    if (newIndex < 0 || newIndex >= currentPresets.length) return;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (draggedIndex === null || !editMode) return;
+    e.preventDefault();
 
-    const newOrder = [...currentPresets];
-    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    const touch = e.touches[0];
+    const elements = presetRefs.current;
 
-    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-      ? selectedCustomExercise.id
-      : selectedExercise;
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (el && i !== draggedIndex) {
+        const rect = el.getBoundingClientRect();
+        if (
+          touch.clientX >= rect.left &&
+          touch.clientX <= rect.right &&
+          touch.clientY >= rect.top &&
+          touch.clientY <= rect.bottom
+        ) {
+          setDragOverIndex(i);
+          return;
+        }
+      }
+    }
+    setDragOverIndex(null);
+  };
 
-    const newPresets = {
-      ...userPresets,
-      [exerciseKey]: newOrder,
-    };
+  const handleTouchEnd = () => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+      const currentPresets = getPresets();
+      const newOrder = [...currentPresets];
+      const [removed] = newOrder.splice(draggedIndex, 1);
+      newOrder.splice(dragOverIndex, 0, removed);
 
-    savePresets(newPresets);
+      const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
+        ? selectedCustomExercise.id
+        : selectedExercise;
+
+      const newPresets = {
+        ...userPresets,
+        [exerciseKey]: newOrder,
+      };
+
+      savePresets(newPresets);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   if (loading) {
@@ -583,55 +620,52 @@ export default function LogPage() {
             )}
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-2">
+            <div
+              className="grid grid-cols-4 gap-2"
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {presets.map((preset, index) => (
-                <div key={preset} className="relative">
-                  {editMode ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleMovePreset(index, 'left')}
-                          disabled={index === 0 || savingPresets}
-                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <div className="h-10 px-3 flex items-center justify-center border rounded-md text-lg font-semibold min-w-[3rem]">
-                          {preset}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleMovePreset(index, 'right')}
-                          disabled={index === presets.length - 1 || savingPresets}
-                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePreset(preset)}
-                        className="text-xs text-destructive hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
+                <div
+                  key={preset}
+                  ref={(el) => { presetRefs.current[index] = el; }}
+                  className={`relative transition-transform ${
+                    draggedIndex === index ? 'opacity-50 scale-95' : ''
+                  } ${
+                    dragOverIndex === index ? 'ring-2 ring-primary ring-offset-2 rounded-md scale-105' : ''
+                  }`}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={`w-full h-12 text-lg font-semibold ${editMode ? 'pl-7' : ''}`}
+                    onClick={() => !editMode && handleQuickAdd(preset)}
+                    onMouseDown={() => !editMode && handleLongPressStart(preset)}
+                    onMouseUp={handleLongPressEnd}
+                    onMouseLeave={handleLongPressEnd}
+                    onTouchStart={(e) => {
+                      if (editMode) {
+                        handleTouchStart(index, e);
+                      } else {
+                        handleLongPressStart(preset);
+                      }
+                    }}
+                    onTouchEnd={() => !editMode && handleLongPressEnd()}
+                    disabled={logging || savingPresets}
+                  >
+                    {editMode && (
+                      <GripVertical className="h-4 w-4 absolute left-1.5 text-muted-foreground" />
+                    )}
+                    {preset}
+                  </Button>
+                  {editMode && (
+                    <button
                       type="button"
-                      variant="outline"
-                      className="w-full h-12 text-lg font-semibold"
-                      onClick={() => handleQuickAdd(preset)}
-                      onMouseDown={() => handleLongPressStart(preset)}
-                      onMouseUp={handleLongPressEnd}
-                      onMouseLeave={handleLongPressEnd}
-                      onTouchStart={() => handleLongPressStart(preset)}
-                      onTouchEnd={handleLongPressEnd}
-                      disabled={logging || savingPresets}
+                      onClick={() => handleRemovePreset(preset)}
+                      className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm"
                     >
-                      {preset}
-                    </Button>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   )}
                 </div>
               ))}
