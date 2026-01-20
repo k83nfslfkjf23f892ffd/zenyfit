@@ -74,22 +74,34 @@ export function getAvatarInitials(username: string): string {
   return username.substring(0, 2).toUpperCase();
 }
 
-// Popular avatar styles for fitness
-export const FITNESS_AVATAR_STYLES: AvatarStyle[] = [
-  'bottts',       // Robot style (gamification feel)
-  'pixel-art',    // Retro gaming style
-  'adventurer',   // Cartoon people
-  'lorelei',      // Simple faces
-  'miniavs',      // Minimal avatars
-  'personas',     // Modern people
-  'fun-emoji',    // Emoji style
-  'shapes',       // Geometric
+// All available DiceBear avatar styles
+export const ALL_AVATAR_STYLES: AvatarStyle[] = [
+  'adventurer',
+  'adventurer-neutral',
+  'avataaars',
+  'big-ears',
+  'big-smile',
+  'bottts',
+  'croodles',
+  'fun-emoji',
+  'icons',
+  'identicon',
+  'initials',
+  'lorelei',
+  'micah',
+  'miniavs',
+  'notionists',
+  'open-peeps',
+  'personas',
+  'pixel-art',
+  'shapes',
+  'thumbs',
 ];
 
-// Get random fitness avatar with truly unique seed
+// Get random avatar with truly unique seed (uses all styles)
 export function getRandomFitnessAvatar(): string {
-  const randomStyle = FITNESS_AVATAR_STYLES[
-    Math.floor(Math.random() * FITNESS_AVATAR_STYLES.length)
+  const randomStyle = ALL_AVATAR_STYLES[
+    Math.floor(Math.random() * ALL_AVATAR_STYLES.length)
   ];
   // Generate a random seed for a truly unique avatar each time
   const randomSeed = Math.random().toString(36).substring(2) + Date.now().toString(36);

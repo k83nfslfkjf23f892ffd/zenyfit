@@ -82,28 +82,28 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
             )}
           </div>
           {hasChanges && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleRevert} disabled={saving} className="gap-2">
-                <Undo2 className="w-4 h-4" />
-                Revert
-              </Button>
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
           )}
         </div>
 
-        {/* Random Avatar */}
-        <div className="flex justify-center">
+        {/* Avatar Actions */}
+        <div className="flex justify-center gap-2">
+          {hasChanges && (
+            <Button variant="outline" onClick={handleRevert} disabled={saving} className="gap-2">
+              <Undo2 className="w-4 h-4" />
+              Revert
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={handleRandomize}
             className="gap-2"
           >
             <Shuffle className="w-4 h-4" />
-            Random Avatar
+            Random
           </Button>
         </div>
 
