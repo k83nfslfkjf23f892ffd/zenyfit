@@ -644,10 +644,8 @@ export default function LogPage() {
                   ref={(el) => { presetRefs.current[index] = el; }}
                   className={`relative transition-all duration-150 ${
                     draggedIndex === index
-                      ? 'scale-110 z-10 shadow-lg'
-                      : draggedIndex !== null
-                        ? 'opacity-70'
-                        : ''
+                      ? 'opacity-0'
+                      : ''
                   } ${
                     dragOverIndex === index && draggedIndex !== index
                       ? 'scale-90 border-2 border-dashed border-primary rounded-md'
