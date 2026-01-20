@@ -183,15 +183,12 @@ export default function ChallengesPage() {
     const { days, hours, minutes, seconds, ended } = getTimeRemaining(endDate);
     if (ended) return 'Ended';
 
-    // Pad with leading zeros for consistent width
-    const pad = (n: number) => n.toString().padStart(2, '0');
-
     if (days > 0) {
-      return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
     } else if (hours > 0) {
-      return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+      return `${hours}h ${minutes}m ${seconds}s`;
     } else {
-      return `${pad(minutes)}m ${pad(seconds)}s`;
+      return `${minutes}m ${seconds}s`;
     }
   };
 
@@ -376,7 +373,7 @@ export default function ChallengesPage() {
                           </div>
                           <div className="flex items-center gap-1 justify-end">
                             <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground whitespace-nowrap text-sm tabular-nums">
+                            <span className="text-muted-foreground whitespace-nowrap text-sm font-mono">
                               {timeRemaining}
                             </span>
                           </div>
