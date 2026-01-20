@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Trophy } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChallengeDetailSkeleton } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
@@ -33,6 +33,10 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   const [loadingChallenge, setLoadingChallenge] = useState(true);
   const [joining, setJoining] = useState(false);
   const [challengeId, setChallengeId] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     params.then((p) => setChallengeId(p.id));
@@ -107,6 +111,35 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  // Pull-to-refresh handlers
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchChallenge();
+    setRefreshing(false);
+    toast.success('Challenge updated');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0 && !refreshing) {
+      const touchY = e.touches[0].clientY;
+      const distance = Math.max(0, Math.min(80, touchY - touchStartY.current));
+      setPullDistance(distance);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullDistance >= 60 && !refreshing) {
+      handleRefresh();
+    }
+    setPullDistance(0);
+  };
+
   if (loading || loadingChallenge) {
     return (
       <AppLayout>
@@ -125,7 +158,24 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div
+        ref={containerRef}
+        className="space-y-6"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        <div
+          className="flex justify-center transition-all duration-200 overflow-hidden"
+          style={{ height: pullDistance > 0 || refreshing ? Math.max(pullDistance, refreshing ? 40 : 0) : 0 }}
+        >
+          <RefreshCw
+            className={`h-6 w-6 text-muted-foreground ${refreshing ? 'animate-spin' : ''}`}
+            style={{ opacity: pullDistance / 60, transform: `rotate(${pullDistance * 3}deg)` }}
+          />
+        </div>
+
         <Button variant="ghost" onClick={() => router.back()}>
           ← Back
         </Button>
