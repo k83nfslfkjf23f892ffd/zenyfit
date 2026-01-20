@@ -34,11 +34,14 @@ export function WorkoutCelebration({
   useEffect(() => {
     if (isVisible) {
       document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
     } else {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     }
     return () => {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     };
   }, [isVisible]);
 
@@ -84,7 +87,8 @@ export function WorkoutCelebration({
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overscroll-none"
+          style={{ touchAction: 'none' }}
           variants={fadeVariants}
           initial="hidden"
           animate="visible"

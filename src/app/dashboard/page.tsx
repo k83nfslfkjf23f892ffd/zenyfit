@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Dumbbell, Loader2, Undo2, Plus, Trash2 } from 'lucide-react';
+import { Dumbbell, Loader2, Plus, Trash2, Info } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
@@ -50,6 +50,25 @@ export default function DashboardPage() {
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [loadingCustomExercises, setLoadingCustomExercises] = useState(true);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
+
+  // Delete workout confirmation state
+  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Lock scroll when delete dialog is open
+  useEffect(() => {
+    if (workoutToDelete) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [workoutToDelete]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -90,9 +109,12 @@ export default function DashboardPage() {
         },
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
         setCustomExercises(data.exercises || []);
+      } else {
+        console.error('Failed to fetch custom exercises:', data.error);
       }
     } catch (error) {
       console.error('Error fetching custom exercises:', error);
@@ -147,10 +169,11 @@ export default function DashboardPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts, fetchCustomExercises]);
 
-  const handleRevertWorkout = async (workoutId: string) => {
+  const handleDeleteWorkout = async (workoutId: string) => {
     if (reverting) return;
 
     setReverting(true);
+    setWorkoutToDelete(null);
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) {
@@ -168,17 +191,32 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Failed to revert workout');
+        toast.error(data.error || 'Failed to delete workout');
         return;
       }
 
-      toast.success(`Workout reverted (-${data.xpDeducted} XP)`);
+      toast.success(`Workout deleted (-${data.xpDeducted} XP)`);
       fetchRecentWorkouts();
     } catch (error) {
-      console.error('Error reverting workout:', error);
+      console.error('Error deleting workout:', error);
       toast.error('An error occurred');
     } finally {
       setReverting(false);
+    }
+  };
+
+  // Long press handlers for workout deletion
+  const handleLongPressStart = (workoutId: string) => {
+    const timer = setTimeout(() => {
+      setWorkoutToDelete(workoutId);
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
     }
   };
 
@@ -334,7 +372,21 @@ export default function DashboardPage() {
             <form onSubmit={handleLogWorkout} className="space-y-4">
               {/* Standard Exercise Type Selector */}
               <div className="space-y-2">
-                <Label>Exercise</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Exercise</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-7 text-xs"
+                  >
+                    <Link href="/dashboard/custom-exercise">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add
+                    </Link>
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {(['pullups', 'pushups', 'dips', 'running'] as const).map((type) => (
                     <Button
@@ -354,24 +406,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Custom Exercises Section */}
-              {!loadingCustomExercises && (
+              {!loadingCustomExercises && customExercises.length > 0 && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Custom Exercises</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="h-7 text-xs"
-                    >
-                      <Link href="/dashboard/custom-exercise">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add
-                      </Link>
-                    </Button>
-                  </div>
-                  {customExercises.length > 0 ? (
+                  <Label className="text-muted-foreground">Custom</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {customExercises.map((exercise) => (
                         <div key={exercise.id} className="relative group">
@@ -408,11 +445,6 @@ export default function DashboardPage() {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No custom exercises yet.
-                    </p>
-                  )}
                   {selectedExercise === 'custom' && (
                     <p className="text-xs text-muted-foreground">
                       Custom exercises don&apos;t earn XP (tracking only)
@@ -471,7 +503,16 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Recent Activity
+              <span className="group relative inline-flex">
+                <Info className="h-4 w-4 text-muted-foreground/60" />
+                <span className="absolute left-1/2 -translate-x-1/2 top-7 w-max max-w-[200px] text-xs text-center bg-foreground text-background rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 shadow-lg scale-95 group-hover:scale-100">
+                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                  Long press to delete
+                </span>
+              </span>
+            </CardTitle>
             <CardDescription>Your last 5 workouts</CardDescription>
           </CardHeader>
           <CardContent>
@@ -496,29 +537,16 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {recentWorkouts.map((workout, index) => (
+                {recentWorkouts.map((workout) => (
                   <div
                     key={workout.id}
-                    className="flex items-center gap-3 rounded-lg border p-3"
+                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer select-none active:bg-muted/50 transition-colors"
+                    onMouseDown={() => handleLongPressStart(workout.id)}
+                    onMouseUp={handleLongPressEnd}
+                    onMouseLeave={handleLongPressEnd}
+                    onTouchStart={() => handleLongPressStart(workout.id)}
+                    onTouchEnd={handleLongPressEnd}
                   >
-                    {/* Revert button on the left (only for most recent) */}
-                    {index === 0 ? (
-                      <button
-                        onClick={() => handleRevertWorkout(workout.id)}
-                        disabled={reverting}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                        title="Undo this workout"
-                      >
-                        {reverting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Undo2 className="h-4 w-4" />
-                        )}
-                      </button>
-                    ) : (
-                      <div className="w-10" />
-                    )}
-
                     <div className="flex-1">
                       <div className="font-medium capitalize">
                         {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : workout.type}
@@ -544,6 +572,34 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Delete Workout Confirmation Dialog */}
+      {workoutToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overscroll-none"
+          style={{ touchAction: 'none' }}
+          onClick={() => setWorkoutToDelete(null)}
+        >
+          <div className="bg-background border rounded-lg p-6 mx-4 max-w-sm w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This will remove the workout and deduct the XP earned. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setWorkoutToDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteWorkout(workoutToDelete)}
+                disabled={reverting}
+              >
+                {reverting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

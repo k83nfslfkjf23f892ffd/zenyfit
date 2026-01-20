@@ -113,7 +113,6 @@ export async function GET(request: NextRequest) {
     const snapshot = await db
       .collection('custom_exercises')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .get();
 
     const exercises = snapshot.docs.map((doc) => ({

@@ -85,8 +85,8 @@ export async function PATCH(
       );
     }
 
-    // Rate limiting
-    const rateLimitResponse = rateLimitByUser(decodedToken, request.nextUrl.pathname, RATE_LIMITS.MODERATE);
+    // Rate limiting (higher limit for profile updates since avatar picker triggers many saves)
+    const rateLimitResponse = rateLimitByUser(decodedToken, request.nextUrl.pathname, RATE_LIMITS.WRITE_HEAVY);
     if (rateLimitResponse) return rateLimitResponse;
 
     const authenticatedUserId = decodedToken.uid;

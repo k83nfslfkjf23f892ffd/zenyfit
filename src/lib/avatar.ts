@@ -86,12 +86,14 @@ export const FITNESS_AVATAR_STYLES: AvatarStyle[] = [
   'shapes',       // Geometric
 ];
 
-// Get random fitness avatar
-export function getRandomFitnessAvatar(username: string): string {
+// Get random fitness avatar with truly unique seed
+export function getRandomFitnessAvatar(): string {
   const randomStyle = FITNESS_AVATAR_STYLES[
     Math.floor(Math.random() * FITNESS_AVATAR_STYLES.length)
   ];
-  return generateAvatarUrl(username, randomStyle);
+  // Generate a random seed for a truly unique avatar each time
+  const randomSeed = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  return generateAvatarUrl(randomSeed, randomStyle);
 }
 
 // Validate avatar URL
