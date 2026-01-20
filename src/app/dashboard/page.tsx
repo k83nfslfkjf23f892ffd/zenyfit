@@ -55,6 +55,21 @@ export default function DashboardPage() {
   const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
 
+  // Lock scroll when delete dialog is open
+  useEffect(() => {
+    if (workoutToDelete) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [workoutToDelete]);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -557,7 +572,11 @@ export default function DashboardPage() {
 
       {/* Delete Workout Confirmation Dialog */}
       {workoutToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setWorkoutToDelete(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overscroll-none"
+          style={{ touchAction: 'none' }}
+          onClick={() => setWorkoutToDelete(null)}
+        >
           <div className="bg-background border rounded-lg p-6 mx-4 max-w-sm w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
             <p className="text-sm text-muted-foreground mb-4">

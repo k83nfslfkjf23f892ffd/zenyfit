@@ -53,24 +53,37 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Workout Logger Card */}
-      <div className="rounded-lg border bg-card p-6 space-y-4">
-        <Skeleton className="h-6 w-40" />
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-7 w-14" />
+      <div className="rounded-lg border bg-card">
+        <div className="p-6 pb-2">
+          <Skeleton className="h-6 w-32 mb-2" />
+          <Skeleton className="h-4 w-48" />
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-12" />
-          ))}
+        <div className="p-6 pt-0 space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-7 w-14 rounded-md" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-10" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <div className="grid grid-cols-4 gap-2">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-9" />
+              ))}
+            </div>
+          </div>
+          <Skeleton className="h-10 w-full" />
         </div>
-        <Skeleton className="h-12 w-full" />
-        <div className="flex gap-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-10 flex-1" />
-          ))}
-        </div>
-        <Skeleton className="h-12 w-full" />
       </div>
 
       {/* Recent Activity */}
