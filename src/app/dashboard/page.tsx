@@ -187,8 +187,6 @@ export default function DashboardPage() {
             { name: 'Dips', value: user.totals?.dips || 0, color: 'hsl(var(--chart-3))' },
             { name: 'Running', value: user.totals?.running || 0, color: 'hsl(var(--chart-4))' },
           ].filter(item => item.value > 0)}
-          title="Workout Distribution"
-          description="Your training focus"
         />
 
         {/* Recent Activity */}
