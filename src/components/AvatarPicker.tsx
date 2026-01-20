@@ -7,11 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shuffle, User, Link, Save, Loader2 } from 'lucide-react';
 import {
-  FITNESS_AVATAR_STYLES,
   getUserAvatar,
   getRandomFitnessAvatar,
   isValidAvatarUrl,
-  type AvatarStyle
 } from '@/lib/avatar';
 
 interface AvatarPickerProps {
@@ -21,18 +19,11 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
-  const [selectedStyle, setSelectedStyle] = useState<AvatarStyle>('bottts');
   const [customUrl, setCustomUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
   const [saving, setSaving] = useState(false);
 
   const hasChanges = previewUrl !== currentAvatar;
-
-  const handleStyleChange = (style: AvatarStyle) => {
-    setSelectedStyle(style);
-    const newUrl = getUserAvatar(username, style);
-    setPreviewUrl(newUrl);
-  };
 
   const handleRandomize = () => {
     const newUrl = getRandomFitnessAvatar();
@@ -90,42 +81,16 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
           )}
         </div>
 
-        {/* Generated Avatars */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Generated Avatars</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRandomize}
-              className="gap-2"
-            >
-              <Shuffle className="w-4 h-4" />
-              Random
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            {FITNESS_AVATAR_STYLES.map((style) => (
-              <button
-                key={style}
-                onClick={() => handleStyleChange(style)}
-                className={`p-2 rounded-lg border-2 transition-all hover:scale-105 ${
-                  selectedStyle === style
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                title={style}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getUserAvatar(username, style)}
-                  alt={style}
-                  className="w-full h-auto rounded-md"
-                />
-              </button>
-            ))}
-          </div>
+        {/* Random Avatar */}
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={handleRandomize}
+            className="gap-2"
+          >
+            <Shuffle className="w-4 h-4" />
+            Random Avatar
+          </Button>
         </div>
 
         {/* Custom URL */}

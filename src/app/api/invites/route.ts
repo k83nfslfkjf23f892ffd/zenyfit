@@ -39,12 +39,40 @@ export async function GET(request: NextRequest) {
       .where('createdBy', '==', userId)
       .get();
 
-    const inviteCodes = snapshot.docs
+    const inviteCodesRaw = snapshot.docs
       .map((doc) => ({
         code: doc.id,
         ...doc.data(),
       } as InviteCodeData))
       .sort((a, b) => b.createdAt - a.createdAt);
+
+    // Collect user IDs that need username lookup
+    const userIds = new Set<string>();
+    for (const invite of inviteCodesRaw) {
+      if (invite.usedBy) {
+        userIds.add(invite.usedBy);
+      }
+    }
+
+    // Fetch usernames for used codes
+    const usernameMap = new Map<string, string>();
+    if (userIds.size > 0) {
+      const userDocs = await db.getAll(
+        ...Array.from(userIds).map((id) => db.collection('users').doc(id))
+      );
+      for (const doc of userDocs) {
+        if (doc.exists) {
+          const data = doc.data();
+          usernameMap.set(doc.id, data?.username || 'Unknown');
+        }
+      }
+    }
+
+    // Replace usedBy userId with username
+    const inviteCodes = inviteCodesRaw.map((invite) => ({
+      ...invite,
+      usedBy: invite.usedBy ? usernameMap.get(invite.usedBy) || 'Unknown' : null,
+    }));
 
     return NextResponse.json(
       {
