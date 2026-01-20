@@ -55,9 +55,10 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
   const handleRevert = () => {
     if (previousUrl) {
+      const current = previewUrl;
       setPreviewUrl(previousUrl);
       setCustomUrl(previousUrl);
-      setPreviousUrl(null);
+      setPreviousUrl(current);
     }
   };
 

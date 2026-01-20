@@ -42,7 +42,10 @@ export function BottomNav() {
               onContextMenu={preventContextMenu}
               style={{ WebkitTouchCallout: 'none' }}
             >
-              <Icon className={cn('h-7 w-7', isActive && 'fill-current stroke-[hsl(var(--background))]')} />
+              <Icon
+                className={cn('h-7 w-7', isActive && 'fill-current')}
+                style={isActive ? { stroke: 'hsl(var(--background))' } : undefined}
+              />
             </Link>
           );
         })}
