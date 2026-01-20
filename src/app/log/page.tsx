@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, X, Check, Undo2, GripVertical } from 'lucide-react';
+import { Loader2, Plus, Pencil, X, Check, Undo2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEFAULT_QUICK_ADD_PRESETS } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -69,9 +69,6 @@ export default function LogPage() {
   const [userPresets, setUserPresets] = useState<Record<string, number[]> | null>(null);
   const [savingPresets, setSavingPresets] = useState(false);
 
-  // Drag and drop for reordering
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -407,27 +404,15 @@ export default function LogPage() {
     savePresets(newPresets);
   };
 
-  // Reorder presets via drag and drop
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    setDragOverIndex(index);
-  };
-
-  const handleDrop = (index: number) => {
-    if (dragIndex === null || dragIndex === index) {
-      setDragIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
+  // Move preset left or right
+  const handleMovePreset = (index: number, direction: 'left' | 'right') => {
     const currentPresets = getPresets();
+    const newIndex = direction === 'left' ? index - 1 : index + 1;
+
+    if (newIndex < 0 || newIndex >= currentPresets.length) return;
+
     const newOrder = [...currentPresets];
-    const [removed] = newOrder.splice(dragIndex, 1);
-    newOrder.splice(index, 0, removed);
+    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
 
     const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
       ? selectedCustomExercise.id
@@ -439,13 +424,6 @@ export default function LogPage() {
     };
 
     savePresets(newPresets);
-    setDragIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDragIndex(null);
-    setDragOverIndex(null);
   };
 
   if (loading) {
@@ -607,38 +585,53 @@ export default function LogPage() {
           <CardContent>
             <div className="grid grid-cols-4 gap-2">
               {presets.map((preset, index) => (
-                <div
-                  key={preset}
-                  className={`relative ${editMode ? 'cursor-grab active:cursor-grabbing' : ''} ${dragOverIndex === index ? 'ring-2 ring-primary ring-offset-2 rounded-md' : ''}`}
-                  draggable={editMode}
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={() => handleDrop(index)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={`w-full h-12 text-lg font-semibold ${editMode ? 'pl-6' : ''} ${dragIndex === index ? 'opacity-50' : ''}`}
-                    onClick={() => handleQuickAdd(preset)}
-                    onMouseDown={() => !editMode && handleLongPressStart(preset)}
-                    onMouseUp={handleLongPressEnd}
-                    onMouseLeave={handleLongPressEnd}
-                    onTouchStart={() => !editMode && handleLongPressStart(preset)}
-                    onTouchEnd={handleLongPressEnd}
-                    disabled={logging || savingPresets}
-                  >
-                    {editMode && <GripVertical className="h-4 w-4 absolute left-1 text-muted-foreground" />}
-                    {preset}
-                  </Button>
-                  {editMode && (
-                    <button
+                <div key={preset} className="relative">
+                  {editMode ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleMovePreset(index, 'left')}
+                          disabled={index === 0 || savingPresets}
+                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <div className="h-10 px-3 flex items-center justify-center border rounded-md text-lg font-semibold min-w-[3rem]">
+                          {preset}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleMovePreset(index, 'right')}
+                          disabled={index === presets.length - 1 || savingPresets}
+                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePreset(preset)}
+                        className="text-xs text-destructive hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
                       type="button"
-                      onClick={() => handleRemovePreset(preset)}
-                      className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                      variant="outline"
+                      className="w-full h-12 text-lg font-semibold"
+                      onClick={() => handleQuickAdd(preset)}
+                      onMouseDown={() => handleLongPressStart(preset)}
+                      onMouseUp={handleLongPressEnd}
+                      onMouseLeave={handleLongPressEnd}
+                      onTouchStart={() => handleLongPressStart(preset)}
+                      onTouchEnd={handleLongPressEnd}
+                      disabled={logging || savingPresets}
                     >
-                      <X className="h-3 w-3" />
-                    </button>
+                      {preset}
+                    </Button>
                   )}
                 </div>
               ))}
