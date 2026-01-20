@@ -205,10 +205,6 @@ export default function DashboardPage() {
   // Long press handlers for workout deletion
   const handleLongPressStart = (workoutId: string) => {
     const timer = setTimeout(() => {
-      // Haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
       setWorkoutToDelete(workoutId);
     }, 500);
     setLongPressTimer(timer);
