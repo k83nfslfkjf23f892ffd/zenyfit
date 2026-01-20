@@ -37,9 +37,23 @@ export default function LogPage() {
   const { user, loading, firebaseUser } = useAuth();
   const { showWorkoutComplete } = useCelebration();
 
-  // Exercise selection
-  const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pullups');
+  // Exercise selection (restore from localStorage)
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lastExercise');
+      if (saved && ['pullups', 'pushups', 'dips', 'running', 'custom'].includes(saved)) {
+        return saved as ExerciseType;
+      }
+    }
+    return 'pullups';
+  });
   const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
+  const [lastCustomExerciseId, setLastCustomExerciseId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lastCustomExerciseId');
+    }
+    return null;
+  });
 
   // Manual entry
   const [amount, setAmount] = useState('');
@@ -81,6 +95,28 @@ export default function LogPage() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Save selected exercise to localStorage
+  useEffect(() => {
+    localStorage.setItem('lastExercise', selectedExercise);
+    if (selectedExercise === 'custom' && selectedCustomExercise) {
+      localStorage.setItem('lastCustomExerciseId', selectedCustomExercise.id);
+    }
+  }, [selectedExercise, selectedCustomExercise]);
+
+  // Restore custom exercise selection after loading
+  useEffect(() => {
+    if (!loadingCustomExercises && customExercises.length > 0 && selectedExercise === 'custom' && lastCustomExerciseId) {
+      const found = customExercises.find(e => e.id === lastCustomExerciseId);
+      if (found) {
+        setSelectedCustomExercise(found);
+      } else {
+        // Custom exercise no longer exists, fall back to pullups
+        setSelectedExercise('pullups');
+      }
+      setLastCustomExerciseId(null);
+    }
+  }, [loadingCustomExercises, customExercises, selectedExercise, lastCustomExerciseId]);
 
   // Load user presets from user object
   useEffect(() => {
