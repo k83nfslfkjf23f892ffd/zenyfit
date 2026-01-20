@@ -33,7 +33,7 @@ export function AvatarPicker({ username, currentAvatar, onAvatarChange }: Avatar
   };
 
   const handleRandomize = () => {
-    const newUrl = getRandomFitnessAvatar(username);
+    const newUrl = getRandomFitnessAvatar();
     setPreviewUrl(newUrl);
     onAvatarChange(newUrl);
   };
