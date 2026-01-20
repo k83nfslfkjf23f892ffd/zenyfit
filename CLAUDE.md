@@ -32,6 +32,7 @@ npm run lint         # Run ESLint
 - **Patch (1.1.x)**: Update for any changes/fixes
 - **Minor (1.x.0)**: Update for major or big changes
 - Version is tracked in commit messages (e.g., "v1.1.8: Description of change")
+- **IMPORTANT**: Also update `APP_VERSION` in `shared/constants.ts` to match
 
 ## Architecture Overview
 
