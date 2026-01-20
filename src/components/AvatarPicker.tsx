@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link, Save, Loader2, Undo2 } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2 } from 'lucide-react';
 import {
   getUserAvatar,
   getRandomFitnessAvatar,
@@ -19,25 +19,33 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
+  const initialAvatar = currentAvatar || getUserAvatar(username);
+  const [history, setHistory] = useState<string[]>([initialAvatar]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [customUrl, setCustomUrl] = useState(currentAvatar || '');
-  const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
-  const [previousUrl, setPreviousUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const previewUrl = history[historyIndex];
   const hasChanges = previewUrl !== currentAvatar;
-  const canRevert = previousUrl !== null && previousUrl !== previewUrl;
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+
+  const addToHistory = (url: string) => {
+    // Truncate any forward history and add new entry
+    const newHistory = [...history.slice(0, historyIndex + 1), url];
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setCustomUrl(url);
+  };
 
   const handleRandomize = () => {
-    setPreviousUrl(previewUrl);
     const newUrl = getRandomFitnessAvatar();
-    setPreviewUrl(newUrl);
-    setCustomUrl(newUrl);
+    addToHistory(newUrl);
   };
 
   const handleCustomUrl = () => {
     if (isValidAvatarUrl(customUrl)) {
-      setPreviousUrl(previewUrl);
-      setPreviewUrl(customUrl);
+      addToHistory(customUrl);
     }
   };
 
@@ -47,18 +55,22 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     try {
       await onSave(previewUrl);
       setCustomUrl(previewUrl);
-      setPreviousUrl(null);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRevert = () => {
-    if (previousUrl) {
-      const current = previewUrl;
-      setPreviewUrl(previousUrl);
-      setCustomUrl(previousUrl);
-      setPreviousUrl(current);
+  const handleBack = () => {
+    if (canGoBack) {
+      setHistoryIndex(historyIndex - 1);
+      setCustomUrl(history[historyIndex - 1]);
+    }
+  };
+
+  const handleForward = () => {
+    if (canGoForward) {
+      setHistoryIndex(historyIndex + 1);
+      setCustomUrl(history[historyIndex + 1]);
     }
   };
 
@@ -99,12 +111,14 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
         {/* Avatar Actions */}
         <div className="flex justify-center gap-2">
-          {canRevert && (
-            <Button variant="outline" onClick={handleRevert} disabled={saving} className="gap-2">
-              <Undo2 className="w-4 h-4" />
-              Revert
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleBack}
+            disabled={saving || !canGoBack}
+          >
+            <Undo2 className="w-4 h-4" />
+          </Button>
           <Button
             variant="outline"
             onClick={handleRandomize}
@@ -112,6 +126,14 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
           >
             <Shuffle className="w-4 h-4" />
             Random
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleForward}
+            disabled={saving || !canGoForward}
+          >
+            <Redo2 className="w-4 h-4" />
           </Button>
         </div>
 
