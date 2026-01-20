@@ -502,10 +502,11 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Recent Activity
-              <span className="group relative">
-                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                <span className="absolute left-1/2 -translate-x-1/2 top-6 w-40 text-xs text-center bg-popover text-popover-foreground border rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-md">
-                  Long press a workout to delete it
+              <span className="group relative inline-flex">
+                <Info className="h-4 w-4 text-muted-foreground/60" />
+                <span className="absolute left-1/2 -translate-x-1/2 top-7 w-max max-w-[200px] text-xs text-center bg-foreground text-background rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 shadow-lg scale-95 group-hover:scale-100">
+                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                  Long press to delete
                 </span>
               </span>
             </CardTitle>
