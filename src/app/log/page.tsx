@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, X, Check, Undo2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Pencil, Check, Undo2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEFAULT_QUICK_ADD_PRESETS } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
