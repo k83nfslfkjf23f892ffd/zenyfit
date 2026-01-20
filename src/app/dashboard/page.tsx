@@ -109,9 +109,12 @@ export default function DashboardPage() {
         },
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
         setCustomExercises(data.exercises || []);
+      } else {
+        console.error('Failed to fetch custom exercises:', data.error);
       }
     } catch (error) {
       console.error('Error fetching custom exercises:', error);
