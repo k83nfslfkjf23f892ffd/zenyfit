@@ -62,7 +62,7 @@ export default function CreateCustomExercisePage() {
       }
 
       toast.success(`Created "${name}"`);
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error('Error creating custom exercise:', error);
       toast.error('An error occurred');
