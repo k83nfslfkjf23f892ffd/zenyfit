@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Dumbbell, Loader2, Undo2, Plus, Trash2 } from 'lucide-react';
+import { Dumbbell, Loader2, Plus, Trash2, Info } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
 
@@ -50,6 +50,10 @@ export default function DashboardPage() {
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [loadingCustomExercises, setLoadingCustomExercises] = useState(true);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
+
+  // Delete workout confirmation state
+  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -147,10 +151,11 @@ export default function DashboardPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts, fetchCustomExercises]);
 
-  const handleRevertWorkout = async (workoutId: string) => {
+  const handleDeleteWorkout = async (workoutId: string) => {
     if (reverting) return;
 
     setReverting(true);
+    setWorkoutToDelete(null);
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) {
@@ -168,17 +173,32 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Failed to revert workout');
+        toast.error(data.error || 'Failed to delete workout');
         return;
       }
 
-      toast.success(`Workout reverted (-${data.xpDeducted} XP)`);
+      toast.success(`Workout deleted (-${data.xpDeducted} XP)`);
       fetchRecentWorkouts();
     } catch (error) {
-      console.error('Error reverting workout:', error);
+      console.error('Error deleting workout:', error);
       toast.error('An error occurred');
     } finally {
       setReverting(false);
+    }
+  };
+
+  // Long press handlers for workout deletion
+  const handleLongPressStart = (workoutId: string) => {
+    const timer = setTimeout(() => {
+      setWorkoutToDelete(workoutId);
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
     }
   };
 
@@ -467,7 +487,15 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Recent Activity
+              <span className="group relative">
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                <span className="absolute left-1/2 -translate-x-1/2 top-6 w-40 text-xs text-center bg-popover text-popover-foreground border rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-md">
+                  Long press a workout to delete it
+                </span>
+              </span>
+            </CardTitle>
             <CardDescription>Your last 5 workouts</CardDescription>
           </CardHeader>
           <CardContent>
@@ -492,29 +520,16 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {recentWorkouts.map((workout, index) => (
+                {recentWorkouts.map((workout) => (
                   <div
                     key={workout.id}
-                    className="flex items-center gap-3 rounded-lg border p-3"
+                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer select-none active:bg-muted/50 transition-colors"
+                    onMouseDown={() => handleLongPressStart(workout.id)}
+                    onMouseUp={handleLongPressEnd}
+                    onMouseLeave={handleLongPressEnd}
+                    onTouchStart={() => handleLongPressStart(workout.id)}
+                    onTouchEnd={handleLongPressEnd}
                   >
-                    {/* Revert button on the left (only for most recent) */}
-                    {index === 0 ? (
-                      <button
-                        onClick={() => handleRevertWorkout(workout.id)}
-                        disabled={reverting}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                        title="Undo this workout"
-                      >
-                        {reverting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Undo2 className="h-4 w-4" />
-                        )}
-                      </button>
-                    ) : (
-                      <div className="w-10" />
-                    )}
-
                     <div className="flex-1">
                       <div className="font-medium capitalize">
                         {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : workout.type}
@@ -540,6 +555,30 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Delete Workout Confirmation Dialog */}
+      {workoutToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setWorkoutToDelete(null)}>
+          <div className="bg-background border rounded-lg p-6 mx-4 max-w-sm w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This will remove the workout and deduct the XP earned. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setWorkoutToDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteWorkout(workoutToDelete)}
+                disabled={reverting}
+              >
+                {reverting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

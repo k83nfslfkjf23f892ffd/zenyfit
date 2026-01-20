@@ -157,11 +157,30 @@ export default function ChallengesPage() {
     }
   }, [user, firebaseUser, activeTab, fetchChallenges, fetchInvites]);
 
-  const getDaysRemaining = (endDate: number) => {
+  const getTimeRemaining = (endDate: number) => {
     const now = Date.now();
     const remaining = endDate - now;
-    const days = Math.ceil(remaining / (1000 * 60 * 60 * 24));
-    return days;
+    if (remaining <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, ended: true };
+
+    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+    return { days, hours, minutes, seconds, ended: false };
+  };
+
+  const formatTimeRemaining = (endDate: number) => {
+    const { days, hours, minutes, seconds, ended } = getTimeRemaining(endDate);
+    if (ended) return 'Ended';
+
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else {
+      return `${minutes}m ${seconds}s`;
+    }
   };
 
   const getUserProgress = (challenge: Challenge) => {
@@ -311,7 +330,7 @@ export default function ChallengesPage() {
               </Card>
             ) : (
               challenges.map((challenge) => {
-                const daysRemaining = getDaysRemaining(challenge.endDate);
+                const timeRemaining = formatTimeRemaining(challenge.endDate);
                 const userProgress = getUserProgress(challenge);
                 const progressPercent = (userProgress / challenge.goal) * 100;
                 const isParticipant = challenge.participantIds.includes(user.id);
@@ -346,7 +365,7 @@ export default function ChallengesPage() {
                           <div className="flex items-center gap-2 justify-end">
                             <Clock className="h-4 w-4 text-muted-foreground" />
                             <span className="text-muted-foreground">
-                              {daysRemaining > 0 ? `${daysRemaining}d left` : 'Ended'}
+                              {timeRemaining}
                             </span>
                           </div>
                         </div>
