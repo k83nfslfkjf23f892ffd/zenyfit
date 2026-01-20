@@ -5,10 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2 } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw } from 'lucide-react';
 import {
   getUserAvatar,
   getRandomFitnessAvatar,
+  getAvatarWithNewStyle,
+  getAvatarWithNewSeed,
+  getAvatarWithNewColor,
   isValidAvatarUrl,
 } from '@/lib/avatar';
 
@@ -40,6 +43,21 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
   const handleRandomize = () => {
     const newUrl = getRandomFitnessAvatar();
+    addToHistory(newUrl);
+  };
+
+  const handleNewStyle = () => {
+    const newUrl = getAvatarWithNewStyle(previewUrl);
+    addToHistory(newUrl);
+  };
+
+  const handleNewFace = () => {
+    const newUrl = getAvatarWithNewSeed(previewUrl);
+    addToHistory(newUrl);
+  };
+
+  const handleNewColor = () => {
+    const newUrl = getAvatarWithNewColor(previewUrl);
     addToHistory(newUrl);
   };
 
@@ -137,25 +155,52 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
           </Button>
         </div>
 
+        {/* Customize Parts */}
+        <div className="flex justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewStyle}
+            className="gap-1"
+          >
+            <Sparkles className="w-3 h-3" />
+            Style
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewFace}
+            className="gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Face
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewColor}
+            className="gap-1"
+          >
+            <Palette className="w-3 h-3" />
+            Color
+          </Button>
+        </div>
+
         {/* Avatar URL */}
         <div className="space-y-3">
           <Label htmlFor="avatar-url">Avatar URL</Label>
-          <div className="flex gap-2">
-            <Input
-              id="avatar-url"
-              type="url"
-              placeholder="https://example.com/avatar.png"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-            />
-            <Button onClick={handleCustomUrl} className="gap-2">
-              <Link className="w-4 h-4" />
-              Use
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Enter a direct URL to an image (must be https://)
-          </p>
+          <Input
+            id="avatar-url"
+            type="url"
+            placeholder="https://example.com/avatar.png"
+            value={customUrl}
+            onChange={(e) => setCustomUrl(e.target.value)}
+            className="text-xs"
+          />
+          <Button onClick={handleCustomUrl} className="w-full gap-2">
+            <Link className="w-4 h-4" />
+            Use URL
+          </Button>
         </div>
       </CardContent>
     </Card>

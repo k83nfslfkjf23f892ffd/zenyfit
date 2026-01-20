@@ -8,7 +8,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
-import { toast } from 'sonner';
 import { ProfileSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
