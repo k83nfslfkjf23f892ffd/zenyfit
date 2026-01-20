@@ -2,7 +2,8 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.1.32';
+export const APP_VERSION = '1.1.33';
+export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
 // XP System Constants

@@ -21,11 +21,14 @@ interface AvatarPickerProps {
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
   const [customUrl, setCustomUrl] = useState(currentAvatar || '');
   const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
+  const [previousUrl, setPreviousUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const hasChanges = previewUrl !== currentAvatar;
+  const canRevert = previousUrl !== null && previousUrl !== previewUrl;
 
   const handleRandomize = () => {
+    setPreviousUrl(previewUrl);
     const newUrl = getRandomFitnessAvatar();
     setPreviewUrl(newUrl);
     setCustomUrl(newUrl);
@@ -33,6 +36,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
   const handleCustomUrl = () => {
     if (isValidAvatarUrl(customUrl)) {
+      setPreviousUrl(previewUrl);
       setPreviewUrl(customUrl);
     }
   };
@@ -43,15 +47,18 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     try {
       await onSave(previewUrl);
       setCustomUrl(previewUrl);
+      setPreviousUrl(null);
     } finally {
       setSaving(false);
     }
   };
 
   const handleRevert = () => {
-    const savedUrl = currentAvatar || getUserAvatar(username);
-    setPreviewUrl(savedUrl);
-    setCustomUrl(currentAvatar || '');
+    if (previousUrl) {
+      setPreviewUrl(previousUrl);
+      setCustomUrl(previousUrl);
+      setPreviousUrl(null);
+    }
   };
 
   return (
@@ -91,7 +98,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
         {/* Avatar Actions */}
         <div className="flex justify-center gap-2">
-          {hasChanges && (
+          {canRevert && (
             <Button variant="outline" onClick={handleRevert} disabled={saving} className="gap-2">
               <Undo2 className="w-4 h-4" />
               Revert

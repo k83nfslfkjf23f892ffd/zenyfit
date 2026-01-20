@@ -45,6 +45,26 @@ export async function GET(
       );
     }
 
+    // Fetch current avatars for all participants
+    const participantIds = challengeData.participantIds || [];
+    if (participantIds.length > 0) {
+      const userDocs = await db.getAll(
+        ...participantIds.map((id: string) => db.collection('users').doc(id))
+      );
+      const avatarMap = new Map<string, string>();
+      for (const doc of userDocs) {
+        if (doc.exists) {
+          const data = doc.data();
+          avatarMap.set(doc.id, data?.avatar || '');
+        }
+      }
+      // Update participants with current avatars
+      challengeData.participants = challengeData.participants.map((p: { userId: string; avatar?: string }) => ({
+        ...p,
+        avatar: avatarMap.get(p.userId) || p.avatar || '',
+      }));
+    }
+
     return NextResponse.json(
       { challenge: { id: challengeDoc.id, ...challengeData } },
       { status: 200 }

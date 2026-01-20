@@ -174,6 +174,38 @@ export async function GET(request: NextRequest) {
       challenges = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     }
 
+    // Fetch current avatars for all participants across all challenges
+    const allParticipantIds = new Set<string>();
+    for (const challenge of challenges) {
+      const pIds = (challenge as { participantIds?: string[] }).participantIds || [];
+      pIds.forEach((id: string) => allParticipantIds.add(id));
+    }
+
+    if (allParticipantIds.size > 0) {
+      const userDocs = await db.getAll(
+        ...Array.from(allParticipantIds).map((id) => db.collection('users').doc(id))
+      );
+      const avatarMap = new Map<string, string>();
+      for (const doc of userDocs) {
+        if (doc.exists) {
+          const data = doc.data();
+          avatarMap.set(doc.id, data?.avatar || '');
+        }
+      }
+
+      // Update participants with current avatars
+      challenges = challenges.map((challenge) => {
+        const c = challenge as { participants?: Array<{ userId: string; avatar?: string }> };
+        if (c.participants) {
+          c.participants = c.participants.map((p) => ({
+            ...p,
+            avatar: avatarMap.get(p.userId) || p.avatar || '',
+          }));
+        }
+        return challenge;
+      });
+    }
+
     return NextResponse.json({ challenges }, { status: 200 });
   } catch (error: unknown) {
     console.error('Error in GET /api/challenges:', error);

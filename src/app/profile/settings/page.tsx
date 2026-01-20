@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { LIMITS } from '@shared/constants';
+import { LIMITS, APP_URL } from '@shared/constants';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { NotificationSettings } from '@/components/NotificationSettings';
@@ -98,13 +98,13 @@ export default function SettingsPage() {
   };
 
   const copyInviteUrl = (code: string) => {
-    const url = `${window.location.origin}/signup?invite=${code}`;
+    const url = `${APP_URL}/signup?invite=${code}`;
     navigator.clipboard.writeText(url);
     toast.success('Invite URL copied to clipboard!');
   };
 
   const shareInvite = async (code: string) => {
-    const url = `${window.location.origin}/signup?invite=${code}`;
+    const url = `${APP_URL}/signup?invite=${code}`;
     if (navigator.share) {
       try {
         await navigator.share({
