@@ -371,20 +371,18 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Exercise</Label>
-                  {!loadingCustomExercises && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="h-7 text-xs"
-                    >
-                      <Link href="/dashboard/custom-exercise">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add
-                      </Link>
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="h-7 text-xs"
+                  >
+                    <Link href="/dashboard/custom-exercise">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add
+                    </Link>
+                  </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {(['pullups', 'pushups', 'dips', 'running'] as const).map((type) => (

@@ -116,7 +116,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     setRefreshing(true);
     await fetchChallenge();
     setRefreshing(false);
-    toast.success('Challenge updated');
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
