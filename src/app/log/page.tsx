@@ -613,9 +613,13 @@ export default function LogPage() {
                 )}
               </Button>
             </div>
-            {!editMode && (
+            {!editMode ? (
               <p className="text-xs text-muted-foreground">
                 Tap to log instantly. Long press for sets.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Drag to reorder. Tap X to remove.
               </p>
             )}
           </CardHeader>
@@ -629,16 +633,26 @@ export default function LogPage() {
                 <div
                   key={preset}
                   ref={(el) => { presetRefs.current[index] = el; }}
-                  className={`relative transition-transform ${
-                    draggedIndex === index ? 'opacity-50 scale-95' : ''
+                  className={`relative transition-all duration-150 ${
+                    draggedIndex === index
+                      ? 'scale-110 z-10 shadow-lg'
+                      : draggedIndex !== null
+                        ? 'opacity-70'
+                        : ''
                   } ${
-                    dragOverIndex === index ? 'ring-2 ring-primary ring-offset-2 rounded-md scale-105' : ''
+                    dragOverIndex === index && draggedIndex !== index
+                      ? 'scale-90 border-2 border-dashed border-primary rounded-md'
+                      : ''
                   }`}
                 >
                   <Button
                     type="button"
-                    variant="outline"
-                    className={`w-full h-12 text-lg font-semibold ${editMode ? 'pl-7' : ''}`}
+                    variant={draggedIndex === index ? 'default' : 'outline'}
+                    className={`w-full h-12 text-lg font-semibold transition-all ${
+                      editMode ? 'pl-7' : ''
+                    } ${
+                      editMode && draggedIndex === null ? 'border-dashed' : ''
+                    }`}
                     onClick={() => !editMode && handleQuickAdd(preset)}
                     onMouseDown={() => !editMode && handleLongPressStart(preset)}
                     onMouseUp={handleLongPressEnd}
@@ -654,11 +668,13 @@ export default function LogPage() {
                     disabled={logging || savingPresets}
                   >
                     {editMode && (
-                      <GripVertical className="h-4 w-4 absolute left-1.5 text-muted-foreground" />
+                      <GripVertical className={`h-4 w-4 absolute left-1.5 ${
+                        draggedIndex === index ? 'text-primary-foreground' : 'text-muted-foreground'
+                      }`} />
                     )}
                     {preset}
                   </Button>
-                  {editMode && (
+                  {editMode && draggedIndex === null && (
                     <button
                       type="button"
                       onClick={() => handleRemovePreset(preset)}
