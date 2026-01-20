@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Trophy, RefreshCw } from 'lucide-react';
+import { Loader2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChallengeDetailSkeleton } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
@@ -165,15 +165,28 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
         onTouchEnd={handleTouchEnd}
       >
         {/* Pull-to-refresh indicator */}
-        <div
-          className="flex justify-center transition-all duration-200 overflow-hidden"
-          style={{ height: pullDistance > 0 || refreshing ? Math.max(pullDistance, refreshing ? 40 : 0) : 0 }}
-        >
-          <RefreshCw
-            className={`h-6 w-6 text-muted-foreground ${refreshing ? 'animate-spin' : ''}`}
-            style={{ opacity: pullDistance / 60, transform: `rotate(${pullDistance * 3}deg)` }}
-          />
-        </div>
+        {(pullDistance > 0 || refreshing) && (
+          <div
+            className="flex justify-center items-center py-2"
+            style={{ height: refreshing ? 40 : Math.min(pullDistance, 60) }}
+          >
+            <div
+              className={`rounded-full border-2 p-1 transition-colors ${
+                pullDistance >= 60 || refreshing
+                  ? 'border-primary text-primary'
+                  : 'border-muted-foreground/30 text-muted-foreground/50'
+              }`}
+            >
+              <Loader2
+                className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`}
+                style={{
+                  opacity: refreshing ? 1 : Math.min(pullDistance / 40, 1),
+                  transform: refreshing ? 'none' : `rotate(${pullDistance * 4}deg)`
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <Button variant="ghost" onClick={() => router.back()}>
           ← Back
