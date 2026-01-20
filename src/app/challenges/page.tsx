@@ -54,6 +54,15 @@ export default function ChallengesPage() {
   const [invites, setInvites] = useState<ChallengeInvite[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(true);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  // Real-time timer update every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -362,9 +371,9 @@ export default function ChallengesPage() {
                             <Target className="h-4 w-4 text-muted-foreground" />
                             <span className="capitalize">{challenge.type}</span>
                           </div>
-                          <div className="flex items-center gap-2 justify-end">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">
+                          <div className="flex items-center gap-1 justify-end">
+                            <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="text-muted-foreground whitespace-nowrap text-sm">
                               {timeRemaining}
                             </span>
                           </div>
