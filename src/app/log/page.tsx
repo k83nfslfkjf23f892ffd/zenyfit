@@ -446,7 +446,7 @@ export default function LogPage() {
     savePresets(newPresets);
   };
 
-  // Touch drag handlers
+  // Touch drag handlers - insert between elements
   const handleTouchStart = (index: number, e: React.TouchEvent, value: number) => {
     if (!editMode) return;
     const touch = e.touches[0];
@@ -463,44 +463,57 @@ export default function LogPage() {
     setDragPosition({ x: touch.clientX, y: touch.clientY });
 
     const elements = presetRefs.current;
+    let newInsertIndex: number | null = null;
 
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
       if (el) {
         const rect = el.getBoundingClientRect();
-        if (
-          touch.clientX >= rect.left &&
-          touch.clientX <= rect.right &&
-          touch.clientY >= rect.top &&
-          touch.clientY <= rect.bottom
-        ) {
-          if (dragOverIndex !== i) {
-            setDragOverIndex(i);
+        const centerX = rect.left + rect.width / 2;
+
+        // Check if touch is within vertical bounds of this row
+        if (touch.clientY >= rect.top - 20 && touch.clientY <= rect.bottom + 20) {
+          // Determine insert position based on touch X relative to element center
+          if (touch.clientX < centerX) {
+            // Insert before this element
+            newInsertIndex = i;
+          } else {
+            // Insert after this element
+            newInsertIndex = i + 1;
           }
-          return;
+          break;
         }
       }
     }
-    setDragOverIndex(null);
+
+    setDragOverIndex(newInsertIndex);
   };
 
   const handleTouchEnd = () => {
-    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
-      const currentPresets = getPresets();
-      const newOrder = [...currentPresets];
-      const [removed] = newOrder.splice(draggedIndex, 1);
-      newOrder.splice(dragOverIndex, 0, removed);
+    if (draggedIndex !== null && dragOverIndex !== null) {
+      // Calculate actual insert position accounting for removed item
+      let insertAt = dragOverIndex;
+      if (draggedIndex < dragOverIndex) {
+        insertAt -= 1;
+      }
 
-      const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-        ? selectedCustomExercise.id
-        : selectedExercise;
+      if (insertAt !== draggedIndex) {
+        const currentPresets = getPresets();
+        const newOrder = [...currentPresets];
+        const [removed] = newOrder.splice(draggedIndex, 1);
+        newOrder.splice(insertAt, 0, removed);
 
-      const newPresets = {
-        ...userPresets,
-        [exerciseKey]: newOrder,
-      };
+        const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
+          ? selectedCustomExercise.id
+          : selectedExercise;
 
-      savePresets(newPresets);
+        const newPresets = {
+          ...userPresets,
+          [exerciseKey]: newOrder,
+        };
+
+        savePresets(newPresets);
+      }
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -679,15 +692,17 @@ export default function LogPage() {
                   key={preset}
                   ref={(el) => { presetRefs.current[index] = el; }}
                   className={`relative transition-all duration-150 ${
-                    draggedIndex === index
-                      ? 'opacity-0'
-                      : ''
-                  } ${
-                    dragOverIndex === index && draggedIndex !== index
-                      ? 'scale-90 border-2 border-dashed border-primary rounded-md'
-                      : ''
+                    draggedIndex === index ? 'opacity-0' : ''
                   }`}
                 >
+                  {/* Insertion indicator - show line before this element when dragOverIndex matches */}
+                  {draggedIndex !== null && dragOverIndex === index && (
+                    <div className="absolute -left-1.5 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
+                  )}
+                  {/* Insertion indicator - show line after this element (only for last item when inserting at end) */}
+                  {draggedIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && (
+                    <div className="absolute -right-1.5 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
+                  )}
                   <Button
                     type="button"
                     variant={draggedIndex === index ? 'default' : 'outline'}
