@@ -6,10 +6,9 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { LIMITS } from '@shared/constants';
+import { LIMITS, APP_URL } from '@shared/constants';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { NotificationSettings } from '@/components/NotificationSettings';
@@ -24,7 +23,7 @@ interface InviteCode {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, loading, firebaseUser } = useAuth();
+  const { user, loading, firebaseUser, signOutUser } = useAuth();
 
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(true);
@@ -99,9 +98,29 @@ export default function SettingsPage() {
   };
 
   const copyInviteUrl = (code: string) => {
-    const url = `${window.location.origin}/signup?invite=${code}`;
+    const url = `${APP_URL}/signup?invite=${code}`;
     navigator.clipboard.writeText(url);
     toast.success('Invite URL copied to clipboard!');
+  };
+
+  const shareInvite = async (code: string) => {
+    const url = `${APP_URL}/signup?invite=${code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join me on ZenyFit!',
+          text: 'Use my invite code to join ZenyFit and start your fitness journey!',
+          url,
+        });
+      } catch (error) {
+        // User cancelled or share failed - ignore
+        if ((error as Error).name !== 'AbortError') {
+          copyInviteUrl(code); // Fallback to copy
+        }
+      }
+    } else {
+      copyInviteUrl(code); // Fallback for browsers without Web Share API
+    }
   };
 
   const handleAvatarSave = async (avatarUrl: string) => {
@@ -125,6 +144,17 @@ export default function SettingsPage() {
       const data = await response.json();
       toast.error(data.error || 'Failed to save avatar');
       throw new Error(data.error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      toast.success('Logged out successfully');
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out');
     }
   };
 
@@ -175,29 +205,6 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <NotificationSettings />
-
-        {/* Account Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>Your profile information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label>Username</Label>
-              <div className="mt-1 text-sm font-medium">{user.username}</div>
-              <p className="text-xs text-muted-foreground mt-1">Cannot be changed</p>
-            </div>
-            <div>
-              <Label>Level</Label>
-              <div className="mt-1 text-sm font-medium">Level {user.level}</div>
-            </div>
-            <div>
-              <Label>Total XP</Label>
-              <div className="mt-1 text-sm font-medium">{user.xp.toLocaleString()}</div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Invite Codes */}
         <Card>
@@ -253,15 +260,26 @@ export default function SettingsPage() {
                             )}
                           </div>
                           {!invite.used && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyInviteUrl(invite.code)}
-                              className="h-7 text-xs"
-                            >
-                              <Copy className="mr-1 h-3 w-3" />
-                              Copy
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyInviteUrl(invite.code)}
+                                className="h-7 text-xs"
+                              >
+                                <Copy className="mr-1 h-3 w-3" />
+                                Copy
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => shareInvite(invite.code)}
+                                className="h-7 text-xs"
+                              >
+                                <Share2 className="mr-1 h-3 w-3" />
+                                Share
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -288,6 +306,20 @@ export default function SettingsPage() {
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Log Out */}
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              variant="outline"
+              className="w-full justify-start text-destructive hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log Out
+            </Button>
           </CardContent>
         </Card>
       </div>

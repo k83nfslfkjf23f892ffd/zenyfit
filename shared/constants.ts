@@ -2,7 +2,8 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.1.28';
+export const APP_VERSION = '1.1.39';
+export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
 // XP System Constants
@@ -96,7 +97,7 @@ export function getXPNeededForNextLevel(currentLevel: number): number {
 
 export const LIMITS = {
   customExercises: 12,
-  inviteCodes: 5,
+  inviteCodes: 10,
   usernameMinLength: 3,
   usernameMaxLength: 12,
   passwordMinLength: 7,

@@ -3,15 +3,16 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shuffle, User, Link, Save, Loader2 } from 'lucide-react';
+import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  FITNESS_AVATAR_STYLES,
   getUserAvatar,
   getRandomFitnessAvatar,
+  getAvatarWithNewStyle,
+  getAvatarWithNewSeed,
+  getAvatarWithNewColor,
   isValidAvatarUrl,
-  type AvatarStyle
 } from '@/lib/avatar';
 
 interface AvatarPickerProps {
@@ -21,28 +22,54 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
-  const [selectedStyle, setSelectedStyle] = useState<AvatarStyle>('bottts');
-  const [customUrl, setCustomUrl] = useState('');
-  const [previewUrl, setPreviewUrl] = useState(currentAvatar || getUserAvatar(username));
+  const initialAvatar = currentAvatar || getUserAvatar(username);
+  const [history, setHistory] = useState<string[]>([initialAvatar]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [customUrl, setCustomUrl] = useState(currentAvatar || '');
   const [saving, setSaving] = useState(false);
 
+  const previewUrl = history[historyIndex];
   const hasChanges = previewUrl !== currentAvatar;
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
 
-  const handleStyleChange = (style: AvatarStyle) => {
-    setSelectedStyle(style);
-    const newUrl = getUserAvatar(username, style);
-    setPreviewUrl(newUrl);
+  const addToHistory = (url: string) => {
+    // Truncate any forward history and add new entry
+    const newHistory = [...history.slice(0, historyIndex + 1), url];
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setCustomUrl(url);
   };
 
   const handleRandomize = () => {
     const newUrl = getRandomFitnessAvatar();
-    setPreviewUrl(newUrl);
+    addToHistory(newUrl);
+  };
+
+  const handleNewStyle = () => {
+    const newUrl = getAvatarWithNewStyle(previewUrl);
+    addToHistory(newUrl);
+  };
+
+  const handleNewFace = () => {
+    const newUrl = getAvatarWithNewSeed(previewUrl);
+    addToHistory(newUrl);
+  };
+
+  const handleNewColor = () => {
+    const newUrl = getAvatarWithNewColor(previewUrl);
+    addToHistory(newUrl);
   };
 
   const handleCustomUrl = () => {
     if (isValidAvatarUrl(customUrl)) {
-      setPreviewUrl(customUrl);
+      addToHistory(customUrl);
     }
+  };
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(customUrl);
+    toast.success('URL copied!');
   };
 
   const handleSave = async () => {
@@ -50,8 +77,23 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     setSaving(true);
     try {
       await onSave(previewUrl);
+      setCustomUrl(previewUrl);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (canGoBack) {
+      setHistoryIndex(historyIndex - 1);
+      setCustomUrl(history[historyIndex - 1]);
+    }
+  };
+
+  const handleForward = () => {
+    if (canGoForward) {
+      setHistoryIndex(historyIndex + 1);
+      setCustomUrl(history[historyIndex + 1]);
     }
   };
 
@@ -85,68 +127,91 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
           {hasChanges && (
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Saving...' : 'Save Avatar'}
+              {saving ? 'Saving...' : 'Save'}
             </Button>
           )}
         </div>
 
-        {/* Generated Avatars */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Generated Avatars</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRandomize}
-              className="gap-2"
-            >
-              <Shuffle className="w-4 h-4" />
-              Random
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            {FITNESS_AVATAR_STYLES.map((style) => (
-              <button
-                key={style}
-                onClick={() => handleStyleChange(style)}
-                className={`p-2 rounded-lg border-2 transition-all hover:scale-105 ${
-                  selectedStyle === style
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                title={style}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getUserAvatar(username, style)}
-                  alt={style}
-                  className="w-full h-auto rounded-md"
-                />
-              </button>
-            ))}
-          </div>
+        {/* Avatar Actions */}
+        <div className="flex justify-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleBack}
+            disabled={saving || !canGoBack}
+          >
+            <Undo2 className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRandomize}
+            className="gap-2"
+          >
+            <Shuffle className="w-4 h-4" />
+            Random
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleForward}
+            disabled={saving || !canGoForward}
+          >
+            <Redo2 className="w-4 h-4" />
+          </Button>
         </div>
 
-        {/* Custom URL */}
+        {/* Customize Parts */}
+        <div className="flex justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewStyle}
+            className="gap-1"
+          >
+            <Sparkles className="w-3 h-3" />
+            Style
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewFace}
+            className="gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Face
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNewColor}
+            className="gap-1"
+          >
+            <Palette className="w-3 h-3" />
+            Color
+          </Button>
+        </div>
+
+        {/* Avatar URL */}
         <div className="space-y-3">
-          <Label htmlFor="custom-avatar">Custom Avatar URL</Label>
+          <Label htmlFor="avatar-url">Avatar URL</Label>
+          <textarea
+            id="avatar-url"
+            placeholder="https://example.com/avatar.png"
+            value={customUrl}
+            onChange={(e) => setCustomUrl(e.target.value)}
+            rows={2}
+            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+          />
           <div className="flex gap-2">
-            <Input
-              id="custom-avatar"
-              type="url"
-              placeholder="https://example.com/avatar.png"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-            />
-            <Button onClick={handleCustomUrl} className="gap-2">
+            <Button variant="outline" onClick={handleCopyUrl} className="flex-1 gap-2">
+              <Copy className="w-4 h-4" />
+              Copy
+            </Button>
+            <Button onClick={handleCustomUrl} className="flex-1 gap-2">
               <Link className="w-4 h-4" />
               Use
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Enter a direct URL to an image (must be https://)
-          </p>
         </div>
       </CardContent>
     </Card>

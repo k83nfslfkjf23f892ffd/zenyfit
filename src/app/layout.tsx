@@ -18,6 +18,29 @@ export const metadata: Metadata = {
   title: "ZenyFit - Fitness Gamification",
   description: "Track your workouts, level up, and compete with friends",
   manifest: "/manifest.json",
+  metadataBase: new URL("https://zenyfit.vercel.app"),
+  openGraph: {
+    title: "ZenyFit - Fitness Gamification",
+    description: "Track your workouts, level up, and compete with friends",
+    url: "https://zenyfit.vercel.app",
+    siteName: "ZenyFit",
+    images: [
+      {
+        url: "/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "ZenyFit",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "ZenyFit - Fitness Gamification",
+    description: "Track your workouts, level up, and compete with friends",
+    images: ["/icons/icon-512x512.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

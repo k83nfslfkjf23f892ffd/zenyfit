@@ -7,13 +7,12 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, LogOut, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
-import { toast } from 'sonner';
+import { Settings, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
 import { ProfileSkeleton, Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading, signOutUser, firebaseUser } = useAuth();
+  const { user, loading, firebaseUser } = useAuth();
 
   const [stats, setStats] = useState({
     totalWorkouts: 0,
@@ -76,17 +75,6 @@ export default function ProfilePage() {
       fetchStats();
     }
   }, [user, firebaseUser, fetchStats]);
-
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-      toast.success('Logged out successfully');
-      router.push('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      toast.error('Failed to log out');
-    }
-  };
 
   if (loading) {
     return (
@@ -204,20 +192,6 @@ export default function ProfilePage() {
               <span className="font-medium">Running</span>
               <span className="text-lg font-bold">{user.totals.running} km</span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions */}
-        <Card>
-          <CardContent className="pt-6">
-            <Button
-              variant="outline"
-              className="w-full justify-start text-destructive hover:text-destructive"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log Out
-            </Button>
           </CardContent>
         </Card>
       </div>
