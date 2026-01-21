@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Loader2, Info } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
+import { ExerciseRatioChart } from '@/components/charts/ExerciseRatioChart';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -177,6 +178,9 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Exercise Distribution Chart */}
+        <ExerciseRatioChart totals={user.totals} />
 
         {/* Recent Activity */}
         <Card>
