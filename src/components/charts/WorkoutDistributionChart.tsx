@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   PieChart,
@@ -33,6 +33,13 @@ export function WorkoutDistributionChart({
   title = 'Workout Distribution',
 }: WorkoutDistributionChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  // Delay animation until container is properly sized
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!data || data.length === 0) {
     return (
@@ -69,7 +76,7 @@ export function WorkoutDistributionChart({
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
-                isAnimationActive={false}
+                isAnimationActive={isReady}
                 onMouseEnter={(_, index) => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}
                 onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
