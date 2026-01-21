@@ -30,20 +30,23 @@ export async function GET(request: NextRequest) {
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-    // Get all users (for chart data)
+    // Get all users (for chart data) - filter banned in code to avoid needing composite index
     const usersSnapshot = await db.collection('users')
-      .where('isBanned', '==', false)
       .orderBy('xp', 'desc')
-      .limit(20)
+      .limit(30)
       .get();
 
-    const users = usersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      username: doc.data().username,
-      xp: doc.data().xp,
-      level: doc.data().level,
-      totals: doc.data().totals || {},
-    }));
+    const users = usersSnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        username: doc.data().username,
+        xp: doc.data().xp,
+        level: doc.data().level,
+        totals: doc.data().totals || {},
+        isBanned: doc.data().isBanned || false,
+      }))
+      .filter(u => !u.isBanned)
+      .slice(0, 20);
 
     // Get workout logs for last 7 days (for trends)
     const weeklyLogsSnapshot = await db.collection('exercise_logs')
