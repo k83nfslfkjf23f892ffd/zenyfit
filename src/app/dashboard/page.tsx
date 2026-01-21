@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -133,6 +133,17 @@ export default function DashboardPage() {
     }
   };
 
+  // Memoize chart data to prevent animation interruption on re-renders
+  const chartData = useMemo(() => {
+    if (!user?.totals) return [];
+    return [
+      { name: 'Pull-ups', value: user.totals.pullups || 0, color: 'hsl(var(--chart-1))' },
+      { name: 'Push-ups', value: user.totals.pushups || 0, color: 'hsl(var(--chart-2))' },
+      { name: 'Dips', value: user.totals.dips || 0, color: 'hsl(var(--chart-3))' },
+      { name: 'Running', value: user.totals.running || 0, color: 'hsl(var(--chart-4))' },
+    ].filter(item => item.value > 0);
+  }, [user?.totals?.pullups, user?.totals?.pushups, user?.totals?.dips, user?.totals?.running]);
+
   if (loading) {
     return (
       <AppLayout>
@@ -180,14 +191,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Workout Distribution Chart */}
-        <WorkoutDistributionChart
-          data={[
-            { name: 'Pull-ups', value: user.totals?.pullups || 0, color: 'hsl(var(--chart-1))' },
-            { name: 'Push-ups', value: user.totals?.pushups || 0, color: 'hsl(var(--chart-2))' },
-            { name: 'Dips', value: user.totals?.dips || 0, color: 'hsl(var(--chart-3))' },
-            { name: 'Running', value: user.totals?.running || 0, color: 'hsl(var(--chart-4))' },
-          ].filter(item => item.value > 0)}
-        />
+        <WorkoutDistributionChart data={chartData} />
 
         {/* Recent Activity */}
         <Card>
