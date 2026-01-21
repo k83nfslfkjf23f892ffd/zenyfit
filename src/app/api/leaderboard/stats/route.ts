@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
-import { EXERCISE_INFO } from '@shared/constants';
+import { EXERCISE_INFO, EXERCISE_CATEGORIES } from '@shared/constants';
+
+// Get calisthenics exercise types
+const CALISTHENICS_TYPES = EXERCISE_CATEGORIES.calisthenics.exercises;
 
 /**
  * GET /api/leaderboard/stats
- * Get comprehensive stats for leaderboard charts:
- * - Weekly XP trends per user
- * - Exercise distribution (global)
- * - Activity heatmap data
- * - Ranking history
+ * Query params:
+ * - scope: 'personal' | 'community' (default: 'community')
+ * - range: 'daily' | 'weekly' | 'monthly' (default: 'weekly')
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,172 +21,174 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Rate limiting
     const rateLimitResponse = rateLimitByUser(decodedToken, request.nextUrl.pathname, RATE_LIMITS.READ_HEAVY);
     if (rateLimitResponse) return rateLimitResponse;
 
     const { db } = getAdminInstances();
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get('scope') || 'community';
+    const range = searchParams.get('range') || 'weekly';
 
     const now = Date.now();
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const userId = decodedToken.uid;
 
-    // Get all users (for chart data) - filter banned in code to avoid needing composite index
-    const usersSnapshot = await db.collection('users')
-      .orderBy('xp', 'desc')
-      .limit(30)
-      .get();
+    // Calculate time range
+    let startTime: number;
+    let dateFormat: 'hour' | 'day' | 'week';
+    let numPeriods: number;
 
-    const users = usersSnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        username: doc.data().username,
-        xp: doc.data().xp,
-        level: doc.data().level,
-        totals: doc.data().totals || {},
-        isBanned: doc.data().isBanned || false,
-      }))
-      .filter(u => !u.isBanned)
-      .slice(0, 20);
-
-    // Get workout logs for last 7 days (for trends)
-    const weeklyLogsSnapshot = await db.collection('exercise_logs')
-      .where('timestamp', '>', sevenDaysAgo)
-      .orderBy('timestamp', 'asc')
-      .get();
-
-    // Get workout logs for last 30 days (for heatmap)
-    const monthlyLogsSnapshot = await db.collection('exercise_logs')
-      .where('timestamp', '>', thirtyDaysAgo)
-      .orderBy('timestamp', 'asc')
-      .get();
-
-    // 1. Weekly XP Trends per user (top 10 users)
-    const weeklyTrends: Record<string, Record<string, number>> = {};
-    const topUserIds = users.slice(0, 10).map(u => u.id);
-
-    // Generate date keys for last 7 days
-    const dateKeys: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(now - (6 - i) * 24 * 60 * 60 * 1000);
-      const dateKey = date.toISOString().split('T')[0];
-      dateKeys.push(dateKey);
-
-      // Initialize for each user
-      topUserIds.forEach(userId => {
-        if (!weeklyTrends[userId]) weeklyTrends[userId] = {};
-        weeklyTrends[userId][dateKey] = 0;
-      });
+    switch (range) {
+      case 'daily':
+        startTime = now - 24 * 60 * 60 * 1000; // Last 24 hours
+        dateFormat = 'hour';
+        numPeriods = 24;
+        break;
+      case 'monthly':
+        startTime = now - 30 * 24 * 60 * 60 * 1000; // Last 30 days
+        dateFormat = 'day';
+        numPeriods = 30;
+        break;
+      case 'weekly':
+      default:
+        startTime = now - 7 * 24 * 60 * 60 * 1000; // Last 7 days
+        dateFormat = 'day';
+        numPeriods = 7;
+        break;
     }
 
-    // Aggregate XP by user by day
-    weeklyLogsSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (!topUserIds.includes(data.userId)) return;
+    // Build query based on scope
+    let logsQuery = db.collection('exercise_logs')
+      .where('timestamp', '>', startTime)
+      .orderBy('timestamp', 'asc');
 
-      const date = new Date(data.timestamp);
-      const dateKey = date.toISOString().split('T')[0];
+    if (scope === 'personal') {
+      logsQuery = db.collection('exercise_logs')
+        .where('userId', '==', userId)
+        .where('timestamp', '>', startTime)
+        .orderBy('timestamp', 'asc');
+    }
 
-      if (weeklyTrends[data.userId] && weeklyTrends[data.userId][dateKey] !== undefined) {
-        weeklyTrends[data.userId][dateKey] += data.xpEarned || 0;
+    const logsSnapshot = await logsQuery.get();
+
+    // Generate time period keys
+    const periodKeys: string[] = [];
+    for (let i = 0; i < numPeriods; i++) {
+      const time = now - (numPeriods - 1 - i) * (dateFormat === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
+      const date = new Date(time);
+      let key: string;
+      if (dateFormat === 'hour') {
+        key = `${date.getHours()}:00`;
+      } else {
+        key = date.toISOString().split('T')[0];
       }
-    });
+      periodKeys.push(key);
+    }
 
-    // Format for chart: array of { date, user1: xp, user2: xp, ... }
-    const xpTrends = dateKeys.map(date => {
-      const point: Record<string, number | string> = { date };
-      topUserIds.forEach(userId => {
-        const user = users.find(u => u.id === userId);
-        if (user) {
-          point[user.username] = weeklyTrends[userId]?.[date] || 0;
-        }
+    // Initialize data structures
+    const repsByExercise: Record<string, number> = {};
+    const repsByPeriod: Record<string, Record<string, number>> = {};
+    const activityByPeriod: Record<string, { reps: number; workouts: number }> = {};
+
+    // Initialize periods
+    periodKeys.forEach(key => {
+      repsByPeriod[key] = {};
+      activityByPeriod[key] = { reps: 0, workouts: 0 };
+      CALISTHENICS_TYPES.forEach(type => {
+        repsByPeriod[key][type] = 0;
       });
-      return point;
     });
 
-    // 2. Exercise Distribution (global totals from all users)
-    const exerciseDistribution: Record<string, { count: number; xp: number; category: string }> = {};
+    // Initialize exercise totals
+    CALISTHENICS_TYPES.forEach(type => {
+      repsByExercise[type] = 0;
+    });
 
-    weeklyLogsSnapshot.docs.forEach(doc => {
+    // Process logs - focus on calisthenics only
+    logsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const type = data.type;
-      if (type === 'custom') return;
 
-      const info = EXERCISE_INFO[type];
-      if (!exerciseDistribution[type]) {
-        exerciseDistribution[type] = {
-          count: 0,
-          xp: 0,
-          category: info?.category || 'other'
-        };
+      // Only process calisthenics exercises
+      if (!CALISTHENICS_TYPES.includes(type)) return;
+
+      const amount = data.amount || 0;
+      const timestamp = data.timestamp;
+      const date = new Date(timestamp);
+
+      // Get period key
+      let periodKey: string;
+      if (dateFormat === 'hour') {
+        periodKey = `${date.getHours()}:00`;
+      } else {
+        periodKey = date.toISOString().split('T')[0];
       }
-      exerciseDistribution[type].count += 1;
-      exerciseDistribution[type].xp += data.xpEarned || 0;
+
+      // Aggregate totals
+      repsByExercise[type] = (repsByExercise[type] || 0) + amount;
+
+      // Aggregate by period
+      if (repsByPeriod[periodKey]) {
+        repsByPeriod[periodKey][type] = (repsByPeriod[periodKey][type] || 0) + amount;
+        activityByPeriod[periodKey].reps += amount;
+        activityByPeriod[periodKey].workouts += 1;
+      }
     });
 
-    // Format for chart
-    const distribution = Object.entries(exerciseDistribution)
-      .map(([type, stats]) => ({
-        name: EXERCISE_INFO[type]?.label || type,
+    // Format reps by exercise for bar chart
+    const exerciseTotals = Object.entries(repsByExercise)
+      .map(([type, reps]) => ({
         type,
-        ...stats,
+        name: EXERCISE_INFO[type]?.label || type,
+        reps,
       }))
-      .sort((a, b) => b.xp - a.xp);
+      .filter(e => e.reps > 0)
+      .sort((a, b) => b.reps - a.reps);
 
-    // 3. Activity Heatmap (workouts per day for last 30 days)
-    const heatmapData: Record<string, { count: number; xp: number }> = {};
+    // Format reps over time for line/area chart
+    const repsOverTime = periodKeys.map(period => {
+      const data: Record<string, string | number> = { period };
+      let totalReps = 0;
 
-    // Initialize 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(now - (29 - i) * 24 * 60 * 60 * 1000);
-      const dateKey = date.toISOString().split('T')[0];
-      heatmapData[dateKey] = { count: 0, xp: 0 };
-    }
+      CALISTHENICS_TYPES.forEach(type => {
+        const reps = repsByPeriod[period]?.[type] || 0;
+        if (reps > 0) {
+          data[EXERCISE_INFO[type]?.label || type] = reps;
+          totalReps += reps;
+        }
+      });
 
-    monthlyLogsSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const date = new Date(data.timestamp);
-      const dateKey = date.toISOString().split('T')[0];
-
-      if (heatmapData[dateKey]) {
-        heatmapData[dateKey].count += 1;
-        heatmapData[dateKey].xp += data.xpEarned || 0;
-      }
+      data.total = totalReps;
+      return data;
     });
 
-    const heatmap = Object.entries(heatmapData)
-      .map(([date, stats]) => ({ date, ...stats }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    // 4. Current Rankings (with XP breakdown)
-    const rankings = users.map((user, index) => ({
-      rank: index + 1,
-      username: user.username,
-      xp: user.xp,
-      level: user.level,
-      weeklyXp: Object.values(weeklyTrends[user.id] || {}).reduce((sum, xp) => sum + xp, 0),
+    // Format activity summary
+    const activity = periodKeys.map(period => ({
+      period,
+      reps: activityByPeriod[period]?.reps || 0,
+      workouts: activityByPeriod[period]?.workouts || 0,
     }));
 
-    // 5. Category totals for pie chart
-    const categoryTotals: Record<string, number> = {
-      calisthenics: 0,
-      cardio: 0,
-      team_sports: 0,
-    };
+    // Get top exercises for legend
+    const topExercises = exerciseTotals.slice(0, 5).map(e => e.type);
 
-    distribution.forEach(item => {
-      if (categoryTotals[item.category] !== undefined) {
-        categoryTotals[item.category] += item.xp;
-      }
-    });
+    // Calculate total stats
+    const totalReps = Object.values(repsByExercise).reduce((sum, reps) => sum + reps, 0);
+    const totalWorkouts = logsSnapshot.docs.filter(doc =>
+      CALISTHENICS_TYPES.includes(doc.data().type)
+    ).length;
 
     return NextResponse.json({
-      xpTrends,
-      distribution,
-      heatmap,
-      rankings,
-      categoryTotals,
-      topUsers: users.slice(0, 10).map(u => ({ id: u.id, username: u.username })),
+      scope,
+      range,
+      exerciseTotals,
+      repsOverTime,
+      activity,
+      topExercises,
+      summary: {
+        totalReps,
+        totalWorkouts,
+        periodLabel: range === 'daily' ? 'today' : range === 'weekly' ? 'this week' : 'this month',
+      },
     }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -31,15 +31,6 @@ interface Ranking {
   score: number;
 }
 
-interface ChartStats {
-  xpTrends: Array<{ date: string; [key: string]: string | number }>;
-  distribution: Array<{ name: string; type: string; count: number; xp: number; category: string }>;
-  heatmap: Array<{ date: string; count: number; xp: number }>;
-  rankings: Array<{ rank: number; username: string; xp: number; level: number; weeklyXp: number }>;
-  categoryTotals: { calisthenics: number; cardio: number; team_sports: number };
-  topUsers: Array<{ id: string; username: string }>;
-}
-
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
@@ -47,50 +38,12 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [loadingRankings, setLoadingRankings] = useState(true);
-  const [chartStats, setChartStats] = useState<ChartStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
-
-  // Fetch chart stats
-  const fetchStats = useCallback(async () => {
-    try {
-      setStatsError(null);
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        setStatsError('Authentication required');
-        return;
-      }
-
-      const response = await fetch('/api/leaderboard/stats', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setChartStats(data);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Stats API error:', response.status, errorData);
-        const errorMsg = errorData.details
-          ? `${errorData.error}: ${errorData.details}`
-          : errorData.error || 'Failed to load charts';
-        setStatsError(errorMsg);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      setStatsError('Network error');
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [firebaseUser]);
 
   const fetchRankings = useCallback(async (type: RankingType) => {
     setLoadingRankings(true);
@@ -130,13 +83,6 @@ export default function LeaderboardPage() {
     }
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
-  // Fetch stats only once on mount
-  useEffect(() => {
-    if (user && firebaseUser) {
-      fetchStats();
-    }
-  }, [user, firebaseUser, fetchStats]);
-
   if (loading) {
     return (
       <AppLayout>
@@ -159,50 +105,8 @@ export default function LeaderboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Overview Charts */}
-        {!loadingStats && chartStats && (
-          <LeaderboardCharts
-            xpTrends={chartStats.xpTrends}
-            distribution={chartStats.distribution}
-            heatmap={chartStats.heatmap}
-            rankings={chartStats.rankings}
-            categoryTotals={chartStats.categoryTotals}
-            topUsers={chartStats.topUsers}
-          />
-        )}
-        {loadingStats && (
-          <Card>
-            <CardHeader className="pb-2">
-              <Skeleton className="h-6 w-24" />
-              <Skeleton className="h-4 w-48 mt-1" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-64 w-full" />
-            </CardContent>
-          </Card>
-        )}
-        {!loadingStats && statsError && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Overview</CardTitle>
-              <CardDescription>Community activity and progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <p className="text-sm">{statsError}</p>
-                <button
-                  onClick={() => {
-                    setLoadingStats(true);
-                    fetchStats();
-                  }}
-                  className="mt-2 text-xs text-primary hover:underline"
-                >
-                  Try again
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Calisthenics Charts - handles its own data fetching and caching */}
+        <LeaderboardCharts firebaseUser={firebaseUser} />
 
         {/* Rankings */}
         <Card>
