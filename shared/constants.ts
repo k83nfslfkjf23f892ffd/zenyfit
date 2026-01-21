@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.1.43';
+export const APP_VERSION = '1.1.44';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -18,10 +18,10 @@ export const XP_RATES = {
 } as const;
 
 export const DEFAULT_QUICK_ADD_PRESETS: Record<string, number[]> = {
-  pullups: [5, 10, 15, 20],
-  pushups: [10, 25, 50, 100],
-  dips: [5, 10, 15, 20],
-  running: [1, 3, 5, 10],
+  pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  running: [0.5, 1, 3, 5, 10, 15, 20],
 } as const;
 
 // Level thresholds for levels 1-10
