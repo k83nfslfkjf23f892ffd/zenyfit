@@ -65,26 +65,25 @@ export function WorkoutDistributionChart({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div
-          className={`relative transition-all duration-500 ease-out ${
-            mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-          }`}
-        >
+        <div className="relative">
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={110}
-                paddingAngle={2}
-                dataKey="value"
-                isAnimationActive={false}
-                onMouseEnter={(_, index) => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex(null)}
-                onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
-              >
+              {mounted && (
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={110}
+                  paddingAngle={2}
+                  dataKey="value"
+                  animationBegin={0}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                  onMouseEnter={(_, index) => setActiveIndex(index)}
+                  onMouseLeave={() => setActiveIndex(null)}
+                  onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
+                >
                 {data.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -97,7 +96,8 @@ export function WorkoutDistributionChart({
                     }}
                   />
                 ))}
-              </Pie>
+                </Pie>
+              )}
             </PieChart>
           </ResponsiveContainer>
 
