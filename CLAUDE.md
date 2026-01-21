@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
 
 ### Charts
 - Recharts components in `src/components/charts/`
-- XPHistoryChart, WorkoutDistributionChart, WeeklyActivityChart, UserGrowthChart
+- XPHistoryChart, WeeklyActivityChart, UserGrowthChart
 
 ### Animations
 - Framer Motion components in `src/components/animations/`
