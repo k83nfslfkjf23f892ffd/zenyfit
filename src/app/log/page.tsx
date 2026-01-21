@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, Check, Undo2, GripVertical, X } from 'lucide-react';
+import { Loader2, Plus, Pencil, Check, Undo2, GripVertical, X, RotateCcw } from 'lucide-react';
 import { DEFAULT_QUICK_ADD_PRESETS } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -446,6 +446,31 @@ export default function LogPage() {
     savePresets(newPresets);
   };
 
+  // Reset presets to defaults
+  const handleResetToDefaults = () => {
+    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
+      ? selectedCustomExercise.id
+      : selectedExercise;
+
+    // For custom exercises, use their original quickActions or fallback
+    if (selectedExercise === 'custom') {
+      if (selectedCustomExercise) {
+        const defaults = selectedCustomExercise.quickActions.length > 0
+          ? selectedCustomExercise.quickActions
+          : [5, 10, 15, 20];
+        const newPresets = { ...userPresets };
+        delete newPresets[exerciseKey];
+        savePresets(newPresets);
+      }
+      return;
+    }
+
+    // For standard exercises, remove user preset to fall back to defaults
+    const newPresets = { ...userPresets };
+    delete newPresets[exerciseKey];
+    savePresets(newPresets);
+  };
+
   // Touch drag handlers - insert between elements
   const handleTouchStart = (index: number, e: React.TouchEvent, value: number) => {
     if (!editMode) return;
@@ -676,9 +701,21 @@ export default function LogPage() {
                 Tap to log instantly. Long press for sets.
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Drag to reorder. Tap X to remove.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Drag to reorder. Tap X to remove.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetToDefaults}
+                  disabled={savingPresets}
+                  className="h-6 text-xs text-muted-foreground"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Defaults
+                </Button>
+              </div>
             )}
           </CardHeader>
           <CardContent>
