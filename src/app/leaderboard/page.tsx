@@ -79,7 +79,10 @@ export default function LeaderboardPage() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('Stats API error:', response.status, errorData);
-        setStatsError(errorData.error || 'Failed to load charts');
+        const errorMsg = errorData.details
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to load charts';
+        setStatsError(errorMsg);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);

@@ -185,9 +185,10 @@ export async function GET(request: NextRequest) {
       topUsers: users.slice(0, 10).map(u => ({ id: u.id, username: u.username })),
     }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Error in GET /api/leaderboard/stats:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in GET /api/leaderboard/stats:', errorMessage, error);
     return NextResponse.json(
-      { error: 'Failed to fetch leaderboard stats' },
+      { error: 'Failed to fetch leaderboard stats', details: errorMessage },
       { status: 500 }
     );
   }
