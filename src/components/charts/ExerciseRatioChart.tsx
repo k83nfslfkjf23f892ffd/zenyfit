@@ -66,14 +66,14 @@ export function ExerciseRatioChart({
       </CardHeader>
       <CardContent>
         <div className="relative">
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={90}
+                innerRadius={70}
+                outerRadius={120}
                 paddingAngle={2}
                 dataKey="value"
                 onMouseEnter={(_, index) => setActiveIndex(index)}
@@ -117,24 +117,6 @@ export function ExerciseRatioChart({
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-3 mt-2">
-          {data.map((entry, index) => (
-            <button
-              key={entry.name}
-              onClick={() => setActiveIndex(activeIndex === index ? null : index)}
-              className={`flex items-center gap-1.5 text-xs transition-opacity ${
-                activeIndex !== null && activeIndex !== index ? 'opacity-50' : ''
-              }`}
-            >
-              <div
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span>{entry.name}</span>
-            </button>
-          ))}
-        </div>
       </CardContent>
     </Card>
   );
