@@ -61,10 +61,14 @@ export async function GET(request: NextRequest) {
     const weeklyTrends: Record<string, Record<string, number>> = {};
     const topUserIds = users.slice(0, 10).map(u => u.id);
 
-    // Initialize 7 days for each user
+    // Generate date keys for last 7 days
+    const dateKeys: string[] = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(now - (6 - i) * 24 * 60 * 60 * 1000);
       const dateKey = date.toISOString().split('T')[0];
+      dateKeys.push(dateKey);
+
+      // Initialize for each user
       topUserIds.forEach(userId => {
         if (!weeklyTrends[userId]) weeklyTrends[userId] = {};
         weeklyTrends[userId][dateKey] = 0;
@@ -85,13 +89,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Format for chart: array of { date, user1: xp, user2: xp, ... }
-    const dates = Object.keys(weeklyTrends[topUserIds[0]] || {}).sort();
-    const xpTrends = dates.map(date => {
+    const xpTrends = dateKeys.map(date => {
       const point: Record<string, number | string> = { date };
       topUserIds.forEach(userId => {
         const user = users.find(u => u.id === userId);
         if (user) {
-          point[user.username] = weeklyTrends[userId][date] || 0;
+          point[user.username] = weeklyTrends[userId]?.[date] || 0;
         }
       });
       return point;

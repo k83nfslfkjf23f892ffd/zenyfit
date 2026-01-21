@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.2.1';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -45,15 +45,15 @@ export const XP_RATES: Record<string, number> = {
 
   // Pull-up variations
   pullups: 6,           // 100% body weight
-  assisted_pullups: 3,  // Reduced load
+  assisted_pullups: 3,  // Reduced load (~50-70%)
   chinups: 5,           // Slightly easier (bicep advantage)
   wide_pullups: 7,      // Reduced mechanical advantage
   lsit_pullups: 8,      // Added core demand
-  australian_pullups: 3,// 40-60% body weight, easier angle
+  australian_pullups: 2,// 40-60% body weight, similar to push-ups
 
   // Dip variations
   dips: 6,              // 95% body weight, full ROM
-  bench_dips: 3,        // Feet on ground, reduced load
+  bench_dips: 2,        // Feet on ground, much easier (~40-50%)
   ring_dips: 7,         // Added instability
 
   // Advanced

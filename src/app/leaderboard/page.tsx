@@ -104,12 +104,19 @@ export default function LeaderboardPage() {
     }
   }, [firebaseUser]);
 
+  // Fetch rankings when tab changes
   useEffect(() => {
     if (user && firebaseUser) {
       fetchRankings(activeTab);
+    }
+  }, [user, firebaseUser, activeTab, fetchRankings]);
+
+  // Fetch stats only once on mount
+  useEffect(() => {
+    if (user && firebaseUser) {
       fetchStats();
     }
-  }, [user, firebaseUser, activeTab, fetchRankings, fetchStats]);
+  }, [user, firebaseUser, fetchStats]);
 
   if (loading) {
     return (
