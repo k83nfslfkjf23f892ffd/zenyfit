@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   PieChart,
@@ -33,6 +33,13 @@ export function WorkoutDistributionChart({
   title = 'Workout Distribution',
 }: WorkoutDistributionChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Trigger mount animation
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!data || data.length === 0) {
     return (
@@ -58,7 +65,11 @@ export function WorkoutDistributionChart({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="relative">
+        <div
+          className={`relative transition-all duration-500 ease-out ${
+            mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+          }`}
+        >
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
@@ -69,9 +80,7 @@ export function WorkoutDistributionChart({
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
-                animationBegin={100}
-                animationDuration={1000}
-                animationEasing="ease-out"
+                isAnimationActive={false}
                 onMouseEnter={(_, index) => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}
                 onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
