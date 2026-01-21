@@ -135,14 +135,15 @@ export default function DashboardPage() {
 
   // Memoize chart data to prevent animation interruption on re-renders
   const chartData = useMemo(() => {
-    if (!user?.totals) return [];
+    const totals = user?.totals;
+    if (!totals) return [];
     return [
-      { name: 'Pull-ups', value: user.totals.pullups || 0, color: 'hsl(var(--chart-1))' },
-      { name: 'Push-ups', value: user.totals.pushups || 0, color: 'hsl(var(--chart-2))' },
-      { name: 'Dips', value: user.totals.dips || 0, color: 'hsl(var(--chart-3))' },
-      { name: 'Running', value: user.totals.running || 0, color: 'hsl(var(--chart-4))' },
+      { name: 'Pull-ups', value: totals.pullups || 0, color: 'hsl(var(--chart-1))' },
+      { name: 'Push-ups', value: totals.pushups || 0, color: 'hsl(var(--chart-2))' },
+      { name: 'Dips', value: totals.dips || 0, color: 'hsl(var(--chart-3))' },
+      { name: 'Running', value: totals.running || 0, color: 'hsl(var(--chart-4))' },
     ].filter(item => item.value > 0);
-  }, [user?.totals?.pullups, user?.totals?.pushups, user?.totals?.dips, user?.totals?.running]);
+  }, [user?.totals]);
 
   if (loading) {
     return (

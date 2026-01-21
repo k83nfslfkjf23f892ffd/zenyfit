@@ -452,12 +452,9 @@ export default function LogPage() {
       ? selectedCustomExercise.id
       : selectedExercise;
 
-    // For custom exercises, use their original quickActions or fallback
+    // For custom exercises, remove user preset to fall back to quickActions
     if (selectedExercise === 'custom') {
       if (selectedCustomExercise) {
-        const defaults = selectedCustomExercise.quickActions.length > 0
-          ? selectedCustomExercise.quickActions
-          : [5, 10, 15, 20];
         const newPresets = { ...userPresets };
         delete newPresets[exerciseKey];
         savePresets(newPresets);
