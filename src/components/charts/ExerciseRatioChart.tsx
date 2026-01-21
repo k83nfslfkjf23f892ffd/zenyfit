@@ -23,12 +23,11 @@ const EXERCISE_CONFIG = [
   { key: 'pullups', name: 'Pull-ups', color: 'hsl(var(--chart-1))', unit: 'reps' },
   { key: 'pushups', name: 'Push-ups', color: 'hsl(var(--chart-2))', unit: 'reps' },
   { key: 'dips', name: 'Dips', color: 'hsl(var(--chart-3))', unit: 'reps' },
-  { key: 'running', name: 'Running', color: 'hsl(var(--chart-4))', unit: 'km' },
 ];
 
 export function ExerciseRatioChart({
   totals,
-  title = 'Workout Distribution',
+  title = 'Calisthenics Distribution',
 }: ExerciseRatioChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -66,14 +65,14 @@ export function ExerciseRatioChart({
       </CardHeader>
       <CardContent>
         <div className="relative">
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={70}
-                outerRadius={120}
+                innerRadius={80}
+                outerRadius={140}
                 paddingAngle={2}
                 dataKey="value"
                 onMouseEnter={(_, index) => setActiveIndex(index)}

@@ -10,8 +10,10 @@ import { Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { LeaderboardSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
+import { LeaderboardCharts } from '@/components/charts/LeaderboardCharts';
+import { EXERCISE_INFO } from '@shared/constants';
 
-type RankingType = 'xp' | 'pullups' | 'pushups' | 'dips' | 'running';
+type RankingType = 'xp' | string;
 
 interface Ranking {
   rank: number;
@@ -23,6 +25,15 @@ interface Ranking {
   score: number;
 }
 
+interface ChartStats {
+  xpTrends: Array<{ date: string; [key: string]: string | number }>;
+  distribution: Array<{ name: string; type: string; count: number; xp: number; category: string }>;
+  heatmap: Array<{ date: string; count: number; xp: number }>;
+  rankings: Array<{ rank: number; username: string; xp: number; level: number; weeklyXp: number }>;
+  categoryTotals: { calisthenics: number; cardio: number; team_sports: number };
+  topUsers: Array<{ id: string; username: string }>;
+}
+
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
@@ -30,12 +41,37 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [loadingRankings, setLoadingRankings] = useState(true);
+  const [chartStats, setChartStats] = useState<ChartStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Fetch chart stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/leaderboard/stats', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChartStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [firebaseUser]);
 
   const fetchRankings = useCallback(async (type: RankingType) => {
     setLoadingRankings(true);
@@ -71,8 +107,9 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (user && firebaseUser) {
       fetchRankings(activeTab);
+      fetchStats();
     }
-  }, [user, firebaseUser, activeTab, fetchRankings]);
+  }, [user, firebaseUser, activeTab, fetchRankings, fetchStats]);
 
   if (loading) {
     return (
@@ -88,13 +125,38 @@ export default function LeaderboardPage() {
 
   const getScoreLabel = (type: RankingType) => {
     if (type === 'xp') return 'XP';
-    if (type === 'running') return 'km';
+    const info = EXERCISE_INFO[type];
+    if (info) return info.unit;
     return 'reps';
   };
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Overview Charts */}
+        {!loadingStats && chartStats && (
+          <LeaderboardCharts
+            xpTrends={chartStats.xpTrends}
+            distribution={chartStats.distribution}
+            heatmap={chartStats.heatmap}
+            rankings={chartStats.rankings}
+            categoryTotals={chartStats.categoryTotals}
+            topUsers={chartStats.topUsers}
+          />
+        )}
+        {loadingStats && (
+          <Card>
+            <CardHeader className="pb-2">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-4 w-48 mt-1" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Rankings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

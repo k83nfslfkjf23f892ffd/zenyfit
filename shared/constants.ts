@@ -2,26 +2,145 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.1.69';
+export const APP_VERSION = '1.2.0';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
 // XP System Constants
 // ============================================================================
 
-export const XP_RATES = {
-  pullups: 15,
-  pushups: 3,
-  dips: 12,
-  running: 30, // per km
-  custom: 0, // custom exercises earn 0 XP (tracking only)
+// Exercise Categories
+export const EXERCISE_CATEGORIES = {
+  calisthenics: {
+    label: 'Calisthenics',
+    unit: 'reps',
+    exercises: ['pushups', 'pullups', 'dips', 'muscleups', 'australian_pullups',
+                'knee_pushups', 'incline_pushups', 'decline_pushups', 'diamond_pushups',
+                'archer_pushups', 'onearm_pushups', 'assisted_pullups', 'chinups',
+                'wide_pullups', 'lsit_pullups', 'bench_dips', 'ring_dips'],
+  },
+  cardio: {
+    label: 'Cardio',
+    unit: 'km',
+    exercises: ['running', 'walking', 'swimming', 'sprinting'],
+  },
+  team_sports: {
+    label: 'Team Sports',
+    unit: 'min',
+    exercises: ['volleyball', 'basketball', 'soccer'],
+  },
 } as const;
 
+// XP Rates based on biomechanical difficulty (from competing.md)
+export const XP_RATES: Record<string, number> = {
+  // === CALISTHENICS (per rep) ===
+  // Push-up variations
+  pushups: 3,           // Baseline: 64% body weight
+  knee_pushups: 2,      // ~49% body weight
+  incline_pushups: 2,   // ~40-55% body weight
+  decline_pushups: 4,   // ~75% body weight
+  diamond_pushups: 4,   // Increased tricep demand
+  archer_pushups: 5,    // Asymmetric loading
+  onearm_pushups: 6,    // Near full body weight on one arm
+
+  // Pull-up variations
+  pullups: 6,           // 100% body weight
+  assisted_pullups: 3,  // Reduced load
+  chinups: 5,           // Slightly easier (bicep advantage)
+  wide_pullups: 7,      // Reduced mechanical advantage
+  lsit_pullups: 8,      // Added core demand
+  australian_pullups: 3,// 40-60% body weight, easier angle
+
+  // Dip variations
+  dips: 6,              // 95% body weight, full ROM
+  bench_dips: 3,        // Feet on ground, reduced load
+  ring_dips: 7,         // Added instability
+
+  // Advanced
+  muscleups: 11,        // Pull-up + transition + partial dip
+
+  // === CARDIO (per km) ===
+  running: 30,          // 8-9 MET, 70 kcal/km
+  walking: 18,          // ~0.5x running MET, 55 kcal/km
+  swimming: 40,         // Higher resistance than running
+  sprinting: 50,        // Very high intensity (per km equivalent)
+
+  // === TEAM SPORTS (per minute) ===
+  volleyball: 2,        // 8.0 MET, intermittent with rest
+  basketball: 2,        // Similar MET to volleyball
+  soccer: 2,            // More continuous than volleyball
+
+  // Custom exercises
+  custom: 0,            // Tracking only
+} as const;
+
+// Exercise display info
+export const EXERCISE_INFO: Record<string, { label: string; category: string; unit: string }> = {
+  // Push-up variations
+  pushups: { label: 'Push-ups', category: 'calisthenics', unit: 'reps' },
+  knee_pushups: { label: 'Knee Push-ups', category: 'calisthenics', unit: 'reps' },
+  incline_pushups: { label: 'Incline Push-ups', category: 'calisthenics', unit: 'reps' },
+  decline_pushups: { label: 'Decline Push-ups', category: 'calisthenics', unit: 'reps' },
+  diamond_pushups: { label: 'Diamond Push-ups', category: 'calisthenics', unit: 'reps' },
+  archer_pushups: { label: 'Archer Push-ups', category: 'calisthenics', unit: 'reps' },
+  onearm_pushups: { label: 'One-arm Push-ups', category: 'calisthenics', unit: 'reps' },
+
+  // Pull-up variations
+  pullups: { label: 'Pull-ups', category: 'calisthenics', unit: 'reps' },
+  assisted_pullups: { label: 'Assisted Pull-ups', category: 'calisthenics', unit: 'reps' },
+  chinups: { label: 'Chin-ups', category: 'calisthenics', unit: 'reps' },
+  wide_pullups: { label: 'Wide Grip Pull-ups', category: 'calisthenics', unit: 'reps' },
+  lsit_pullups: { label: 'L-sit Pull-ups', category: 'calisthenics', unit: 'reps' },
+  australian_pullups: { label: 'Australian Pull-ups', category: 'calisthenics', unit: 'reps' },
+
+  // Dip variations
+  dips: { label: 'Dips', category: 'calisthenics', unit: 'reps' },
+  bench_dips: { label: 'Bench Dips', category: 'calisthenics', unit: 'reps' },
+  ring_dips: { label: 'Ring Dips', category: 'calisthenics', unit: 'reps' },
+
+  // Advanced
+  muscleups: { label: 'Muscle-ups', category: 'calisthenics', unit: 'reps' },
+
+  // Cardio
+  running: { label: 'Running', category: 'cardio', unit: 'km' },
+  walking: { label: 'Walking', category: 'cardio', unit: 'km' },
+  swimming: { label: 'Swimming', category: 'cardio', unit: 'km' },
+  sprinting: { label: 'Sprinting', category: 'cardio', unit: 'km' },
+
+  // Team Sports
+  volleyball: { label: 'Volleyball', category: 'team_sports', unit: 'min' },
+  basketball: { label: 'Basketball', category: 'team_sports', unit: 'min' },
+  soccer: { label: 'Soccer', category: 'team_sports', unit: 'min' },
+};
+
 export const DEFAULT_QUICK_ADD_PRESETS: Record<string, number[]> = {
-  pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
-  pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
-  dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
-  running: [0.5, 1, 3, 5, 10, 15, 20],
+  // Calisthenics (reps)
+  pushups: [5, 10, 15, 20, 30, 50],
+  knee_pushups: [5, 10, 15, 20, 30],
+  incline_pushups: [5, 10, 15, 20, 30],
+  decline_pushups: [5, 10, 15, 20, 30],
+  diamond_pushups: [5, 10, 15, 20, 30],
+  archer_pushups: [3, 5, 10, 15, 20],
+  onearm_pushups: [1, 3, 5, 10],
+  pullups: [3, 5, 10, 15, 20, 30],
+  assisted_pullups: [5, 10, 15, 20, 30],
+  chinups: [3, 5, 10, 15, 20],
+  wide_pullups: [3, 5, 10, 15, 20],
+  lsit_pullups: [3, 5, 10, 15],
+  australian_pullups: [5, 10, 15, 20, 30],
+  dips: [5, 10, 15, 20, 30],
+  bench_dips: [5, 10, 15, 20, 30],
+  ring_dips: [3, 5, 10, 15, 20],
+  muscleups: [1, 3, 5, 10],
+  // Cardio (km)
+  running: [1, 3, 5, 10, 15],
+  walking: [1, 2, 3, 5, 10],
+  swimming: [0.5, 1, 2, 3, 5],
+  sprinting: [0.1, 0.2, 0.4, 0.5, 1],
+  // Team Sports (minutes)
+  volleyball: [30, 45, 60, 90, 120],
+  basketball: [30, 45, 60, 90, 120],
+  soccer: [30, 45, 60, 90, 120],
 } as const;
 
 // Level thresholds for levels 1-10
