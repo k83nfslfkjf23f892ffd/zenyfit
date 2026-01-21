@@ -69,6 +69,7 @@ export function WorkoutDistributionChart({
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
+                animationDuration={800}
                 onMouseEnter={(_, index) => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}
                 onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
