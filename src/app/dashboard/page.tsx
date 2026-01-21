@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { Loader2, Info } from 'lucide-react';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { DashboardSkeleton, Skeleton } from '@/components/ui/skeleton';
-import { WorkoutDistributionChart } from '@/components/charts/WorkoutDistributionChart';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -133,18 +132,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Memoize chart data to prevent animation interruption on re-renders
-  const chartData = useMemo(() => {
-    const totals = user?.totals;
-    if (!totals) return [];
-    return [
-      { name: 'Pull-ups', value: totals.pullups || 0, color: 'hsl(var(--chart-1))' },
-      { name: 'Push-ups', value: totals.pushups || 0, color: 'hsl(var(--chart-2))' },
-      { name: 'Dips', value: totals.dips || 0, color: 'hsl(var(--chart-3))' },
-      { name: 'Running', value: totals.running || 0, color: 'hsl(var(--chart-4))' },
-    ].filter(item => item.value > 0);
-  }, [user?.totals]);
-
   if (loading) {
     return (
       <AppLayout>
@@ -190,9 +177,6 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Workout Distribution Chart */}
-        <WorkoutDistributionChart data={chartData} />
 
         {/* Recent Activity */}
         <Card>
