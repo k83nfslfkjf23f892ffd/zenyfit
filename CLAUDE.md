@@ -185,8 +185,9 @@ export async function GET(request: NextRequest) {
 - Import `toast` from `sonner` for notifications
 
 ### Charts
-- Recharts components in `src/components/charts/`
-- XPHistoryChart, WeeklyActivityChart, UserGrowthChart
+- **For new charts**: Use Chart.js (`react-chartjs-2`) - canvas-based, smooth animations, better mobile support
+- Legacy Recharts components in `src/components/charts/` (admin panel only):
+  - XPHistoryChart, WeeklyActivityChart, UserGrowthChart
 
 ### Animations
 - Framer Motion components in `src/components/animations/`
