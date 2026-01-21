@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   PieChart,
@@ -33,6 +33,19 @@ export function WorkoutDistributionChart({
   title = 'Workout Distribution',
 }: WorkoutDistributionChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const initialDataRef = useRef<string | null>(null);
+
+  // Only animate once - when we first receive data, lock it in
+  useEffect(() => {
+    if (data && data.length > 0 && initialDataRef.current === null) {
+      // Store the initial data signature
+      initialDataRef.current = JSON.stringify(data.map(d => d.value));
+      // Disable animation after it completes
+      const timer = setTimeout(() => setShouldAnimate(false), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [data]);
 
   if (!data || data.length === 0) {
     return (
@@ -69,6 +82,7 @@ export function WorkoutDistributionChart({
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
+                isAnimationActive={shouldAnimate}
                 animationBegin={100}
                 animationDuration={1000}
                 animationEasing="ease-out"
