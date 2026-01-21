@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   PieChart,
@@ -33,13 +33,24 @@ export function WorkoutDistributionChart({
   title = 'Workout Distribution',
 }: WorkoutDistributionChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [showChart, setShowChart] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const hasStartedRef = useRef(false);
 
-  // Trigger mount animation
+  // Only show chart once, with animation
   useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
+    // Wait for valid data before showing chart
+    if (data && data.length > 0 && !hasStartedRef.current) {
+      hasStartedRef.current = true;
+      // Small delay to ensure container is sized
+      const timer = setTimeout(() => {
+        setShowChart(true);
+        // Mark animation complete after it finishes
+        setTimeout(() => setAnimationComplete(true), 850);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [data]);
 
   if (!data || data.length === 0) {
     return (
@@ -68,7 +79,7 @@ export function WorkoutDistributionChart({
         <div className="relative">
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
-              {mounted && (
+              {showChart && (
                 <Pie
                   data={data}
                   cx="50%"
@@ -77,6 +88,7 @@ export function WorkoutDistributionChart({
                   outerRadius={110}
                   paddingAngle={2}
                   dataKey="value"
+                  isAnimationActive={!animationComplete}
                   animationBegin={0}
                   animationDuration={800}
                   animationEasing="ease-out"
