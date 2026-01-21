@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, TooltipItem } from 'chart.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,27 @@ export function ExerciseRatioChart({
   totals,
   title = 'Exercise Distribution',
 }: ExerciseRatioChartProps) {
+  const [showChart, setShowChart] = useState(false);
+  const [animationDone, setAnimationDone] = useState(false);
+  const hasStartedRef = useRef(false);
+
+  // Only show chart once data is available, animate once
+  useEffect(() => {
+    if (totals && !hasStartedRef.current) {
+      const hasData = (totals.pullups || 0) + (totals.pushups || 0) + (totals.dips || 0) + (totals.running || 0) > 0;
+      if (hasData) {
+        hasStartedRef.current = true;
+        // Small delay to ensure stable data
+        const timer = setTimeout(() => {
+          setShowChart(true);
+          // Disable animation after it completes
+          setTimeout(() => setAnimationDone(true), 900);
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [totals]);
+
   const chartData = useMemo(() => {
     if (!totals) return null;
 
@@ -84,13 +105,13 @@ export function ExerciseRatioChart({
         },
       },
     },
-    animation: {
+    animation: animationDone ? false : {
       animateRotate: true,
       animateScale: true,
       duration: 800,
       easing: 'easeOutQuart' as const,
     },
-  }), []);
+  }), [animationDone]);
 
   if (!chartData) {
     return (
@@ -114,7 +135,13 @@ export function ExerciseRatioChart({
       </CardHeader>
       <CardContent>
         <div className="h-64">
-          <Doughnut data={chartData} options={options} />
+          {showChart ? (
+            <Doughnut data={chartData} options={options} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              Loading...
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
