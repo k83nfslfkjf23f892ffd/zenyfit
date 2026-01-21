@@ -33,19 +33,32 @@ export function WorkoutDistributionChart({
   title = 'Workout Distribution',
 }: WorkoutDistributionChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [shouldAnimate, setShouldAnimate] = useState(true);
-  const initialDataRef = useRef<string | null>(null);
+  const [animationKey, setAnimationKey] = useState(0);
+  const hasAnimatedRef = useRef(false);
 
-  // Only animate once - when we first receive data, lock it in
+  // Reset animation when page becomes visible (app reopened)
   useEffect(() => {
-    if (data && data.length > 0 && initialDataRef.current === null) {
-      // Store the initial data signature
-      initialDataRef.current = JSON.stringify(data.map(d => d.value));
-      // Disable animation after it completes
-      const timer = setTimeout(() => setShouldAnimate(false), 1200);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && hasAnimatedRef.current) {
+        // Reset animation on app reopen
+        hasAnimatedRef.current = false;
+        setAnimationKey(k => k + 1);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Track when animation completes
+  useEffect(() => {
+    if (data && data.length > 0 && !hasAnimatedRef.current) {
+      const timer = setTimeout(() => {
+        hasAnimatedRef.current = true;
+      }, 1200);
       return () => clearTimeout(timer);
     }
-  }, [data]);
+  }, [data, animationKey]);
 
   if (!data || data.length === 0) {
     return (
@@ -75,6 +88,7 @@ export function WorkoutDistributionChart({
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
+                key={animationKey}
                 data={data}
                 cx="50%"
                 cy="50%"
@@ -82,7 +96,6 @@ export function WorkoutDistributionChart({
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
-                isAnimationActive={shouldAnimate}
                 animationBegin={100}
                 animationDuration={1000}
                 animationEasing="ease-out"
