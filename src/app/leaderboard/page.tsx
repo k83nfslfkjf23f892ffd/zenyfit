@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,8 +11,13 @@ import { Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { LeaderboardSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
-import { LeaderboardCharts } from '@/components/charts/LeaderboardCharts';
 import { EXERCISE_INFO } from '@shared/constants';
+
+// Dynamic import to avoid SSR issues with Recharts
+const LeaderboardCharts = dynamic(
+  () => import('@/components/charts/LeaderboardCharts').then(mod => mod.LeaderboardCharts),
+  { ssr: false }
+);
 
 type RankingType = 'xp' | string;
 
@@ -43,6 +49,7 @@ export default function LeaderboardPage() {
   const [loadingRankings, setLoadingRankings] = useState(true);
   const [chartStats, setChartStats] = useState<ChartStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -53,8 +60,12 @@ export default function LeaderboardPage() {
   // Fetch chart stats
   const fetchStats = useCallback(async () => {
     try {
+      setStatsError(null);
       const token = await firebaseUser?.getIdToken();
-      if (!token) return;
+      if (!token) {
+        setStatsError('Authentication required');
+        return;
+      }
 
       const response = await fetch('/api/leaderboard/stats', {
         headers: {
@@ -65,9 +76,14 @@ export default function LeaderboardPage() {
       if (response.ok) {
         const data = await response.json();
         setChartStats(data);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Stats API error:', response.status, errorData);
+        setStatsError(errorData.error || 'Failed to load charts');
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setStatsError('Network error');
     } finally {
       setLoadingStats(false);
     }
@@ -159,6 +175,28 @@ export default function LeaderboardPage() {
             </CardHeader>
             <CardContent>
               <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        )}
+        {!loadingStats && statsError && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Overview</CardTitle>
+              <CardDescription>Community activity and progress</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                <p className="text-sm">{statsError}</p>
+                <button
+                  onClick={() => {
+                    setLoadingStats(true);
+                    fetchStats();
+                  }}
+                  className="mt-2 text-xs text-primary hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
             </CardContent>
           </Card>
         )}
