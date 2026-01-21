@@ -677,45 +677,47 @@ export default function LogPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Quick Add</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditMode(!editMode)}
-                className="h-7 text-xs"
-              >
-                {editMode ? (
-                  <>
-                    <Check className="h-3 w-3 mr-1" />
-                    Done
-                  </>
-                ) : (
-                  <>
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Edit
-                  </>
+              <div className="flex items-center gap-1">
+                {editMode && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResetToDefaults}
+                    disabled={savingPresets}
+                    className="h-7 text-xs"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Defaults
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditMode(!editMode)}
+                  className="h-7 text-xs"
+                >
+                  {editMode ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1" />
+                      Done
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Edit
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
             {!editMode ? (
               <p className="text-xs text-muted-foreground">
                 Tap to log instantly. Long press for sets.
               </p>
             ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Drag to reorder. Tap X to remove.
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetToDefaults}
-                  disabled={savingPresets}
-                  className="h-6 text-xs text-muted-foreground"
-                >
-                  <RotateCcw className="h-3 w-3 mr-1" />
-                  Defaults
-                </Button>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Drag to reorder. Tap X to remove.
+              </p>
             )}
           </CardHeader>
           <CardContent>
