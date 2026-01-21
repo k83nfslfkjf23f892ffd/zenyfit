@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, TooltipItem } from 'chart.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -22,26 +23,20 @@ export function ExerciseRatioChart({
   totals,
   title = 'Exercise Distribution',
 }: ExerciseRatioChartProps) {
-  const [showChart, setShowChart] = useState(false);
-  const [animationDone, setAnimationDone] = useState(false);
-  const hasStartedRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
+  const hasShownRef = useRef(false);
 
-  // Only show chart once data is available, animate once
+  // Wait for data to stabilize before showing chart (cache → server cycle)
   useEffect(() => {
-    if (totals && !hasStartedRef.current) {
-      const hasData = (totals.pullups || 0) + (totals.pushups || 0) + (totals.dips || 0) + (totals.running || 0) > 0;
-      if (hasData) {
-        hasStartedRef.current = true;
-        // Small delay to ensure stable data
-        const timer = setTimeout(() => {
-          setShowChart(true);
-          // Disable animation after it completes
-          setTimeout(() => setAnimationDone(true), 900);
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [totals]);
+    if (hasShownRef.current) return;
+
+    const timer = setTimeout(() => {
+      hasShownRef.current = true;
+      setIsReady(true);
+    }, 400); // Wait for data to stabilize
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const chartData = useMemo(() => {
     if (!totals) return null;
@@ -105,13 +100,34 @@ export function ExerciseRatioChart({
         },
       },
     },
-    animation: animationDone ? false : {
+    animation: {
       animateRotate: true,
       animateScale: true,
       duration: 800,
       easing: 'easeOutQuart' as const,
     },
-  }), [animationDone]);
+  }), []);
+
+  // Show skeleton while waiting for data to stabilize
+  if (!isReady) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex flex-col items-center justify-center gap-4">
+            <Skeleton className="h-40 w-40 rounded-full" />
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!chartData) {
     return (
@@ -135,13 +151,7 @@ export function ExerciseRatioChart({
       </CardHeader>
       <CardContent>
         <div className="h-64">
-          {showChart ? (
-            <Doughnut data={chartData} options={options} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Loading...
-            </div>
-          )}
+          <Doughnut data={chartData} options={options} />
         </div>
       </CardContent>
     </Card>
