@@ -46,7 +46,7 @@ export function WorkoutDistributionChart({
       const timer = setTimeout(() => {
         setShowChart(true);
         // Mark animation complete after it finishes
-        setTimeout(() => setAnimationComplete(true), 850);
+        setTimeout(() => setAnimationComplete(true), 1250);
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -90,7 +90,7 @@ export function WorkoutDistributionChart({
                   dataKey="value"
                   isAnimationActive={!animationComplete}
                   animationBegin={0}
-                  animationDuration={800}
+                  animationDuration={1200}
                   animationEasing="ease-out"
                   onMouseEnter={(_, index) => setActiveIndex(index)}
                   onMouseLeave={() => setActiveIndex(null)}
