@@ -540,13 +540,7 @@ export default function LogPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-4">
-        {/* Header */}
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <span className="text-xl">💪</span>
-          Log Workout
-        </h1>
-
+      <div className="space-y-3">
         {/* Exercise Type Selector */}
         <div className="space-y-2">
           {/* Main calisthenics */}
@@ -587,50 +581,66 @@ export default function LogPage() {
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {/* Card Header */}
-            <div className="flex items-center justify-between p-4 border-b bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                  {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-5 w-5" />}
-                </div>
-                <div>
+            <div className="px-4 py-2 border-b bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                    {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-4 w-4" />}
+                  </div>
                   <div className="font-semibold">{exerciseLabel}</div>
-                  <div className="text-xs text-muted-foreground">{getUnitLabel()}</div>
                 </div>
+                {lastWorkout && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleUndo}
+                    disabled={undoing}
+                    className="text-muted-foreground h-8 w-8"
+                  >
+                    {undoing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
               </div>
-              {lastWorkout && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleUndo}
-                  disabled={undoing}
-                  className="text-muted-foreground"
-                >
-                  {undoing ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Undo2 className="h-5 w-5" />
-                  )}
-                </Button>
+              {/* Variation selector for calisthenics */}
+              {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                    <Button
+                      key={variation}
+                      type="button"
+                      variant={selectedVariation === variation ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedVariation(variation as ExerciseType)}
+                      className="text-xs h-7 px-2"
+                    >
+                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
+                    </Button>
+                  ))}
+                </div>
               )}
             </div>
 
             {/* Session Total Display */}
-            <div className="py-8 text-center">
-              <div className="text-7xl font-bold tracking-tight">
+            <div className="py-4 text-center">
+              <div className="text-5xl font-bold tracking-tight">
                 {sessionTotal}
               </div>
-              <div className="text-xl text-muted-foreground mt-1">
+              <div className="text-base text-muted-foreground">
                 {getUnitLabel()}
+                {activeXpRate > 0 && (
+                  <span className="text-primary ml-2">
+                    +{Math.round(sessionTotal * activeXpRate)} XP
+                  </span>
+                )}
               </div>
-              {activeXpRate > 0 && (
-                <div className="text-sm text-primary mt-2">
-                  +{Math.round(sessionTotal * activeXpRate)} XP this session
-                </div>
-              )}
             </div>
 
             {/* Custom Input */}
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-3">
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -638,23 +648,23 @@ export default function LogPage() {
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="Custom"
-                  className="flex-1 h-12 text-lg"
+                  className="flex-1 h-10 text-base"
                 />
                 <Button
                   onClick={handleCustomSubmit}
                   disabled={logging || !customAmount}
                   size="icon"
-                  className="h-12 w-12"
+                  className="h-10 w-10"
                 >
-                  {logging ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                  {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
             {/* Quick Add Section */}
-            <div className="px-4 pb-6">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <span className="text-sm font-medium text-muted-foreground">Quick Add</span>
+            <div className="px-4 pb-4">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-medium text-muted-foreground">Quick Add</span>
                 <button
                   type="button"
                   onClick={() => setShowXpInfo(true)}
@@ -666,14 +676,14 @@ export default function LogPage() {
 
               {/* Calisthenics 3-row layout */}
               {isCalisthenics ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {/* Row 1: 1, 3, 5, 10 */}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {CALISTHENICS_PRESETS.row1.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
+                        className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -687,12 +697,12 @@ export default function LogPage() {
                     ))}
                   </div>
                   {/* Row 2: 15, 20, 25 (centered) */}
-                  <div className="flex justify-center gap-2">
+                  <div className="flex justify-center gap-1.5">
                     {CALISTHENICS_PRESETS.row2.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-lg font-semibold w-20 bg-primary hover:bg-primary/90"
+                        className="h-10 text-base font-semibold w-[4.5rem] bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -706,12 +716,12 @@ export default function LogPage() {
                     ))}
                   </div>
                   {/* Row 3: 30, 50, 70, 100 */}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {CALISTHENICS_PRESETS.row3.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
+                        className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -727,7 +737,7 @@ export default function LogPage() {
                 </div>
               ) : (
                 /* Non-calisthenics: cardio/team sports presets */
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   {(selectedBaseType === 'running' ? [1, 3, 5, 10] :
                     selectedBaseType === 'walking' ? [1, 2, 3, 5] :
                     selectedBaseType === 'swimming' ? [0.5, 1, 2, 3] :
@@ -736,7 +746,7 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
+                      className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
@@ -746,31 +756,10 @@ export default function LogPage() {
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Tap to log instantly • Long press for sets
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Tap to log • Long press for sets
               </p>
             </div>
-
-            {/* Variation selector for calisthenics */}
-            {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 && (
-              <div className="px-4 pb-4 border-t pt-4">
-                <div className="text-xs text-muted-foreground mb-2">Variation</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                    <Button
-                      key={variation}
-                      type="button"
-                      variant={selectedVariation === variation ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedVariation(variation as ExerciseType)}
-                      className="text-xs h-8"
-                    >
-                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
