@@ -301,6 +301,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   stroke="hsl(var(--primary))"
                   strokeWidth={2}
                   fill="url(#repsGradient)"
+                  animationDuration={400}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -342,6 +343,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
                   fill="hsl(var(--primary))"
+                  animationDuration={400}
                 >
                   {data.exerciseTotals.slice(0, 6).map((entry) => (
                     <rect

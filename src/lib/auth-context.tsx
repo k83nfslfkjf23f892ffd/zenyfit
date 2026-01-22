@@ -6,6 +6,32 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase, getFirebaseInstances } from '@/lib/firebase-client';
 import type { User } from '@shared/schema';
 
+const USER_CACHE_KEY = 'zenyfit_user_cache';
+
+function getCachedUser(): User | null {
+  try {
+    const cached = localStorage.getItem(USER_CACHE_KEY);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch {
+    // Ignore cache errors
+  }
+  return null;
+}
+
+function setCachedUser(user: User | null) {
+  try {
+    if (user) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+    }
+  } catch {
+    // Ignore cache errors
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
@@ -19,7 +45,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Load cached user on initial render
+    if (typeof window !== 'undefined') {
+      return getCachedUser();
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   const previousLevelRef = useRef<number | null>(null);
@@ -79,8 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           previousLevelRef.current = userData.level;
 
           setUser(userData);
+          setCachedUser(userData);
         } else {
           setUser(null);
+          setCachedUser(null);
         }
         setLoading(false);
       },
@@ -102,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = async () => {
     const { auth } = getFirebaseInstances();
+    setCachedUser(null);
     await signOut(auth);
   };
 

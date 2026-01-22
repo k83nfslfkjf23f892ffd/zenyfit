@@ -12,12 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, Check, Undo2, GripVertical, X, RotateCcw, Info, ChevronDown } from 'lucide-react';
-import { DEFAULT_QUICK_ADD_PRESETS, EXERCISE_INFO, XP_RATES } from '@shared/constants';
+import { Loader2, Plus, Undo2, X, Info, ChevronDown } from 'lucide-react';
+import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EXERCISE_TYPES } from '@shared/schema';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
+type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
 
 interface CustomExercise {
   id: string;
@@ -34,15 +35,31 @@ interface LastWorkout {
   customExerciseName?: string;
 }
 
+// Storage keys
+const STORAGE_KEYS = {
+  lastExercise: 'zenyfit_lastExercise',
+  lastVariation: 'zenyfit_lastVariation',
+  expandedCategories: 'zenyfit_expandedCategories',
+  lastCustomExerciseId: 'zenyfit_lastCustomExerciseId',
+};
+
 export default function LogPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
   const { showWorkoutComplete } = useCelebration();
 
-  // Exercise selection (restore from localStorage)
-  const [selectedExercise, setSelectedExercise] = useState<ExerciseType>(() => {
+  // Base exercise type (pushups, pullups, dips, muscleups) or cardio/team sport
+  const [selectedBaseType, setSelectedBaseType] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lastExercise');
+      return localStorage.getItem(STORAGE_KEYS.lastExercise) || 'pushups';
+    }
+    return 'pushups';
+  });
+
+  // Specific variation for calisthenics
+  const [selectedVariation, setSelectedVariation] = useState<ExerciseType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEYS.lastVariation);
       if (saved && EXERCISE_TYPES.includes(saved as ExerciseType)) {
         return saved as ExerciseType;
       }
@@ -50,20 +67,22 @@ export default function LogPage() {
     return 'pushups';
   });
 
-  // Expanded category state
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    calisthenics: true,
-    cardio: false,
-    team_sports: false,
-    custom: false,
-  });
-  const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
-  const [lastCustomExerciseId, setLastCustomExerciseId] = useState<string | null>(() => {
+  // Expanded category state (persisted)
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('lastCustomExerciseId');
+      const saved = localStorage.getItem(STORAGE_KEYS.expandedCategories);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // Ignore parse errors
+        }
+      }
     }
-    return null;
+    return { calisthenics: true, cardio: false, team_sports: false, custom: false };
   });
+
+  const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
 
   // Manual entry
   const [amount, setAmount] = useState('');
@@ -78,12 +97,7 @@ export default function LogPage() {
   const [undoing, setUndoing] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Edit mode for presets
-  const [editMode, setEditMode] = useState(false);
-  const [newPresetValue, setNewPresetValue] = useState('');
-  const [showAddPreset, setShowAddPreset] = useState(false);
-
-  // Sets x Reps modal (long press)
+  // Sets x Reps modal
   const [setsRepsModal, setSetsRepsModal] = useState<{ preset: number; open: boolean } | null>(null);
   const [sets, setSets] = useState('3');
   const [reps, setReps] = useState('');
@@ -91,17 +105,6 @@ export default function LogPage() {
   // XP Info modal
   const [showXpInfo, setShowXpInfo] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // User presets from Firestore
-  const [userPresets, setUserPresets] = useState<Record<string, number[]> | null>(null);
-  const [savingPresets, setSavingPresets] = useState(false);
-
-  // Touch drag and drop
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
-  const [draggedValue, setDraggedValue] = useState<number | null>(null);
-  const presetRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Recent Activity state
   const [recentWorkouts, setRecentWorkouts] = useState<Array<{
@@ -118,9 +121,19 @@ export default function LogPage() {
   const [deleteLongPressTimer, setDeleteLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Lock scroll when delete dialog is open
+  // Check if current selection is calisthenics
+  const isCalisthenics = selectedBaseType in CALISTHENICS_BASE_TYPES;
+
+  // Get the actual exercise type to log
+  const getActiveExercise = (): ExerciseType => {
+    if (selectedBaseType === 'custom') return 'custom';
+    if (isCalisthenics) return selectedVariation;
+    return selectedBaseType as ExerciseType;
+  };
+
+  // Lock scroll when dialogs are open
   useEffect(() => {
-    if (workoutToDelete) {
+    if (workoutToDelete || setsRepsModal?.open || showXpInfo) {
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
     } else {
@@ -131,7 +144,7 @@ export default function LogPage() {
       document.body.style.overflow = '';
       document.body.style.touchAction = '';
     };
-  }, [workoutToDelete]);
+  }, [workoutToDelete, setsRepsModal, showXpInfo]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -139,35 +152,42 @@ export default function LogPage() {
     }
   }, [user, loading, router]);
 
-  // Save selected exercise to localStorage
+  // Save selections to localStorage
   useEffect(() => {
-    localStorage.setItem('lastExercise', selectedExercise);
-    if (selectedExercise === 'custom' && selectedCustomExercise) {
-      localStorage.setItem('lastCustomExerciseId', selectedCustomExercise.id);
+    localStorage.setItem(STORAGE_KEYS.lastExercise, selectedBaseType);
+    localStorage.setItem(STORAGE_KEYS.lastVariation, selectedVariation);
+    if (selectedBaseType === 'custom' && selectedCustomExercise) {
+      localStorage.setItem(STORAGE_KEYS.lastCustomExerciseId, selectedCustomExercise.id);
     }
-  }, [selectedExercise, selectedCustomExercise]);
+  }, [selectedBaseType, selectedVariation, selectedCustomExercise]);
+
+  // Save expanded categories to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.expandedCategories, JSON.stringify(expandedCategories));
+  }, [expandedCategories]);
 
   // Restore custom exercise selection after loading
   useEffect(() => {
-    if (!loadingCustomExercises && customExercises.length > 0 && selectedExercise === 'custom' && lastCustomExerciseId) {
-      const found = customExercises.find(e => e.id === lastCustomExerciseId);
-      if (found) {
-        setSelectedCustomExercise(found);
-      } else {
-        // Custom exercise no longer exists, fall back to pullups
-        setSelectedExercise('pullups');
+    if (!loadingCustomExercises && customExercises.length > 0 && selectedBaseType === 'custom') {
+      const lastId = localStorage.getItem(STORAGE_KEYS.lastCustomExerciseId);
+      if (lastId) {
+        const found = customExercises.find(e => e.id === lastId);
+        if (found) {
+          setSelectedCustomExercise(found);
+        }
       }
-      setLastCustomExerciseId(null);
     }
-  }, [loadingCustomExercises, customExercises, selectedExercise, lastCustomExerciseId]);
+  }, [loadingCustomExercises, customExercises, selectedBaseType]);
 
-  // Load user presets from user object
+  // When base type changes, update variation to match
   useEffect(() => {
-    if (user) {
-      const presets = (user as { quickAddPresets?: Record<string, number[]> }).quickAddPresets;
-      setUserPresets(presets || null);
+    if (isCalisthenics) {
+      const baseConfig = CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType];
+      if (baseConfig && !(baseConfig.variations as readonly string[]).includes(selectedVariation)) {
+        setSelectedVariation(baseConfig.variations[0] as ExerciseType);
+      }
     }
-  }, [user]);
+  }, [selectedBaseType, isCalisthenics, selectedVariation]);
 
   // Clear undo timeout on unmount
   useEffect(() => {
@@ -184,13 +204,10 @@ export default function LogPage() {
       if (!token) return;
 
       const response = await fetch('/api/exercises/custom', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
-
       if (response.ok) {
         setCustomExercises(data.exercises || []);
       }
@@ -214,9 +231,7 @@ export default function LogPage() {
       if (!token) return;
 
       const response = await fetch('/api/workouts?limit=5', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
@@ -236,39 +251,13 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts]);
 
-  // Get presets for current exercise
-  const getPresets = useCallback(() => {
-    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-      ? selectedCustomExercise.id
-      : selectedExercise;
-
-    // Check user presets first
-    if (userPresets && userPresets[exerciseKey]) {
-      return userPresets[exerciseKey];
-    }
-
-    // For custom exercises, use their quickActions
-    if (selectedExercise === 'custom' && selectedCustomExercise) {
-      return selectedCustomExercise.quickActions.length > 0
-        ? selectedCustomExercise.quickActions
-        : [5, 10, 15, 20];
-    }
-
-    // Fall back to defaults
-    return DEFAULT_QUICK_ADD_PRESETS[selectedExercise] || [5, 10, 15, 20];
-  }, [selectedExercise, selectedCustomExercise, userPresets]);
-
   // Get unit label
   const getUnitLabel = () => {
-    if (selectedExercise === 'custom' && selectedCustomExercise) {
+    const activeExercise = getActiveExercise();
+    if (activeExercise === 'custom' && selectedCustomExercise) {
       return selectedCustomExercise.unit;
     }
-    return EXERCISE_INFO[selectedExercise]?.unit || 'reps';
-  };
-
-  // Get exercise display name
-  const getExerciseName = (type: ExerciseType) => {
-    return EXERCISE_INFO[type]?.label || type;
+    return EXERCISE_INFO[activeExercise]?.unit || 'reps';
   };
 
   // Toggle category expansion
@@ -286,7 +275,8 @@ export default function LogPage() {
       return;
     }
 
-    if (selectedExercise === 'custom' && !selectedCustomExercise) {
+    const activeExercise = getActiveExercise();
+    if (activeExercise === 'custom' && !selectedCustomExercise) {
       toast.error('Please select a custom exercise');
       return;
     }
@@ -301,11 +291,11 @@ export default function LogPage() {
       }
 
       const body: Record<string, unknown> = {
-        type: selectedExercise,
+        type: activeExercise,
         amount: logAmount,
       };
 
-      if (selectedExercise === 'custom' && selectedCustomExercise) {
+      if (activeExercise === 'custom' && selectedCustomExercise) {
         body.customExerciseId = selectedCustomExercise.id;
       }
 
@@ -326,15 +316,15 @@ export default function LogPage() {
       }
 
       // Show celebration
-      const exerciseName = selectedExercise === 'custom' && selectedCustomExercise
+      const exerciseName = activeExercise === 'custom' && selectedCustomExercise
         ? selectedCustomExercise.name
-        : selectedExercise;
+        : EXERCISE_INFO[activeExercise]?.label || activeExercise;
       showWorkoutComplete(data.xpEarned, exerciseName, logAmount);
 
       // Set last workout for undo
       setLastWorkout({
         id: data.log.id,
-        type: selectedExercise,
+        type: activeExercise,
         amount: logAmount,
         xpEarned: data.xpEarned,
         customExerciseName: selectedCustomExercise?.name,
@@ -352,8 +342,6 @@ export default function LogPage() {
 
       // Refresh recent workouts
       fetchRecentWorkouts();
-
-      // Reset manual entry
       setAmount('');
     } catch (error) {
       console.error('Error logging workout:', error);
@@ -376,13 +364,11 @@ export default function LogPage() {
 
   // Quick add one-tap logging
   const handleQuickAdd = (preset: number) => {
-    if (editMode) return;
     logWorkout(preset);
   };
 
   // Long press handlers for sets x reps
   const handleLongPressStart = (preset: number) => {
-    if (editMode) return;
     longPressTimerRef.current = setTimeout(() => {
       setReps(preset.toString());
       setSetsRepsModal({ preset, open: true });
@@ -425,9 +411,7 @@ export default function LogPage() {
 
       const response = await fetch(`/api/workouts/${lastWorkout.id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
@@ -466,9 +450,7 @@ export default function LogPage() {
 
       const response = await fetch(`/api/workouts/${workoutId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
@@ -503,187 +485,6 @@ export default function LogPage() {
     }
   };
 
-  // Save presets to user profile
-  const savePresets = async (newPresets: Record<string, number[]>) => {
-    setSavingPresets(true);
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token || !user) return;
-
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ quickAddPresets: newPresets }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to save presets');
-        return;
-      }
-
-      setUserPresets(newPresets);
-      toast.success('Presets saved');
-    } catch (error) {
-      console.error('Error saving presets:', error);
-      toast.error('An error occurred');
-    } finally {
-      setSavingPresets(false);
-    }
-  };
-
-  // Add a new preset
-  const handleAddPreset = () => {
-    const value = parseFloat(newPresetValue);
-    if (isNaN(value) || value <= 0) {
-      toast.error('Enter a positive number');
-      return;
-    }
-
-    const currentPresets = getPresets();
-    if (currentPresets.includes(value)) {
-      toast.error('Preset already exists');
-      return;
-    }
-    if (currentPresets.length >= 8) {
-      toast.error('Maximum 8 presets allowed');
-      return;
-    }
-
-    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-      ? selectedCustomExercise.id
-      : selectedExercise;
-
-    const newPresets = {
-      ...userPresets,
-      [exerciseKey]: [...currentPresets, value],
-    };
-
-    savePresets(newPresets);
-    setNewPresetValue('');
-    setShowAddPreset(false);
-  };
-
-  // Remove a preset
-  const handleRemovePreset = (presetToRemove: number) => {
-    const currentPresets = getPresets();
-    if (currentPresets.length <= 1) {
-      toast.error('Must have at least one preset');
-      return;
-    }
-
-    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-      ? selectedCustomExercise.id
-      : selectedExercise;
-
-    const newPresets = {
-      ...userPresets,
-      [exerciseKey]: currentPresets.filter(p => p !== presetToRemove),
-    };
-
-    savePresets(newPresets);
-  };
-
-  // Reset presets to defaults
-  const handleResetToDefaults = () => {
-    const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-      ? selectedCustomExercise.id
-      : selectedExercise;
-
-    // For custom exercises, remove user preset to fall back to quickActions
-    if (selectedExercise === 'custom') {
-      if (selectedCustomExercise) {
-        const newPresets = { ...userPresets };
-        delete newPresets[exerciseKey];
-        savePresets(newPresets);
-      }
-      return;
-    }
-
-    // For standard exercises, remove user preset to fall back to defaults
-    const newPresets = { ...userPresets };
-    delete newPresets[exerciseKey];
-    savePresets(newPresets);
-  };
-
-  // Touch drag handlers - insert between elements
-  const handleTouchStart = (index: number, e: React.TouchEvent, value: number) => {
-    if (!editMode) return;
-    const touch = e.touches[0];
-    setDraggedIndex(index);
-    setDraggedValue(value);
-    setDragPosition({ x: touch.clientX, y: touch.clientY });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (draggedIndex === null || !editMode) return;
-    e.preventDefault();
-
-    const touch = e.touches[0];
-    setDragPosition({ x: touch.clientX, y: touch.clientY });
-
-    const elements = presetRefs.current;
-    let newInsertIndex: number | null = null;
-
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i];
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-
-        // Check if touch is within vertical bounds of this row
-        if (touch.clientY >= rect.top - 20 && touch.clientY <= rect.bottom + 20) {
-          // Determine insert position based on touch X relative to element center
-          if (touch.clientX < centerX) {
-            // Insert before this element
-            newInsertIndex = i;
-          } else {
-            // Insert after this element
-            newInsertIndex = i + 1;
-          }
-          break;
-        }
-      }
-    }
-
-    setDragOverIndex(newInsertIndex);
-  };
-
-  const handleTouchEnd = () => {
-    if (draggedIndex !== null && dragOverIndex !== null) {
-      // Calculate actual insert position accounting for removed item
-      let insertAt = dragOverIndex;
-      if (draggedIndex < dragOverIndex) {
-        insertAt -= 1;
-      }
-
-      if (insertAt !== draggedIndex) {
-        const currentPresets = getPresets();
-        const newOrder = [...currentPresets];
-        const [removed] = newOrder.splice(draggedIndex, 1);
-        newOrder.splice(insertAt, 0, removed);
-
-        const exerciseKey = selectedExercise === 'custom' && selectedCustomExercise
-          ? selectedCustomExercise.id
-          : selectedExercise;
-
-        const newPresets = {
-          ...userPresets,
-          [exerciseKey]: newOrder,
-        };
-
-        savePresets(newPresets);
-      }
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setDragPosition(null);
-    setDraggedValue(null);
-  };
-
   if (loading) {
     return (
       <AppLayout>
@@ -710,7 +511,8 @@ export default function LogPage() {
     return null;
   }
 
-  const presets = getPresets();
+  const activeExercise = getActiveExercise();
+  const activeXpRate = XP_RATES[activeExercise] || 0;
 
   return (
     <AppLayout>
@@ -720,7 +522,7 @@ export default function LogPage() {
           <div className="bg-muted border rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
             <div className="text-sm">
               <span className="font-medium">Logged: </span>
-              {lastWorkout.amount} {lastWorkout.type === 'custom' ? lastWorkout.customExerciseName : lastWorkout.type}
+              {lastWorkout.amount} {lastWorkout.type === 'custom' ? lastWorkout.customExerciseName : EXERCISE_INFO[lastWorkout.type]?.label || lastWorkout.type}
               <span className="text-primary ml-1">(+{lastWorkout.xpEarned} XP)</span>
             </div>
             <Button
@@ -742,25 +544,145 @@ export default function LogPage() {
           </div>
         )}
 
-        {/* Exercise Selector - Expandable Categories */}
+        {/* Sticky Quick Add Section */}
+        <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-1.5">
+                    Quick Add
+                    <button
+                      type="button"
+                      onClick={() => setShowXpInfo(true)}
+                      className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {EXERCISE_INFO[activeExercise]?.label || activeExercise} • {activeXpRate} XP/{getUnitLabel()}
+                  </CardDescription>
+                </div>
+              </div>
+
+              {/* Variation selector for calisthenics */}
+              {isCalisthenics && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                    <Button
+                      key={variation}
+                      type="button"
+                      variant={selectedVariation === variation ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedVariation(variation as ExerciseType)}
+                      className="text-xs h-7 px-2"
+                    >
+                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {/* Calisthenics 3-row layout */}
+              {isCalisthenics ? (
+                <div className="space-y-2">
+                  {/* Row 1: 1, 3, 5, 10 */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {CALISTHENICS_PRESETS.row1.map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="outline"
+                        className="h-12 text-lg font-semibold"
+                        onClick={() => handleQuickAdd(preset)}
+                        onMouseDown={() => handleLongPressStart(preset)}
+                        onMouseUp={handleLongPressEnd}
+                        onMouseLeave={handleLongPressEnd}
+                        onTouchStart={() => handleLongPressStart(preset)}
+                        onTouchEnd={handleLongPressEnd}
+                        disabled={logging}
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
+                  {/* Row 2: 15, 20, 25 (centered) */}
+                  <div className="flex justify-center gap-2">
+                    {CALISTHENICS_PRESETS.row2.map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="outline"
+                        className="h-12 text-lg font-semibold w-20"
+                        onClick={() => handleQuickAdd(preset)}
+                        onMouseDown={() => handleLongPressStart(preset)}
+                        onMouseUp={handleLongPressEnd}
+                        onMouseLeave={handleLongPressEnd}
+                        onTouchStart={() => handleLongPressStart(preset)}
+                        onTouchEnd={handleLongPressEnd}
+                        disabled={logging}
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
+                  {/* Row 3: 30, 50, 70, 100 */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {CALISTHENICS_PRESETS.row3.map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="outline"
+                        className="h-12 text-lg font-semibold"
+                        onClick={() => handleQuickAdd(preset)}
+                        onMouseDown={() => handleLongPressStart(preset)}
+                        onMouseUp={handleLongPressEnd}
+                        onMouseLeave={handleLongPressEnd}
+                        onTouchStart={() => handleLongPressStart(preset)}
+                        onTouchEnd={handleLongPressEnd}
+                        disabled={logging}
+                      >
+                        {preset}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Non-calisthenics: cardio/team sports presets */
+                <div className="grid grid-cols-4 gap-2">
+                  {(selectedBaseType === 'running' ? [1, 3, 5, 10] :
+                    selectedBaseType === 'walking' ? [1, 2, 3, 5] :
+                    selectedBaseType === 'swimming' ? [0.5, 1, 2, 3] :
+                    selectedBaseType === 'sprinting' ? [0.1, 0.2, 0.4, 0.5] :
+                    [30, 45, 60, 90]).map((preset) => (
+                    <Button
+                      key={preset}
+                      type="button"
+                      variant="outline"
+                      className="h-12 text-lg font-semibold"
+                      onClick={() => handleQuickAdd(preset)}
+                      disabled={logging}
+                    >
+                      {preset}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Tap to log instantly. Long press for sets.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Exercise Selector */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg flex items-center gap-1.5">
-                  Exercise
-                  <button
-                    type="button"
-                    onClick={() => setShowXpInfo(true)}
-                    className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  {getExerciseName(selectedExercise)} • {XP_RATES[selectedExercise] || 0} XP/{getUnitLabel()}
-                </CardDescription>
-              </div>
+              <CardTitle className="text-lg">Exercise Type</CardTitle>
               <Button
                 type="button"
                 variant="ghost"
@@ -783,61 +705,20 @@ export default function LogPage() {
                 <ChevronDown className={`h-4 w-4 transition-transform ${expandedCategories.calisthenics ? 'rotate-180' : ''}`} />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
-                <div className="grid grid-cols-3 gap-1.5">
-                  {/* Push-up variations */}
-                  {(['pushups', 'knee_pushups', 'incline_pushups', 'decline_pushups', 'diamond_pushups', 'archer_pushups', 'onearm_pushups'] as const).map((type) => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(Object.keys(CALISTHENICS_BASE_TYPES) as BaseExerciseType[]).map((baseType) => (
                     <Button
-                      key={type}
+                      key={baseType}
                       type="button"
-                      variant={selectedExercise === type ? 'default' : 'outline'}
+                      variant={selectedBaseType === baseType ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => {
-                        setSelectedExercise(type);
+                        setSelectedBaseType(baseType);
                         setSelectedCustomExercise(null);
-                        setEditMode(false);
-                        setExpandedCategories(prev => ({ ...prev, calisthenics: true }));
                       }}
-                      className="text-xs px-1.5 h-8 truncate"
+                      className="text-xs px-1.5 h-10"
                     >
-                      {EXERCISE_INFO[type]?.label.replace(' Push-ups', '').replace('Push-ups', 'Standard') || type}
-                    </Button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 mt-1.5">
-                  {/* Pull-up variations */}
-                  {(['pullups', 'assisted_pullups', 'chinups', 'wide_pullups', 'lsit_pullups', 'australian_pullups'] as const).map((type) => (
-                    <Button
-                      key={type}
-                      type="button"
-                      variant={selectedExercise === type ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setSelectedExercise(type);
-                        setSelectedCustomExercise(null);
-                        setEditMode(false);
-                      }}
-                      className="text-xs px-1.5 h-8 truncate"
-                    >
-                      {EXERCISE_INFO[type]?.label.replace(' Pull-ups', '').replace('Pull-ups', 'Standard') || type}
-                    </Button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-4 gap-1.5 mt-1.5">
-                  {/* Dips and advanced */}
-                  {(['dips', 'bench_dips', 'ring_dips', 'muscleups'] as const).map((type) => (
-                    <Button
-                      key={type}
-                      type="button"
-                      variant={selectedExercise === type ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setSelectedExercise(type);
-                        setSelectedCustomExercise(null);
-                        setEditMode(false);
-                      }}
-                      className="text-xs px-1.5 h-8 truncate"
-                    >
-                      {EXERCISE_INFO[type]?.label.replace(' Dips', '').replace('Dips', 'Standard') || type}
+                      {CALISTHENICS_BASE_TYPES[baseType].label}
                     </Button>
                   ))}
                 </div>
@@ -856,15 +737,13 @@ export default function LogPage() {
                     <Button
                       key={type}
                       type="button"
-                      variant={selectedExercise === type ? 'default' : 'outline'}
+                      variant={selectedBaseType === type ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => {
-                        setSelectedExercise(type);
+                        setSelectedBaseType(type);
                         setSelectedCustomExercise(null);
-                        setEditMode(false);
-                        setExpandedCategories(prev => ({ ...prev, cardio: true }));
                       }}
-                      className="text-xs px-1.5 h-8"
+                      className="text-xs px-1.5 h-10"
                     >
                       {EXERCISE_INFO[type]?.label || type}
                     </Button>
@@ -885,15 +764,13 @@ export default function LogPage() {
                     <Button
                       key={type}
                       type="button"
-                      variant={selectedExercise === type ? 'default' : 'outline'}
+                      variant={selectedBaseType === type ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => {
-                        setSelectedExercise(type);
+                        setSelectedBaseType(type);
                         setSelectedCustomExercise(null);
-                        setEditMode(false);
-                        setExpandedCategories(prev => ({ ...prev, team_sports: true }));
                       }}
-                      className="text-xs px-1.5 h-8"
+                      className="text-xs px-1.5 h-10"
                     >
                       {EXERCISE_INFO[type]?.label || type}
                     </Button>
@@ -916,17 +793,16 @@ export default function LogPage() {
                         key={exercise.id}
                         type="button"
                         variant={
-                          selectedExercise === 'custom' && selectedCustomExercise?.id === exercise.id
+                          selectedBaseType === 'custom' && selectedCustomExercise?.id === exercise.id
                             ? 'default'
                             : 'outline'
                         }
                         size="sm"
                         onClick={() => {
-                          setSelectedExercise('custom');
+                          setSelectedBaseType('custom');
                           setSelectedCustomExercise(exercise);
-                          setEditMode(false);
                         }}
-                        className="truncate text-xs px-1.5 h-8"
+                        className="truncate text-xs px-1.5 h-10"
                       >
                         {exercise.name}
                       </Button>
@@ -934,173 +810,6 @@ export default function LogPage() {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Add */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Quick Add</CardTitle>
-              <div className="flex items-center gap-1">
-                {editMode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleResetToDefaults}
-                    disabled={savingPresets}
-                    className="h-7 text-xs"
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Defaults
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditMode(!editMode)}
-                  className="h-7 text-xs"
-                >
-                  {editMode ? (
-                    <>
-                      <Check className="h-3 w-3 mr-1" />
-                      Done
-                    </>
-                  ) : (
-                    <>
-                      <Pencil className="h-3 w-3 mr-1" />
-                      Edit
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-            {!editMode ? (
-              <p className="text-xs text-muted-foreground">
-                Tap to log instantly. Long press for sets.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Drag to reorder. Tap X to remove.
-              </p>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div
-              className="grid grid-cols-4 gap-2"
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              {presets.map((preset, index) => {
-                // Calculate if this element should shift for insertion
-                const shouldShiftRight = draggedIndex !== null && dragOverIndex !== null && dragOverIndex <= index && draggedIndex !== index;
-                const shouldShiftLeft = draggedIndex !== null && dragOverIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && draggedIndex !== index;
-
-                return (
-                <div
-                  key={preset}
-                  ref={(el) => { presetRefs.current[index] = el; }}
-                  className={`relative transition-all duration-150 ${
-                    draggedIndex === index ? 'opacity-0' : ''
-                  }`}
-                  style={{
-                    transform: shouldShiftRight && dragOverIndex === index
-                      ? 'translateX(8px)'
-                      : shouldShiftLeft
-                        ? 'translateX(-8px)'
-                        : 'none',
-                  }}
-                >
-                  {/* Insertion indicator - show line before this element when dragOverIndex matches */}
-                  {draggedIndex !== null && dragOverIndex === index && draggedIndex !== index && (
-                    <div className="absolute -left-2 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
-                  )}
-                  {/* Insertion indicator - show line after this element (only for last item when inserting at end) */}
-                  {draggedIndex !== null && dragOverIndex === presets.length && index === presets.length - 1 && draggedIndex !== index && (
-                    <div className="absolute -right-2 top-1 bottom-1 w-1 bg-primary rounded-full z-10" />
-                  )}
-                  <Button
-                    type="button"
-                    variant={draggedIndex === index ? 'default' : 'outline'}
-                    className={`w-full h-12 text-lg font-semibold transition-all ${
-                      editMode ? 'pl-7' : ''
-                    } ${
-                      editMode && draggedIndex === null ? 'border-dashed' : ''
-                    }`}
-                    onClick={() => !editMode && handleQuickAdd(preset)}
-                    onMouseDown={() => !editMode && handleLongPressStart(preset)}
-                    onMouseUp={handleLongPressEnd}
-                    onMouseLeave={handleLongPressEnd}
-                    onTouchStart={(e) => {
-                      if (editMode) {
-                        handleTouchStart(index, e, preset);
-                      } else {
-                        handleLongPressStart(preset);
-                      }
-                    }}
-                    onTouchEnd={() => !editMode && handleLongPressEnd()}
-                    disabled={logging || savingPresets}
-                  >
-                    {editMode && (
-                      <GripVertical className={`h-4 w-4 absolute left-1.5 ${
-                        draggedIndex === index ? 'text-primary-foreground' : 'text-muted-foreground'
-                      }`} />
-                    )}
-                    {preset}
-                  </Button>
-                  {editMode && draggedIndex === null && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePreset(preset)}
-                      className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              );
-              })}
-
-              {/* Add preset button in edit mode */}
-              {editMode && presets.length < 8 && (
-                showAddPreset ? (
-                  <div className="flex gap-1">
-                    <Input
-                      type="number"
-                      value={newPresetValue}
-                      onChange={(e) => setNewPresetValue(e.target.value)}
-                      placeholder="Value"
-                      className="h-12 text-center"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAddPreset();
-                        if (e.key === 'Escape') setShowAddPreset(false);
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-12 border-dashed"
-                    onClick={() => setShowAddPreset(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                )
-              )}
-            </div>
-
-            {showAddPreset && editMode && (
-              <div className="flex gap-2 mt-2">
-                <Button size="sm" onClick={handleAddPreset} disabled={savingPresets}>
-                  {savingPresets ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowAddPreset(false)}>
-                  Cancel
-                </Button>
-              </div>
             )}
           </CardContent>
         </Card>
@@ -1114,7 +823,7 @@ export default function LogPage() {
             <form onSubmit={handleManualSubmit} className="flex gap-2">
               <Input
                 type="number"
-                step={selectedExercise === 'running' ? '0.1' : '1'}
+                step={['running', 'swimming', 'sprinting', 'walking'].includes(selectedBaseType) ? '0.1' : '1'}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`Enter ${getUnitLabel()}`}
@@ -1124,7 +833,7 @@ export default function LogPage() {
                 {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log'}
               </Button>
             </form>
-            {selectedExercise === 'custom' && (
+            {selectedBaseType === 'custom' && (
               <p className="text-xs text-muted-foreground mt-2">
                 Custom exercises don&apos;t earn XP (tracking only)
               </p>
@@ -1180,11 +889,11 @@ export default function LogPage() {
                     onTouchEnd={handleDeleteLongPressEnd}
                   >
                     <div className="flex-1">
-                      <div className="font-medium capitalize">
-                        {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : workout.type}
+                      <div className="font-medium">
+                        {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : EXERCISE_INFO[workout.type]?.label || workout.type}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {workout.amount} {workout.type === 'custom' ? (workout.customExerciseUnit || 'reps') : (workout.type === 'running' ? 'km' : 'reps')}
+                        {workout.amount} {workout.type === 'custom' ? (workout.customExerciseUnit || 'reps') : EXERCISE_INFO[workout.type]?.unit || 'reps'}
                       </div>
                     </div>
 
@@ -1265,7 +974,6 @@ export default function LogPage() {
                   onChange={(e) => setReps(e.target.value)}
                   className="w-20 text-center text-xl font-bold"
                   min="1"
-                  step={selectedExercise === 'running' ? '0.1' : '1'}
                 />
               </div>
               <span className="text-2xl font-bold text-muted-foreground mt-5">=</span>
@@ -1298,22 +1006,6 @@ export default function LogPage() {
         </div>
       )}
 
-      {/* Floating drag indicator */}
-      {dragPosition && draggedValue !== null && (
-        <div
-          className="fixed z-50 pointer-events-none"
-          style={{
-            left: dragPosition.x,
-            top: dragPosition.y,
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-xl text-xl font-bold animate-pulse">
-            {draggedValue}
-          </div>
-        </div>
-      )}
-
       {/* XP Info Modal */}
       {showXpInfo && (
         <div
@@ -1342,9 +1034,6 @@ export default function LogPage() {
 
               <div>
                 <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Based on body weight percentage lifted and muscle activation.
-                </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between"><span>Knee Push-ups</span><span className="text-primary">2 XP</span></div>
                   <div className="flex justify-between"><span>Push-ups</span><span className="text-primary">3 XP</span></div>
@@ -1360,9 +1049,6 @@ export default function LogPage() {
 
               <div>
                 <h4 className="font-medium mb-2">Cardio (per km)</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Based on MET values and energy expenditure.
-                </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between"><span>Walking</span><span className="text-primary">18 XP</span></div>
                   <div className="flex justify-between"><span>Running</span><span className="text-primary">30 XP</span></div>
@@ -1373,20 +1059,11 @@ export default function LogPage() {
 
               <div>
                 <h4 className="font-medium mb-2">Team Sports (per minute)</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Based on average intensity during play.
-                </p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between"><span>Volleyball</span><span className="text-primary">2 XP</span></div>
                   <div className="flex justify-between"><span>Basketball</span><span className="text-primary">2 XP</span></div>
                   <div className="flex justify-between"><span>Soccer</span><span className="text-primary">2 XP</span></div>
                 </div>
-              </div>
-
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Why this approach?</strong> The same relative effort (e.g., 100% of YOUR body weight for pull-ups) earns the same XP regardless of your actual weight. Volume naturally balances strength — stronger athletes do more reps.
-                </p>
               </div>
             </div>
 

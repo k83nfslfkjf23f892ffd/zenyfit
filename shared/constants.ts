@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -113,25 +113,52 @@ export const EXERCISE_INFO: Record<string, { label: string; category: string; un
   soccer: { label: 'Soccer', category: 'team_sports', unit: 'min' },
 };
 
+// Calisthenics preset layout (3 rows)
+export const CALISTHENICS_PRESETS = {
+  row1: [1, 3, 5, 10],      // 4 items
+  row2: [15, 20, 25],       // 3 items (centered)
+  row3: [30, 50, 70, 100],  // 4 items
+} as const;
+
+// Base calisthenics exercise types with their variations
+export const CALISTHENICS_BASE_TYPES = {
+  pushups: {
+    label: 'Push-ups',
+    variations: ['pushups', 'knee_pushups', 'incline_pushups', 'decline_pushups', 'diamond_pushups', 'archer_pushups', 'onearm_pushups'],
+  },
+  pullups: {
+    label: 'Pull-ups',
+    variations: ['pullups', 'assisted_pullups', 'chinups', 'wide_pullups', 'lsit_pullups', 'australian_pullups'],
+  },
+  dips: {
+    label: 'Dips',
+    variations: ['dips', 'bench_dips', 'ring_dips'],
+  },
+  muscleups: {
+    label: 'Muscle-ups',
+    variations: ['muscleups'],
+  },
+} as const;
+
 export const DEFAULT_QUICK_ADD_PRESETS: Record<string, number[]> = {
-  // Calisthenics (reps)
-  pushups: [5, 10, 15, 20, 30, 50],
-  knee_pushups: [5, 10, 15, 20, 30],
-  incline_pushups: [5, 10, 15, 20, 30],
-  decline_pushups: [5, 10, 15, 20, 30],
-  diamond_pushups: [5, 10, 15, 20, 30],
-  archer_pushups: [3, 5, 10, 15, 20],
-  onearm_pushups: [1, 3, 5, 10],
-  pullups: [3, 5, 10, 15, 20, 30],
-  assisted_pullups: [5, 10, 15, 20, 30],
-  chinups: [3, 5, 10, 15, 20],
-  wide_pullups: [3, 5, 10, 15, 20],
-  lsit_pullups: [3, 5, 10, 15],
-  australian_pullups: [5, 10, 15, 20, 30],
-  dips: [5, 10, 15, 20, 30],
-  bench_dips: [5, 10, 15, 20, 30],
-  ring_dips: [3, 5, 10, 15, 20],
-  muscleups: [1, 3, 5, 10],
+  // Calisthenics - all use same presets now (will be displayed in 3-row layout)
+  pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  knee_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  incline_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  decline_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  diamond_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  archer_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  onearm_pushups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  assisted_pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  chinups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  wide_pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  lsit_pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  australian_pullups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  bench_dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  ring_dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  muscleups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
   // Cardio (km)
   running: [1, 3, 5, 10, 15],
   walking: [1, 2, 3, 5, 10],
