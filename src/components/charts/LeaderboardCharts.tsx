@@ -46,7 +46,57 @@ interface LeaderboardChartsProps {
 }
 
 const CACHE_KEY = 'zenyfit_chart_cache';
+const FILTER_KEY = 'zenyfit_chart_filters';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Get saved filter preferences
+function getSavedFilters(): { scope: 'personal' | 'community'; range: 'daily' | 'weekly' | 'monthly' } {
+  try {
+    const saved = localStorage.getItem(FILTER_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        scope: parsed.scope || 'personal',
+        range: parsed.range || 'weekly',
+      };
+    }
+  } catch {
+    // Ignore errors
+  }
+  return { scope: 'personal', range: 'weekly' };
+}
+
+// Save filter preferences
+function saveFilters(scope: string, range: string) {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ scope, range }));
+  } catch {
+    // Ignore errors
+  }
+}
+
+// Custom tooltip component to avoid default Recharts styling
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number; name: string }>;
+  label?: string;
+  formatter?: (period: string) => string;
+}
+
+function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  return (
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground mb-1">
+        {formatter ? formatter(label || '') : label}
+      </p>
+      <p className="text-sm font-medium text-foreground">
+        {payload[0].value.toLocaleString()} reps
+      </p>
+    </div>
+  );
+}
 
 function getCachedData(scope: string, range: string): ChartData | null {
   try {
@@ -84,8 +134,18 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 }
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
-  const [scope, setScope] = useState<'personal' | 'community'>('personal');
-  const [range, setRange] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [scope, setScope] = useState<'personal' | 'community'>(() => {
+    if (typeof window !== 'undefined') {
+      return getSavedFilters().scope;
+    }
+    return 'personal';
+  });
+  const [range, setRange] = useState<'daily' | 'weekly' | 'monthly'>(() => {
+    if (typeof window !== 'undefined') {
+      return getSavedFilters().range;
+    }
+    return 'weekly';
+  });
   const [data, setData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,10 +219,12 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
   const handleScopeChange = (newScope: string) => {
     setScope(newScope as 'personal' | 'community');
+    saveFilters(newScope, range);
   };
 
   const handleRangeChange = (newRange: string) => {
     setRange(newRange as 'daily' | 'weekly' | 'monthly');
+    saveFilters(scope, newRange);
   };
 
   // Format period label for display
@@ -284,25 +346,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={35}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: 'hsl(var(--card-foreground))',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                  }}
-                  labelStyle={{
-                    color: 'hsl(var(--muted-foreground))',
-                    marginBottom: '4px',
-                  }}
-                  itemStyle={{
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  formatter={(value: number) => [value.toLocaleString() + ' reps', 'Total']}
-                  labelFormatter={formatPeriod}
-                />
+                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} />
                 <Area
                   type="monotone"
                   dataKey="reps"
@@ -338,23 +382,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: 'hsl(var(--card-foreground))',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                  }}
-                  labelStyle={{
-                    color: 'hsl(var(--muted-foreground))',
-                  }}
-                  itemStyle={{
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  formatter={(value: number) => [value.toLocaleString() + ' reps', 'Total']}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}

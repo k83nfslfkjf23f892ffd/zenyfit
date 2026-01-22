@@ -7,9 +7,9 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy } from 'lucide-react';
+import { Trophy, Loader2, Info, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { LeaderboardSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 
@@ -81,6 +81,7 @@ export default function LeaderboardPage() {
     return true;
   });
   const [updating, setUpdating] = useState(false);
+  const [showXpInfo, setShowXpInfo] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -149,7 +150,9 @@ export default function LeaderboardPage() {
   if (loading) {
     return (
       <AppLayout>
-        <LeaderboardSkeleton />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </AppLayout>
     );
   }
@@ -178,6 +181,13 @@ export default function LeaderboardPage() {
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-6 w-6" />
                 Leaderboard
+                <button
+                  type="button"
+                  onClick={() => setShowXpInfo(true)}
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
               </CardTitle>
               {updating && (
                 <span className="text-xs text-muted-foreground animate-pulse">
@@ -201,21 +211,8 @@ export default function LeaderboardPage() {
 
               <TabsContent value={activeTab} className="mt-4 space-y-3">
                 {loadingRankings ? (
-                  <div className="space-y-3">
-                    {[...Array(8)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                        <Skeleton className="h-6 w-12" />
-                        <SkeletonAvatar className="h-12 w-12" />
-                        <div className="flex-1 space-y-2">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-20" />
-                        </div>
-                        <div className="text-right space-y-2">
-                          <Skeleton className="h-5 w-16 ml-auto" />
-                          <Skeleton className="h-3 w-8 ml-auto" />
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : rankings.length === 0 ? (
                   <p className="py-12 text-center text-sm text-muted-foreground">
@@ -270,6 +267,87 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* XP Info Modal */}
+      {showXpInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowXpInfo(false)}
+        >
+          <div
+            className="bg-background border rounded-lg p-5 max-w-md w-full shadow-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">How XP Works</h3>
+              <button
+                type="button"
+                onClick={() => setShowXpInfo(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <p className="text-muted-foreground">
+                XP is calculated based on <strong>biomechanical difficulty</strong> — how hard each exercise is on your body. Harder exercises earn more XP per rep.
+              </p>
+
+              <div>
+                <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Knee Push-ups</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Push-ups</span><span className="text-primary">3 XP</span></div>
+                  <div className="flex justify-between"><span>Diamond Push-ups</span><span className="text-primary">4 XP</span></div>
+                  <div className="flex justify-between"><span>Archer Push-ups</span><span className="text-primary">5 XP</span></div>
+                  <div className="flex justify-between"><span>Pull-ups</span><span className="text-primary">6 XP</span></div>
+                  <div className="flex justify-between"><span>Dips</span><span className="text-primary">6 XP</span></div>
+                  <div className="flex justify-between"><span>Ring Dips</span><span className="text-primary">7 XP</span></div>
+                  <div className="flex justify-between"><span>L-sit Pull-ups</span><span className="text-primary">8 XP</span></div>
+                  <div className="flex justify-between"><span>Muscle-ups</span><span className="text-primary">11 XP</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Cardio (per km)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Walking</span><span className="text-primary">18 XP</span></div>
+                  <div className="flex justify-between"><span>Running</span><span className="text-primary">30 XP</span></div>
+                  <div className="flex justify-between"><span>Swimming</span><span className="text-primary">40 XP</span></div>
+                  <div className="flex justify-between"><span>Sprinting</span><span className="text-primary">50 XP</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Team Sports (per minute)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Volleyball</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Basketball</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Soccer</span><span className="text-primary">2 XP</span></div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <h4 className="font-medium mb-2">Leaderboard Rankings</h4>
+                <p className="text-xs text-muted-foreground">
+                  <strong>All:</strong> Ranked by total XP earned across all exercises.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <strong>Exercise tabs:</strong> Ranked by total reps/km for that specific exercise.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              className="w-full mt-4"
+              onClick={() => setShowXpInfo(false)}
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
