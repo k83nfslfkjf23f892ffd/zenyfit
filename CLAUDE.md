@@ -169,9 +169,8 @@ export async function GET(request: NextRequest) {
 2. **`exercise_logs`**: Workout records (userId, type, amount, timestamp, xpEarned, synced, isCustom)
 3. **`custom_exercises`**: User-defined exercises (userId, name, unit, quickActions, createdAt)
 4. **`challenges`**: Competition events (title, description, type, goal, dates, participants, participantIds, isPublic, colors, createdBy)
-5. **`challengeInvites`**: Pending invitations (challengeId, invitedUserId, invitedBy, status, timestamp)
-6. **`inviteCodes`**: Registration codes (code as doc ID, createdBy, used, usedBy, createdAt, usedAt)
-7. **`pushSubscriptions`**: Web push subscriptions (userId, endpoint, keys, createdAt)
+5. **`inviteCodes`**: Registration codes (code as doc ID, createdBy, used, usedBy, createdAt, usedAt)
+6. **`pushSubscriptions`**: Web push subscriptions (userId, endpoint, keys, createdAt)
 
 ## UI Components
 
