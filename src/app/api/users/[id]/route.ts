@@ -116,7 +116,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Only allow updating specific fields
-    const allowedFields = ['avatar', 'theme'];
+    const allowedFields = ['avatar', 'theme', 'quickAddPresets'];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
@@ -148,6 +148,40 @@ export async function PATCH(
           { error: 'Theme must be a string (max 50 characters)' },
           { status: 400 }
         );
+      }
+    }
+
+    if (updates.quickAddPresets !== undefined) {
+      // Validate quickAddPresets is a record of string -> number[]
+      if (typeof updates.quickAddPresets !== 'object' || updates.quickAddPresets === null) {
+        return NextResponse.json(
+          { error: 'quickAddPresets must be an object' },
+          { status: 400 }
+        );
+      }
+      const presets = updates.quickAddPresets as Record<string, unknown>;
+      // Max 20 exercise types to prevent abuse
+      if (Object.keys(presets).length > 20) {
+        return NextResponse.json(
+          { error: 'Too many exercise presets (max 20)' },
+          { status: 400 }
+        );
+      }
+      for (const [key, value] of Object.entries(presets)) {
+        if (!Array.isArray(value) || value.length > 8) {
+          return NextResponse.json(
+            { error: `Preset for ${key} must be an array (max 8 values)` },
+            { status: 400 }
+          );
+        }
+        for (const v of value) {
+          if (typeof v !== 'number' || v <= 0) {
+            return NextResponse.json(
+              { error: `All preset values must be positive numbers` },
+              { status: 400 }
+            );
+          }
+        }
       }
     }
 

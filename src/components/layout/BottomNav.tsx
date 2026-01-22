@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, Target, User } from 'lucide-react';
+import { Home, Trophy, Target, User, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
+  { href: '/log', label: 'Log', icon: Dumbbell },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/challenges', label: 'Challenges', icon: Target },
   { href: '/profile', label: 'Profile', icon: User },
@@ -26,7 +27,7 @@ export function BottomNav() {
       style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none' }}
       onContextMenu={preventContextMenu}
     >
-      <div className="flex items-center justify-around px-2 py-2 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center pt-2">
         {navItems.map(({ href, icon: Icon }) => {
           const isActive = pathname === href;
           return (
@@ -34,7 +35,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                'flex items-center justify-center rounded-lg p-3 transition-colors',
+                'flex flex-1 items-center justify-center rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-colors',
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'

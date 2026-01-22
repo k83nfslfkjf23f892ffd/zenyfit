@@ -2,6 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Core App Philosophy
+
+ZenyFit is built on these fundamental principles:
+
+1. **Social Motivation** - "Others are working hard, I should too" - Seeing friends' activity inspires users to stay active
+2. **Gamification** - XP makes fitness fun and trackable, turning workouts into progress
+3. **Competition** - Leaderboards and challenges push people beyond their limits
+4. **Fairness** - Challenges must feel fair so competition is meaningful
+5. **Urgency** - Seeing others progress creates healthy pressure to not fall behind
+
+### Leaderboard Structure
+- **Global Leaderboard**: Ranked by **time-based effort** (minutes/hours), with XP shown as reference only - ensures fairness across different exercise types
+- **Category Leaderboards**: Ranked by **XP** within each category (Calisthenics, Team Sports, Cardio)
+
+### Exercise Categories
+| Category | Exercises | Ranked By |
+|----------|-----------|-----------|
+| Calisthenics | Push-ups, pull-ups, dips, muscle-ups, etc. | XP (per rep difficulty) |
+| Team Sports | Volleyball, basketball, soccer, etc. | XP (time-based) |
+| Cardio | Running, walking, swimming, etc. | XP (distance/time-based) |
+
+### Challenge Philosophy
+- Challenges are **single exercise type only** - ensures all participants compete fairly on the same metric
+- Seeing others "going all out" in a challenge creates motivation to push harder
+
 ## Communication Guidelines
 
 When working with this codebase, Claude should:
@@ -144,9 +169,8 @@ export async function GET(request: NextRequest) {
 2. **`exercise_logs`**: Workout records (userId, type, amount, timestamp, xpEarned, synced, isCustom)
 3. **`custom_exercises`**: User-defined exercises (userId, name, unit, quickActions, createdAt)
 4. **`challenges`**: Competition events (title, description, type, goal, dates, participants, participantIds, isPublic, colors, createdBy)
-5. **`challengeInvites`**: Pending invitations (challengeId, invitedUserId, invitedBy, status, timestamp)
-6. **`inviteCodes`**: Registration codes (code as doc ID, createdBy, used, usedBy, createdAt, usedAt)
-7. **`pushSubscriptions`**: Web push subscriptions (userId, endpoint, keys, createdAt)
+5. **`inviteCodes`**: Registration codes (code as doc ID, createdBy, used, usedBy, createdAt, usedAt)
+6. **`pushSubscriptions`**: Web push subscriptions (userId, endpoint, keys, createdAt)
 
 ## UI Components
 
@@ -161,7 +185,7 @@ export async function GET(request: NextRequest) {
 
 ### Charts
 - Recharts components in `src/components/charts/`
-- XPHistoryChart, WorkoutDistributionChart, WeeklyActivityChart, UserGrowthChart
+- XPHistoryChart, WeeklyActivityChart, UserGrowthChart, ExerciseRatioChart
 
 ### Animations
 - Framer Motion components in `src/components/animations/`

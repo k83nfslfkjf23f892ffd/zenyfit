@@ -26,11 +26,11 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles
       allow read: if isAuthenticated();
 
-      // Users can only update their own avatar and username fields
+      // Users can only update their own avatar, username, theme, and quickAddPresets fields
       // All other updates must go through Admin SDK (server-side)
       allow update: if isOwner(userId) &&
                        request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['avatar', 'username', 'theme']);
+                         .hasOnly(['avatar', 'username', 'theme', 'quickAddPresets']);
 
       // Create and delete must be done via Admin SDK (server-side)
       allow create, delete: if false;
@@ -68,19 +68,6 @@ service cloud.firestore {
                       request.auth.uid in resource.data.participantIds);
 
       // All writes must be done via Admin SDK (server-side) for progress tracking
-      allow write: if false;
-    }
-
-    // ========================================================================
-    // Challenge Invites Collection
-    // ========================================================================
-    match /challengeInvites/{inviteId} {
-      // Users can read invites they sent or received
-      allow read: if isAuthenticated() &&
-                     (resource.data.invitedUserId == request.auth.uid ||
-                      resource.data.invitedBy == request.auth.uid);
-
-      // All writes must be done via Admin SDK (server-side)
       allow write: if false;
     }
 
