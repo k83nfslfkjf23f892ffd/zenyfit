@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 
@@ -76,11 +76,15 @@ function getTimeAgo(timestamp: number): string {
   const diff = now - timestamp;
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
+  const remainingMinutes = minutes % 60;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {
+    if (remainingMinutes === 0) return `${hours}h ago`;
+    return `${hours}h ${remainingMinutes}m ago`;
+  }
   if (days < 7) return `${days}d ago`;
   return new Date(timestamp).toLocaleDateString();
 }
@@ -155,6 +159,8 @@ export default function LogPage() {
   const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [workoutToDelete, setWorkoutToDelete] = useState<RecentWorkout | null>(null);
 
   // XP Info modal
   const [showXpInfo, setShowXpInfo] = useState(false);
@@ -172,7 +178,7 @@ export default function LogPage() {
 
   // Lock scroll when dialogs are open
   useEffect(() => {
-    if (setsRepsModal?.open || showXpInfo) {
+    if (setsRepsModal?.open || showXpInfo || workoutToDelete) {
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
     } else {
@@ -183,7 +189,7 @@ export default function LogPage() {
       document.body.style.overflow = '';
       document.body.style.touchAction = '';
     };
-  }, [setsRepsModal, showXpInfo]);
+  }, [setsRepsModal, showXpInfo, workoutToDelete]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -289,11 +295,11 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts]);
 
-  // Delete a workout
-  const handleDeleteWorkout = async (workoutId: string) => {
-    if (deletingId) return;
+  // Delete a workout (called after confirmation)
+  const handleConfirmDelete = async () => {
+    if (!workoutToDelete || deletingId) return;
 
-    setDeletingId(workoutId);
+    setDeletingId(workoutToDelete.id);
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) {
@@ -301,7 +307,7 @@ export default function LogPage() {
         return;
       }
 
-      const response = await fetch(`/api/workouts/${workoutId}`, {
+      const response = await fetch(`/api/workouts/${workoutToDelete.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -314,8 +320,10 @@ export default function LogPage() {
       }
 
       // Remove from list
-      setRecentWorkouts(prev => prev.filter(w => w.id !== workoutId));
+      setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
       toast.success(`Deleted (-${data.xpDeducted} XP)`);
+      setWorkoutToDelete(null);
+      setDeleteMode(false);
     } catch (error) {
       console.error('Error deleting workout:', error);
       toast.error('An error occurred');
@@ -769,7 +777,26 @@ export default function LogPage() {
         {/* Recent Logs */}
         <Card>
           <CardContent className="p-4">
-            <h3 className="font-semibold mb-3">Recent Logs</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Recent Logs</h3>
+              {recentWorkouts.length > 0 && (
+                <Button
+                  variant={deleteMode ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setDeleteMode(!deleteMode)}
+                  className="h-8 px-2"
+                >
+                  {deleteMode ? (
+                    <>
+                      <X className="h-4 w-4 mr-1" />
+                      Done
+                    </>
+                  ) : (
+                    <Pencil className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
             {loadingRecent ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -780,6 +807,11 @@ export default function LogPage() {
               </p>
             ) : (
               <div className="space-y-2">
+                {deleteMode && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Tap a workout to delete it
+                  </p>
+                )}
                 {recentWorkouts.map((workout) => {
                   const exerciseLabel = workout.customExerciseName || EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
@@ -788,7 +820,10 @@ export default function LogPage() {
                   return (
                     <div
                       key={workout.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
+                      className={`flex items-center justify-between rounded-lg border p-3 ${
+                        deleteMode ? 'cursor-pointer hover:border-destructive hover:bg-destructive/5' : ''
+                      }`}
                     >
                       <div className="flex-1">
                         <div className="font-medium">{exerciseLabel}</div>
@@ -796,19 +831,9 @@ export default function LogPage() {
                           {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteWorkout(workout.id)}
-                        disabled={deletingId === workout.id}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        {deletingId === workout.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                      {deleteMode && (
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
                   );
                 })}
@@ -949,6 +974,58 @@ export default function LogPage() {
             >
               Got it
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {workoutToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setWorkoutToDelete(null)}
+        >
+          <div
+            className="bg-background border rounded-lg p-5 max-w-sm w-full shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to delete this workout?
+            </p>
+
+            <div className="rounded-lg border p-3 mb-4 bg-muted/30">
+              <div className="font-medium">
+                {workoutToDelete.customExerciseName || EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'} • +{workoutToDelete.xpEarned} XP
+              </div>
+            </div>
+
+            <p className="text-xs text-destructive mb-4">
+              This will deduct {workoutToDelete.xpEarned} XP from your total.
+            </p>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setWorkoutToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleConfirmDelete}
+                disabled={deletingId === workoutToDelete.id}
+              >
+                {deletingId === workoutToDelete.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
       )}
