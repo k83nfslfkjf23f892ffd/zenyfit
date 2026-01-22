@@ -15,7 +15,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
-import { EXERCISE_INFO } from '@shared/constants';
 
 // Colors for different exercises
 const EXERCISE_COLORS: Record<string, string> = {
@@ -287,10 +286,19 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
+                    backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '12px',
+                    color: 'hsl(var(--card-foreground))',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  }}
+                  labelStyle={{
+                    color: 'hsl(var(--muted-foreground))',
+                    marginBottom: '4px',
+                  }}
+                  itemStyle={{
+                    color: 'hsl(var(--foreground))',
                   }}
                   formatter={(value: number) => [value.toLocaleString() + ' reps', 'Total']}
                   labelFormatter={formatPeriod}
@@ -332,10 +340,18 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
+                    backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '12px',
+                    color: 'hsl(var(--card-foreground))',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  }}
+                  labelStyle={{
+                    color: 'hsl(var(--muted-foreground))',
+                  }}
+                  itemStyle={{
+                    color: 'hsl(var(--foreground))',
                   }}
                   formatter={(value: number) => [value.toLocaleString() + ' reps', 'Total']}
                 />

@@ -10,9 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus, Trash2 } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EXERCISE_TYPES } from '@shared/schema';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
@@ -30,6 +29,15 @@ interface LastWorkout {
   type: string;
   amount: number;
   xpEarned: number;
+  customExerciseName?: string;
+}
+
+interface RecentWorkout {
+  id: string;
+  type: string;
+  amount: number;
+  xpEarned: number;
+  timestamp: number;
   customExerciseName?: string;
 }
 
@@ -60,6 +68,21 @@ function setCache<T>(key: string, data: T) {
   } catch {
     // Ignore errors
   }
+}
+
+// Time ago helper
+function getTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
 }
 
 // Exercise icons
@@ -127,6 +150,11 @@ export default function LogPage() {
   const [setsRepsModal, setSetsRepsModal] = useState<{ preset: number; open: boolean } | null>(null);
   const [sets, setSets] = useState('3');
   const [reps, setReps] = useState('');
+
+  // Recent workouts
+  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // XP Info modal
   const [showXpInfo, setShowXpInfo] = useState(false);
@@ -234,6 +262,68 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchCustomExercises]);
 
+  // Fetch recent workouts
+  const fetchRecentWorkouts = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/workouts?limit=10', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecentWorkouts(data.logs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching recent workouts:', error);
+    } finally {
+      setLoadingRecent(false);
+    }
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (user && firebaseUser) {
+      fetchRecentWorkouts();
+    }
+  }, [user, firebaseUser, fetchRecentWorkouts]);
+
+  // Delete a workout
+  const handleDeleteWorkout = async (workoutId: string) => {
+    if (deletingId) return;
+
+    setDeletingId(workoutId);
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/workouts/${workoutId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to delete');
+        return;
+      }
+
+      // Remove from list
+      setRecentWorkouts(prev => prev.filter(w => w.id !== workoutId));
+      toast.success(`Deleted (-${data.xpDeducted} XP)`);
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      toast.error('An error occurred');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Get unit label
   const getUnitLabel = () => {
     const activeExercise = getActiveExercise();
@@ -319,6 +409,9 @@ export default function LogPage() {
       }, 10000);
 
       setCustomAmount('');
+
+      // Refresh recent workouts
+      fetchRecentWorkouts();
     } catch (error) {
       console.error('Error logging workout:', error);
       toast.error('An error occurred');
@@ -415,14 +508,8 @@ export default function LogPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-40" />
-          <div className="flex gap-2">
-            <Skeleton className="h-12 w-28" />
-            <Skeleton className="h-12 w-28" />
-            <Skeleton className="h-12 w-28" />
-          </div>
-          <Skeleton className="h-96 w-full rounded-xl" />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
     );
@@ -674,6 +761,57 @@ export default function LogPage() {
                     </Button>
                   ))}
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Logs */}
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold mb-3">Recent Logs</h3>
+            {loadingRecent ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : recentWorkouts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No recent workouts
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {recentWorkouts.map((workout) => {
+                  const exerciseLabel = workout.customExerciseName || EXERCISE_INFO[workout.type]?.label || workout.type;
+                  const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
+                  const timeAgo = getTimeAgo(workout.timestamp);
+
+                  return (
+                    <div
+                      key={workout.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium">{exerciseLabel}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteWorkout(workout.id)}
+                        disabled={deletingId === workout.id}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        {deletingId === workout.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

@@ -7,21 +7,81 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Award, Activity, Calendar, TrendingUp } from 'lucide-react';
-import { ProfileSkeleton, Skeleton } from '@/components/ui/skeleton';
+import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { EXERCISE_INFO } from '@shared/constants';
+
+// Cache helpers
+const CACHE_KEY = 'zenyfit_profile_stats';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+interface Stats {
+  totalWorkouts: number;
+  thisWeekWorkouts: number;
+  totalXP: number;
+  thisWeekXP: number;
+  achievementsCount: number;
+}
+
+interface ProfileStats {
+  personalBests: Record<string, number>;
+  consistencyScore: number;
+  workoutDaysLast30: number;
+}
+
+function getCachedStats(): Stats | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached);
+    if (data && Date.now() - data.timestamp < CACHE_TTL) {
+      return data.stats;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function setCachedStats(stats: Stats) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ stats, timestamp: Date.now() }));
+  } catch {
+    // Ignore errors
+  }
+}
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
-  const [stats, setStats] = useState({
-    totalWorkouts: 0,
-    thisWeekWorkouts: 0,
-    totalXP: 0,
-    thisWeekXP: 0,
-    achievementsCount: 0,
+  const [stats, setStats] = useState<Stats>(() => {
+    if (typeof window !== 'undefined') {
+      return getCachedStats() || {
+        totalWorkouts: 0,
+        thisWeekWorkouts: 0,
+        totalXP: 0,
+        thisWeekXP: 0,
+        achievementsCount: 0,
+      };
+    }
+    return {
+      totalWorkouts: 0,
+      thisWeekWorkouts: 0,
+      totalXP: 0,
+      thisWeekXP: 0,
+      achievementsCount: 0,
+    };
   });
-  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCachedStats();
+    }
+    return true;
+  });
+  const [updating, setUpdating] = useState(false);
+  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
+  const [loadingProfileStats, setLoadingProfileStats] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,7 +89,19 @@ export default function ProfilePage() {
     }
   }, [user, loading, router]);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (skipCache = false) => {
+    // Try cache first
+    if (!skipCache) {
+      const cached = getCachedStats();
+      if (cached) {
+        setStats(cached);
+        setLoadingStats(false);
+        setUpdating(true);
+        fetchStats(true);
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -56,17 +128,21 @@ export default function ProfilePage() {
         achievementsCount = achievementsData.unlockedAchievements?.length || 0;
       }
 
-      setStats({
+      const newStats = {
         totalWorkouts: trendData.totalWorkouts || 0,
         thisWeekWorkouts: trendData.totalWorkouts || 0,
         totalXP: trendData.totalXp || 0,
         thisWeekXP: trendData.totalXp || 0,
         achievementsCount,
-      });
+      };
+
+      setStats(newStats);
+      setCachedStats(newStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
       setLoadingStats(false);
+      setUpdating(false);
     }
   }, [firebaseUser, user?.id]);
 
@@ -76,10 +152,38 @@ export default function ProfilePage() {
     }
   }, [user, firebaseUser, fetchStats]);
 
+  const fetchProfileStats = useCallback(async () => {
+    try {
+      const token = await firebaseUser?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/profile/stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProfileStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile stats:', error);
+    } finally {
+      setLoadingProfileStats(false);
+    }
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (user && firebaseUser) {
+      fetchProfileStats();
+    }
+  }, [user, firebaseUser, fetchProfileStats]);
+
   if (loading) {
     return (
       <AppLayout>
-        <ProfileSkeleton />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </AppLayout>
     );
   }
@@ -96,7 +200,14 @@ export default function ProfilePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-3xl">{user.username}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-3xl">{user.username}</CardTitle>
+                  {updating && (
+                    <span className="text-xs text-muted-foreground animate-pulse">
+                      Updating...
+                    </span>
+                  )}
+                </div>
                 <CardDescription className="text-lg mt-1">
                   Level {user.level} • {user.xp.toLocaleString()} XP
                 </CardDescription>
@@ -119,7 +230,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">Total Workouts</span>
               </div>
               {loadingStats ? (
-                <Skeleton className="h-9 w-16" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
                 <div className="text-3xl font-bold">{stats.totalWorkouts}</div>
               )}
@@ -133,7 +244,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">This Week</span>
               </div>
               {loadingStats ? (
-                <Skeleton className="h-9 w-16" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
                 <div className="text-3xl font-bold">{stats.thisWeekWorkouts}</div>
               )}
@@ -147,7 +258,7 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">Week XP</span>
               </div>
               {loadingStats ? (
-                <Skeleton className="h-9 w-16" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
                 <div className="text-3xl font-bold text-primary">{stats.thisWeekXP}</div>
               )}
@@ -161,13 +272,87 @@ export default function ProfilePage() {
                 <span className="text-sm text-muted-foreground">Achievements</span>
               </div>
               {loadingStats ? (
-                <Skeleton className="h-9 w-16" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
                 <div className="text-3xl font-bold">{stats.achievementsCount}</div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Consistency Score */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Flame className="h-5 w-5 text-orange-500" />
+              Consistency Score
+            </CardTitle>
+            <CardDescription>Based on workout frequency (last 30 days)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingProfileStats ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : profileStats ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-4xl font-bold text-primary">{profileStats.consistencyScore}%</span>
+                  <span className="text-sm text-muted-foreground">
+                    {profileStats.workoutDaysLast30} days active
+                  </span>
+                </div>
+                <Progress value={profileStats.consistencyScore} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {profileStats.consistencyScore >= 80 ? "You're on fire! Keep it up!" :
+                   profileStats.consistencyScore >= 50 ? "Good consistency! Try to hit 4+ days per week." :
+                   profileStats.consistencyScore >= 25 ? "Building momentum. Stay consistent!" :
+                   "Start logging workouts to build your streak!"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Unable to load consistency data</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Personal Bests */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              Personal Bests
+            </CardTitle>
+            <CardDescription>Your highest single-workout records</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingProfileStats ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : profileStats && Object.keys(profileStats.personalBests).length > 0 ? (
+              Object.entries(profileStats.personalBests)
+                .filter(([type]) => ['pullups', 'pushups', 'dips', 'running'].includes(type))
+                .map(([type, amount]) => {
+                  const exerciseInfo = EXERCISE_INFO[type];
+                  const label = exerciseInfo?.label || type;
+                  const unit = exerciseInfo?.unit || 'reps';
+                  return (
+                    <div key={type} className="flex items-center justify-between rounded-lg border p-3">
+                      <span className="font-medium">{label}</span>
+                      <span className="text-lg font-bold text-primary">
+                        {amount} {unit}
+                      </span>
+                    </div>
+                  );
+                })
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No personal bests yet. Log some workouts!
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Exercise Breakdown */}
         <Card>

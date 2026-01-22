@@ -7,8 +7,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
-import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { ExerciseRatioChart } from '@/components/charts/ExerciseRatioChart';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,7 +23,9 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <AppLayout>
-        <DashboardSkeleton />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </AppLayout>
     );
   }
