@@ -8,11 +8,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import Link from 'next/link';
-import { Loader2, Plus, Undo2, X, Info, ChevronDown } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EXERCISE_TYPES } from '@shared/schema';
@@ -39,10 +37,10 @@ interface LastWorkout {
 const STORAGE_KEYS = {
   lastExercise: 'zenyfit_lastExercise',
   lastVariation: 'zenyfit_lastVariation',
-  expandedCategories: 'zenyfit_expandedCategories',
   lastCustomExerciseId: 'zenyfit_lastCustomExerciseId',
   customExercises: 'zenyfit_customExercises',
   recentWorkouts: 'zenyfit_recentWorkouts',
+  sessionTotal: 'zenyfit_sessionTotal',
 };
 
 // Cache helpers
@@ -64,17 +62,26 @@ function setCache<T>(key: string, data: T) {
   }
 }
 
+// Exercise icons
+const EXERCISE_ICONS: Record<string, React.ReactNode> = {
+  pullups: <ArrowUp className="h-5 w-5" />,
+  pushups: <Minus className="h-5 w-5 rotate-90" />,
+  dips: <Circle className="h-5 w-5" />,
+  muscleups: <ArrowUp className="h-5 w-5" />,
+  running: <span className="text-lg">🏃</span>,
+};
+
 export default function LogPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
   const { showWorkoutComplete } = useCelebration();
 
-  // Base exercise type (pushups, pullups, dips, muscleups) or cardio/team sport
+  // Base exercise type
   const [selectedBaseType, setSelectedBaseType] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(STORAGE_KEYS.lastExercise) || 'pushups';
+      return localStorage.getItem(STORAGE_KEYS.lastExercise) || 'pullups';
     }
-    return 'pushups';
+    return 'pullups';
   });
 
   // Specific variation for calisthenics
@@ -85,28 +92,16 @@ export default function LogPage() {
         return saved as ExerciseType;
       }
     }
-    return 'pushups';
-  });
-
-  // Expanded category state (persisted)
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEYS.expandedCategories);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // Ignore parse errors
-        }
-      }
-    }
-    return { calisthenics: true, cardio: false, team_sports: false, custom: false };
+    return 'pullups';
   });
 
   const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
 
+  // Session total (resets on page reload or after inactivity)
+  const [sessionTotal, setSessionTotal] = useState(0);
+
   // Manual entry
-  const [amount, setAmount] = useState('');
+  const [customAmount, setCustomAmount] = useState('');
   const [logging, setLogging] = useState(false);
 
   // Custom exercises (with cache)
@@ -137,32 +132,6 @@ export default function LogPage() {
   const [showXpInfo, setShowXpInfo] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Recent Activity state (with cache)
-  type RecentWorkout = {
-    id: string;
-    type: string;
-    amount: number;
-    xpEarned: number;
-    timestamp: number;
-    customExerciseName?: string;
-    customExerciseUnit?: string;
-  };
-  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>(() => {
-    if (typeof window !== 'undefined') {
-      return getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
-    }
-    return [];
-  });
-  const [loadingWorkouts, setLoadingWorkouts] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts);
-    }
-    return true;
-  });
-  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
-  const [deleteLongPressTimer, setDeleteLongPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
   // Check if current selection is calisthenics
   const isCalisthenics = selectedBaseType in CALISTHENICS_BASE_TYPES;
 
@@ -175,7 +144,7 @@ export default function LogPage() {
 
   // Lock scroll when dialogs are open
   useEffect(() => {
-    if (workoutToDelete || setsRepsModal?.open || showXpInfo) {
+    if (setsRepsModal?.open || showXpInfo) {
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
     } else {
@@ -186,7 +155,7 @@ export default function LogPage() {
       document.body.style.overflow = '';
       document.body.style.touchAction = '';
     };
-  }, [workoutToDelete, setsRepsModal, showXpInfo]);
+  }, [setsRepsModal, showXpInfo]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -202,11 +171,6 @@ export default function LogPage() {
       localStorage.setItem(STORAGE_KEYS.lastCustomExerciseId, selectedCustomExercise.id);
     }
   }, [selectedBaseType, selectedVariation, selectedCustomExercise]);
-
-  // Save expanded categories to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.expandedCategories, JSON.stringify(expandedCategories));
-  }, [expandedCategories]);
 
   // Restore custom exercise selection after loading
   useEffect(() => {
@@ -229,6 +193,8 @@ export default function LogPage() {
         setSelectedVariation(baseConfig.variations[0] as ExerciseType);
       }
     }
+    // Reset session total when changing exercise type
+    setSessionTotal(0);
   }, [selectedBaseType, isCalisthenics, selectedVariation]);
 
   // Clear undo timeout on unmount
@@ -268,35 +234,6 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchCustomExercises]);
 
-  // Fetch recent workouts
-  const fetchRecentWorkouts = useCallback(async () => {
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) return;
-
-      const response = await fetch('/api/workouts?limit=5', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const workouts = data.logs || [];
-        setRecentWorkouts(workouts);
-        setCache(STORAGE_KEYS.recentWorkouts, workouts);
-      }
-    } catch (error) {
-      console.error('Error fetching workouts:', error);
-    } finally {
-      setLoadingWorkouts(false);
-    }
-  }, [firebaseUser]);
-
-  useEffect(() => {
-    if (user && firebaseUser) {
-      fetchRecentWorkouts();
-    }
-  }, [user, firebaseUser, fetchRecentWorkouts]);
-
   // Get unit label
   const getUnitLabel = () => {
     const activeExercise = getActiveExercise();
@@ -304,14 +241,6 @@ export default function LogPage() {
       return selectedCustomExercise.unit;
     }
     return EXERCISE_INFO[activeExercise]?.unit || 'reps';
-  };
-
-  // Toggle category expansion
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
   };
 
   // Log workout function
@@ -361,6 +290,9 @@ export default function LogPage() {
         return;
       }
 
+      // Update session total
+      setSessionTotal(prev => prev + logAmount);
+
       // Show celebration
       const exerciseName = activeExercise === 'custom' && selectedCustomExercise
         ? selectedCustomExercise.name
@@ -381,14 +313,12 @@ export default function LogPage() {
         clearTimeout(undoTimeoutRef.current);
       }
 
-      // Auto-dismiss undo banner after 10 seconds
+      // Auto-dismiss undo after 10 seconds
       undoTimeoutRef.current = setTimeout(() => {
         setLastWorkout(null);
       }, 10000);
 
-      // Refresh recent workouts
-      fetchRecentWorkouts();
-      setAmount('');
+      setCustomAmount('');
     } catch (error) {
       console.error('Error logging workout:', error);
       toast.error('An error occurred');
@@ -397,10 +327,9 @@ export default function LogPage() {
     }
   };
 
-  // Handle manual entry submit
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(amount);
+  // Handle custom amount submit
+  const handleCustomSubmit = () => {
+    const amountNum = parseFloat(customAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
       toast.error('Please enter a valid amount');
       return;
@@ -408,7 +337,7 @@ export default function LogPage() {
     logWorkout(amountNum);
   };
 
-  // Quick add one-tap logging
+  // Quick add
   const handleQuickAdd = (preset: number) => {
     logWorkout(preset);
   };
@@ -467,9 +396,11 @@ export default function LogPage() {
         return;
       }
 
+      // Update session total
+      setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
+
       toast.success(`Undone (-${data.xpDeducted} XP)`);
       setLastWorkout(null);
-      fetchRecentWorkouts();
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
       }
@@ -481,73 +412,17 @@ export default function LogPage() {
     }
   };
 
-  // Delete workout from history
-  const handleDeleteWorkout = async (workoutId: string) => {
-    if (deleting) return;
-
-    setDeleting(true);
-    setWorkoutToDelete(null);
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
-      }
-
-      const response = await fetch(`/api/workouts/${workoutId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to delete workout');
-        return;
-      }
-
-      toast.success(`Workout deleted (-${data.xpDeducted} XP)`);
-      fetchRecentWorkouts();
-    } catch (error) {
-      console.error('Error deleting workout:', error);
-      toast.error('An error occurred');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Long press handlers for workout deletion
-  const handleDeleteLongPressStart = (workoutId: string) => {
-    const timer = setTimeout(() => {
-      setWorkoutToDelete(workoutId);
-    }, 500);
-    setDeleteLongPressTimer(timer);
-  };
-
-  const handleDeleteLongPressEnd = () => {
-    if (deleteLongPressTimer) {
-      clearTimeout(deleteLongPressTimer);
-      setDeleteLongPressTimer(null);
-    }
-  };
-
   if (loading) {
     return (
       <AppLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-12 w-48" />
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <div className="grid grid-cols-4 gap-2">
-                  {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} className="h-10" />
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-12 w-28" />
+            <Skeleton className="h-12 w-28" />
+            <Skeleton className="h-12 w-28" />
+          </div>
+          <Skeleton className="h-96 w-full rounded-xl" />
         </div>
       </AppLayout>
     );
@@ -559,78 +434,141 @@ export default function LogPage() {
 
   const activeExercise = getActiveExercise();
   const activeXpRate = XP_RATES[activeExercise] || 0;
+  const exerciseLabel = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+
+  // Main exercise types for quick selection
+  const mainExercises = [
+    { key: 'pullups', label: 'Pull-ups', icon: <ArrowUp className="h-4 w-4" /> },
+    { key: 'pushups', label: 'Push-ups', icon: <Minus className="h-4 w-4" /> },
+    { key: 'dips', label: 'Dips', icon: <Circle className="h-4 w-4" /> },
+  ];
 
   return (
     <AppLayout>
       <div className="space-y-4">
-        {/* Undo Banner */}
-        {lastWorkout && (
-          <div className="bg-muted border rounded-lg p-3 flex items-center justify-between animate-in slide-in-from-top-2">
-            <div className="text-sm">
-              <span className="font-medium">Logged: </span>
-              {lastWorkout.amount} {lastWorkout.type === 'custom' ? lastWorkout.customExerciseName : EXERCISE_INFO[lastWorkout.type]?.label || lastWorkout.type}
-              <span className="text-primary ml-1">(+{lastWorkout.xpEarned} XP)</span>
-            </div>
+        {/* Header */}
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <span className="text-xl">💪</span>
+          Log Workout
+        </h1>
+
+        {/* Exercise Type Selector */}
+        <div className="space-y-2">
+          {/* Main calisthenics */}
+          <div className="flex gap-2 flex-wrap">
+            {mainExercises.map((ex) => (
+              <Button
+                key={ex.key}
+                variant={selectedBaseType === ex.key ? 'default' : 'outline'}
+                onClick={() => {
+                  setSelectedBaseType(ex.key);
+                  setSelectedCustomExercise(null);
+                }}
+                className="h-12 px-4 gap-2"
+              >
+                {ex.icon}
+                {ex.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Secondary row */}
+          <div className="flex gap-2 flex-wrap">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleUndo}
-              disabled={undoing}
-              className="ml-2"
+              variant={selectedBaseType === 'running' ? 'default' : 'outline'}
+              onClick={() => {
+                setSelectedBaseType('running');
+                setSelectedCustomExercise(null);
+              }}
+              className="h-12 px-4 gap-2 flex-1"
             >
-              {undoing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Undo2 className="h-4 w-4 mr-1" />
-                  Undo
-                </>
-              )}
+              <span>🏃</span>
+              Running
             </Button>
           </div>
-        )}
+        </div>
 
-        {/* Sticky Quick Add Section */}
-        <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+        {/* Main Logging Card */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            {/* Card Header */}
+            <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                  {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-5 w-5" />}
+                </div>
                 <div>
-                  <CardTitle className="text-lg flex items-center gap-1.5">
-                    Quick Add
-                    <button
-                      type="button"
-                      onClick={() => setShowXpInfo(true)}
-                      className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    {EXERCISE_INFO[activeExercise]?.label || activeExercise} • {activeXpRate} XP/{getUnitLabel()}
-                  </CardDescription>
+                  <div className="font-semibold">{exerciseLabel}</div>
+                  <div className="text-xs text-muted-foreground">{getUnitLabel()}</div>
                 </div>
               </div>
+              {lastWorkout && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleUndo}
+                  disabled={undoing}
+                  className="text-muted-foreground"
+                >
+                  {undoing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Undo2 className="h-5 w-5" />
+                  )}
+                </Button>
+              )}
+            </div>
 
-              {/* Variation selector for calisthenics */}
-              {isCalisthenics && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                    <Button
-                      key={variation}
-                      type="button"
-                      variant={selectedVariation === variation ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedVariation(variation as ExerciseType)}
-                      className="text-xs h-7 px-2"
-                    >
-                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
-                    </Button>
-                  ))}
+            {/* Session Total Display */}
+            <div className="py-8 text-center">
+              <div className="text-7xl font-bold tracking-tight">
+                {sessionTotal}
+              </div>
+              <div className="text-xl text-muted-foreground mt-1">
+                {getUnitLabel()}
+              </div>
+              {activeXpRate > 0 && (
+                <div className="text-sm text-primary mt-2">
+                  +{Math.round(sessionTotal * activeXpRate)} XP this session
                 </div>
               )}
-            </CardHeader>
-            <CardContent>
+            </div>
+
+            {/* Custom Input */}
+            <div className="px-4 pb-4">
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step={['running', 'swimming', 'sprinting', 'walking'].includes(selectedBaseType) ? '0.1' : '1'}
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder="Custom"
+                  className="flex-1 h-12 text-lg"
+                />
+                <Button
+                  onClick={handleCustomSubmit}
+                  disabled={logging || !customAmount}
+                  size="icon"
+                  className="h-12 w-12"
+                >
+                  {logging ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Add Section */}
+            <div className="px-4 pb-6">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-sm font-medium text-muted-foreground">Quick Add</span>
+                <button
+                  type="button"
+                  onClick={() => setShowXpInfo(true)}
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </div>
+
               {/* Calisthenics 3-row layout */}
               {isCalisthenics ? (
                 <div className="space-y-2">
@@ -640,8 +578,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        variant="outline"
-                        className="h-12 text-lg font-semibold"
+                        className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -650,7 +587,7 @@ export default function LogPage() {
                         onTouchEnd={handleLongPressEnd}
                         disabled={logging}
                       >
-                        {preset}
+                        +{preset}
                       </Button>
                     ))}
                   </div>
@@ -660,8 +597,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        variant="outline"
-                        className="h-12 text-lg font-semibold w-20"
+                        className="h-12 text-lg font-semibold w-20 bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -670,7 +606,7 @@ export default function LogPage() {
                         onTouchEnd={handleLongPressEnd}
                         disabled={logging}
                       >
-                        {preset}
+                        +{preset}
                       </Button>
                     ))}
                   </div>
@@ -680,8 +616,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        variant="outline"
-                        className="h-12 text-lg font-semibold"
+                        className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -690,7 +625,7 @@ export default function LogPage() {
                         onTouchEnd={handleLongPressEnd}
                         disabled={logging}
                       >
-                        {preset}
+                        +{preset}
                       </Button>
                     ))}
                   </div>
@@ -706,287 +641,44 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      variant="outline"
-                      className="h-12 text-lg font-semibold"
+                      className="h-12 text-lg font-semibold bg-primary hover:bg-primary/90"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
-                      {preset}
+                      +{preset}
                     </Button>
                   ))}
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Tap to log instantly. Long press for sets.
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Tap to log instantly • Long press for sets
               </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Exercise Selector */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Exercise Type</CardTitle>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                asChild
-                className="h-7 text-xs"
-              >
-                <Link href="/dashboard/custom-exercise">
-                  <Plus className="h-3 w-3 mr-1" />
-                  Custom
-                </Link>
-              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* Calisthenics Category */}
-            <Collapsible open={expandedCategories.calisthenics} onOpenChange={() => toggleCategory('calisthenics')}>
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <span className="font-medium text-sm">💪 Calisthenics</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${expandedCategories.calisthenics ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(Object.keys(CALISTHENICS_BASE_TYPES) as BaseExerciseType[]).map((baseType) => (
+
+            {/* Variation selector for calisthenics */}
+            {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 && (
+              <div className="px-4 pb-4 border-t pt-4">
+                <div className="text-xs text-muted-foreground mb-2">Variation</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
                     <Button
-                      key={baseType}
+                      key={variation}
                       type="button"
-                      variant={selectedBaseType === baseType ? 'default' : 'outline'}
+                      variant={selectedVariation === variation ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => {
-                        setSelectedBaseType(baseType);
-                        setSelectedCustomExercise(null);
-                      }}
-                      className="text-xs px-1.5 h-10"
+                      onClick={() => setSelectedVariation(variation as ExerciseType)}
+                      className="text-xs h-8"
                     >
-                      {CALISTHENICS_BASE_TYPES[baseType].label}
+                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
                     </Button>
                   ))}
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Cardio Category */}
-            <Collapsible open={expandedCategories.cardio} onOpenChange={() => toggleCategory('cardio')}>
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <span className="font-medium text-sm">🏃 Cardio</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${expandedCategories.cardio ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(['running', 'walking', 'swimming', 'sprinting'] as const).map((type) => (
-                    <Button
-                      key={type}
-                      type="button"
-                      variant={selectedBaseType === type ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setSelectedBaseType(type);
-                        setSelectedCustomExercise(null);
-                      }}
-                      className="text-xs px-1.5 h-10"
-                    >
-                      {EXERCISE_INFO[type]?.label || type}
-                    </Button>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Team Sports Category */}
-            <Collapsible open={expandedCategories.team_sports} onOpenChange={() => toggleCategory('team_sports')}>
-              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <span className="font-medium text-sm">⚽ Team Sports</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${expandedCategories.team_sports ? 'rotate-180' : ''}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="grid grid-cols-3 gap-1.5">
-                  {(['volleyball', 'basketball', 'soccer'] as const).map((type) => (
-                    <Button
-                      key={type}
-                      type="button"
-                      variant={selectedBaseType === type ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setSelectedBaseType(type);
-                        setSelectedCustomExercise(null);
-                      }}
-                      className="text-xs px-1.5 h-10"
-                    >
-                      {EXERCISE_INFO[type]?.label || type}
-                    </Button>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Custom Exercises Category */}
-            {!loadingCustomExercises && customExercises.length > 0 && (
-              <Collapsible open={expandedCategories.custom} onOpenChange={() => toggleCategory('custom')}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <span className="font-medium text-sm">⭐ Custom</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${expandedCategories.custom ? 'rotate-180' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-2">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {customExercises.map((exercise) => (
-                      <Button
-                        key={exercise.id}
-                        type="button"
-                        variant={
-                          selectedBaseType === 'custom' && selectedCustomExercise?.id === exercise.id
-                            ? 'default'
-                            : 'outline'
-                        }
-                        size="sm"
-                        onClick={() => {
-                          setSelectedBaseType('custom');
-                          setSelectedCustomExercise(exercise);
-                        }}
-                        className="truncate text-xs px-1.5 h-10"
-                      >
-                        {exercise.name}
-                      </Button>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Manual Entry */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Manual Entry</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleManualSubmit} className="flex gap-2">
-              <Input
-                type="number"
-                step={['running', 'swimming', 'sprinting', 'walking'].includes(selectedBaseType) ? '0.1' : '1'}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Enter ${getUnitLabel()}`}
-                className="flex-1"
-              />
-              <Button type="submit" disabled={logging || !amount}>
-                {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log'}
-              </Button>
-            </form>
-            {selectedBaseType === 'custom' && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Custom exercises don&apos;t earn XP (tracking only)
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Recent Activity
-              <span className="group relative inline-flex">
-                <Info className="h-4 w-4 text-muted-foreground/60" />
-                <span className="absolute left-1/2 -translate-x-1/2 top-7 w-max max-w-[200px] text-xs text-center bg-foreground text-background rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 shadow-lg scale-95 group-hover:scale-100">
-                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
-                  Long press to delete
-                </span>
-              </span>
-            </CardTitle>
-            <CardDescription>Your last 5 workouts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingWorkouts ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-3 w-16" />
-                    </div>
-                    <div className="text-right space-y-2">
-                      <Skeleton className="h-4 w-16 ml-auto" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : recentWorkouts.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No workouts yet. Start logging!
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentWorkouts.map((workout) => (
-                  <div
-                    key={workout.id}
-                    className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer select-none active:bg-muted/50 transition-colors"
-                    onMouseDown={() => handleDeleteLongPressStart(workout.id)}
-                    onMouseUp={handleDeleteLongPressEnd}
-                    onMouseLeave={handleDeleteLongPressEnd}
-                    onTouchStart={() => handleDeleteLongPressStart(workout.id)}
-                    onTouchEnd={handleDeleteLongPressEnd}
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium">
-                        {workout.type === 'custom' ? workout.customExerciseName || 'Custom' : EXERCISE_INFO[workout.type]?.label || workout.type}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {workout.amount} {workout.type === 'custom' ? (workout.customExerciseUnit || 'reps') : EXERCISE_INFO[workout.type]?.unit || 'reps'}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="font-semibold text-primary">
-                        +{workout.xpEarned} XP
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(workout.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Delete Workout Confirmation Dialog */}
-      {workoutToDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overscroll-none"
-          style={{ touchAction: 'none' }}
-          onClick={() => setWorkoutToDelete(null)}
-        >
-          <div className="bg-background border rounded-lg p-6 mx-4 max-w-sm w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              This will remove the workout and deduct the XP earned. This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setWorkoutToDelete(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => handleDeleteWorkout(workoutToDelete)}
-                disabled={deleting}
-              >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sets x Reps Modal */}
       {setsRepsModal?.open && (
