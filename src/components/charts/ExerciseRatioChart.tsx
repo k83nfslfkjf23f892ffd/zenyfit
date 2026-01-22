@@ -76,8 +76,6 @@ export function ExerciseRatioChart({
                 paddingAngle={2}
                 dataKey="value"
                 animationDuration={400}
-                onMouseEnter={(_, index) => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex(null)}
                 onClick={(_, index) => setActiveIndex(activeIndex === index ? null : index)}
               >
                 {data.map((entry, index) => (
