@@ -11,12 +11,42 @@ import { ACHIEVEMENTS, type Achievement } from '@shared/achievements';
 
 type Category = 'workout' | 'progress' | 'challenge' | 'social';
 
+const ACHIEVEMENTS_CACHE_KEY = 'zenyfit_achievements';
+
+function getCachedAchievements(): string[] | null {
+  try {
+    const cached = localStorage.getItem(ACHIEVEMENTS_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function setCachedAchievements(ids: string[]) {
+  try {
+    localStorage.setItem(ACHIEVEMENTS_CACHE_KEY, JSON.stringify(ids));
+  } catch {
+    // Ignore errors
+  }
+}
+
 export default function AchievementsPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
-  const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
-  const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const [unlockedIds, setUnlockedIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getCachedAchievements() || [];
+    }
+    return [];
+  });
+  const [loadingAchievements, setLoadingAchievements] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCachedAchievements();
+    }
+    return true;
+  });
   const [activeTab, setActiveTab] = useState<Category>('workout');
 
   useEffect(() => {
@@ -38,7 +68,9 @@ export default function AchievementsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setUnlockedIds(data.unlockedAchievements || []);
+        const ids = data.unlockedAchievements || [];
+        setUnlockedIds(ids);
+        setCachedAchievements(ids);
       }
     } catch (error) {
       console.error('Error fetching achievements:', error);

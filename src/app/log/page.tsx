@@ -41,7 +41,28 @@ const STORAGE_KEYS = {
   lastVariation: 'zenyfit_lastVariation',
   expandedCategories: 'zenyfit_expandedCategories',
   lastCustomExerciseId: 'zenyfit_lastCustomExerciseId',
+  customExercises: 'zenyfit_customExercises',
+  recentWorkouts: 'zenyfit_recentWorkouts',
 };
+
+// Cache helpers
+function getCached<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function setCache<T>(key: string, data: T) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignore errors
+  }
+}
 
 export default function LogPage() {
   const router = useRouter();
@@ -88,9 +109,19 @@ export default function LogPage() {
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
 
-  // Custom exercises
-  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
-  const [loadingCustomExercises, setLoadingCustomExercises] = useState(true);
+  // Custom exercises (with cache)
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getCached<CustomExercise[]>(STORAGE_KEYS.customExercises) || [];
+    }
+    return [];
+  });
+  const [loadingCustomExercises, setLoadingCustomExercises] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCached<CustomExercise[]>(STORAGE_KEYS.customExercises);
+    }
+    return true;
+  });
 
   // Undo functionality
   const [lastWorkout, setLastWorkout] = useState<LastWorkout | null>(null);
@@ -106,8 +137,8 @@ export default function LogPage() {
   const [showXpInfo, setShowXpInfo] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Recent Activity state
-  const [recentWorkouts, setRecentWorkouts] = useState<Array<{
+  // Recent Activity state (with cache)
+  type RecentWorkout = {
     id: string;
     type: string;
     amount: number;
@@ -115,8 +146,19 @@ export default function LogPage() {
     timestamp: number;
     customExerciseName?: string;
     customExerciseUnit?: string;
-  }>>([]);
-  const [loadingWorkouts, setLoadingWorkouts] = useState(true);
+  };
+  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+    }
+    return [];
+  });
+  const [loadingWorkouts, setLoadingWorkouts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts);
+    }
+    return true;
+  });
   const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
   const [deleteLongPressTimer, setDeleteLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -209,7 +251,9 @@ export default function LogPage() {
 
       const data = await response.json();
       if (response.ok) {
-        setCustomExercises(data.exercises || []);
+        const exercises = data.exercises || [];
+        setCustomExercises(exercises);
+        setCache(STORAGE_KEYS.customExercises, exercises);
       }
     } catch (error) {
       console.error('Error fetching custom exercises:', error);
@@ -236,7 +280,9 @@ export default function LogPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setRecentWorkouts(data.logs || []);
+        const workouts = data.logs || [];
+        setRecentWorkouts(workouts);
+        setCache(STORAGE_KEYS.recentWorkouts, workouts);
       }
     } catch (error) {
       console.error('Error fetching workouts:', error);

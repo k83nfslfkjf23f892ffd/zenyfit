@@ -31,13 +31,56 @@ interface Ranking {
   score: number;
 }
 
+// Cache for rankings
+const RANKINGS_CACHE_KEY = 'zenyfit_rankings_cache';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+function getCachedRankings(type: string): Ranking[] | null {
+  try {
+    const cached = localStorage.getItem(RANKINGS_CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached);
+    const entry = data[type];
+    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+      return entry.rankings;
+    }
+  } catch {
+    // Ignore cache errors
+  }
+  return null;
+}
+
+function setCachedRankings(type: string, rankings: Ranking[]) {
+  try {
+    const cached = localStorage.getItem(RANKINGS_CACHE_KEY);
+    const existing = cached ? JSON.parse(cached) : {};
+    existing[type] = { rankings, timestamp: Date.now() };
+    localStorage.setItem(RANKINGS_CACHE_KEY, JSON.stringify(existing));
+  } catch {
+    // Ignore cache errors
+  }
+}
+
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
-  const [rankings, setRankings] = useState<Ranking[]>([]);
-  const [loadingRankings, setLoadingRankings] = useState(true);
+  const [rankings, setRankings] = useState<Ranking[]>(() => {
+    // Load cached rankings on initial render
+    if (typeof window !== 'undefined') {
+      return getCachedRankings('xp') || [];
+    }
+    return [];
+  });
+  const [loadingRankings, setLoadingRankings] = useState(() => {
+    // If we have cached data, don't show loading
+    if (typeof window !== 'undefined') {
+      return !getCachedRankings('xp');
+    }
+    return true;
+  });
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -45,8 +88,23 @@ export default function LeaderboardPage() {
     }
   }, [user, loading, router]);
 
-  const fetchRankings = useCallback(async (type: RankingType) => {
-    setLoadingRankings(true);
+  const fetchRankings = useCallback(async (type: RankingType, skipCache = false) => {
+    // Try cache first (unless skipCache)
+    if (!skipCache) {
+      const cached = getCachedRankings(type);
+      if (cached) {
+        setRankings(cached);
+        setLoadingRankings(false);
+        // Fetch fresh in background
+        setUpdating(true);
+        fetchRankings(type, true);
+        return;
+      }
+    }
+
+    if (!skipCache) {
+      setLoadingRankings(true);
+    }
 
     try {
       const token = await firebaseUser?.getIdToken();
@@ -64,15 +122,20 @@ export default function LeaderboardPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setRankings(data.rankings || []);
-      } else {
+        const newRankings = data.rankings || [];
+        setRankings(newRankings);
+        setCachedRankings(type, newRankings);
+      } else if (!getCachedRankings(type)) {
         toast.error('Failed to load leaderboard');
       }
     } catch (error) {
       console.error('Error fetching rankings:', error);
-      toast.error('An error occurred');
+      if (!getCachedRankings(type)) {
+        toast.error('An error occurred');
+      }
     } finally {
       setLoadingRankings(false);
+      setUpdating(false);
     }
   }, [firebaseUser]);
 
@@ -111,10 +174,17 @@ export default function LeaderboardPage() {
         {/* Rankings */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-6 w-6" />
-              Leaderboard
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-6 w-6" />
+                Leaderboard
+              </CardTitle>
+              {updating && (
+                <span className="text-xs text-muted-foreground animate-pulse">
+                  Updating...
+                </span>
+              )}
+            </div>
             <CardDescription>
               Compete with other users and climb the ranks
             </CardDescription>
