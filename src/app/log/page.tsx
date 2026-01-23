@@ -341,8 +341,8 @@ export default function LogPage() {
     return EXERCISE_INFO[activeExercise]?.unit || 'reps';
   };
 
-  // Log workout function
-  const logWorkout = async (logAmount: number) => {
+  // Log workout function - supports multiple sets
+  const logWorkout = async (logAmount: number, logSets: number = 1) => {
     if (logAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
@@ -366,6 +366,7 @@ export default function LogPage() {
       const body: Record<string, unknown> = {
         type: activeExercise,
         amount: logAmount,
+        sets: logSets,
       };
 
       if (activeExercise === 'custom' && selectedCustomExercise) {
@@ -388,21 +389,22 @@ export default function LogPage() {
         return;
       }
 
-      // Update session total
-      setSessionTotal(prev => prev + logAmount);
+      // Update session total with total amount (sets * amount)
+      const totalAmount = data.totalAmount || logAmount;
+      setSessionTotal(prev => prev + totalAmount);
 
-      // Show celebration
+      // Show celebration with total XP and sets info
       const exerciseName = activeExercise === 'custom' && selectedCustomExercise
         ? selectedCustomExercise.name
         : EXERCISE_INFO[activeExercise]?.label || activeExercise;
-      showWorkoutComplete(data.xpEarned, exerciseName, logAmount);
+      showWorkoutComplete(data.xpEarned, exerciseName, totalAmount);
 
-      // Set last workout for undo
+      // Set last workout for undo (only the last log)
       setLastWorkout({
         id: data.log.id,
         type: activeExercise,
         amount: logAmount,
-        xpEarned: data.xpEarned,
+        xpEarned: data.xpPerSet || data.xpEarned,
         customExerciseName: selectedCustomExercise?.name,
       });
 
@@ -458,7 +460,7 @@ export default function LogPage() {
     }
   };
 
-  // Log sets x reps
+  // Log sets x reps - creates individual logs for each set
   const handleLogSetsReps = () => {
     const setsNum = parseInt(sets);
     const repsNum = parseFloat(reps);
@@ -466,8 +468,7 @@ export default function LogPage() {
       toast.error('Please enter valid numbers');
       return;
     }
-    const total = setsNum * repsNum;
-    logWorkout(total);
+    logWorkout(repsNum, setsNum);
     setSetsRepsModal(null);
     setSets('3');
     setReps('');
