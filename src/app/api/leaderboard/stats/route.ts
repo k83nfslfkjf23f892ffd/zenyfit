@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate time range
     let startTime: number;
-    let dateFormat: 'hour' | 'day' | 'week';
+    let dateFormat: 'halfhour' | 'day' | 'week';
     let numPeriods: number;
 
     switch (range) {
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
         const todayStart = new Date(now);
         todayStart.setHours(0, 0, 0, 0);
         startTime = todayStart.getTime();
-        dateFormat = 'hour';
-        numPeriods = 24;
+        dateFormat = 'halfhour';
+        numPeriods = 48; // 30-minute intervals
         break;
       case 'monthly':
         startTime = now.getTime() - 30 * 24 * 60 * 60 * 1000; // Last 30 days
@@ -75,10 +75,12 @@ export async function GET(request: NextRequest) {
 
     // Generate time period keys
     const periodKeys: string[] = [];
-    if (dateFormat === 'hour') {
-      // For daily view, always show 00:00 through 23:00
-      for (let i = 0; i < 24; i++) {
-        periodKeys.push(`${i}:00`);
+    if (dateFormat === 'halfhour') {
+      // For daily view, show 30-minute intervals: 0:00, 0:30, 1:00, 1:30, ... 23:30
+      for (let i = 0; i < 48; i++) {
+        const hour = Math.floor(i / 2);
+        const minute = (i % 2) * 30;
+        periodKeys.push(`${hour}:${minute.toString().padStart(2, '0')}`);
       }
     } else {
       // For weekly/monthly, generate date keys
@@ -122,8 +124,11 @@ export async function GET(request: NextRequest) {
 
       // Get period key
       let periodKey: string;
-      if (dateFormat === 'hour') {
-        periodKey = `${date.getHours()}:00`;
+      if (dateFormat === 'halfhour') {
+        // Round down to nearest 30-minute interval
+        const hour = date.getHours();
+        const minute = date.getMinutes() < 30 ? '00' : '30';
+        periodKey = `${hour}:${minute}`;
       } else {
         periodKey = date.toISOString().split('T')[0];
       }
