@@ -7,11 +7,10 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Loader2, Info, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Trophy, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
-import { EXERCISE_INFO, XP_RATES, EXERCISE_CATEGORIES } from '@shared/constants';
+import { EXERCISE_INFO } from '@shared/constants';
 
 // Dynamic import to avoid SSR issues with Recharts
 const LeaderboardCharts = dynamic(
@@ -81,7 +80,6 @@ export default function LeaderboardPage() {
     return true;
   });
   const [updating, setUpdating] = useState(false);
-  const [showXpInfo, setShowXpInfo] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -183,7 +181,7 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)}
+                  onClick={() => router.push('/leaderboard/xp-info')}
                   className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
@@ -267,113 +265,6 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* XP Info Modal */}
-      {showXpInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowXpInfo(false)}
-        >
-          <div
-            className="bg-background border rounded-lg p-5 max-w-md w-full shadow-lg max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">How XP Works</h3>
-              <button
-                type="button"
-                onClick={() => setShowXpInfo(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              {/* Methodology explanation */}
-              <div className="space-y-2">
-                <h4 className="font-medium">How We Calculate XP</h4>
-                <p className="text-xs text-muted-foreground">
-                  XP values are based on scientific measurements of exercise difficulty:
-                </p>
-                <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
-                  <li><strong>Calisthenics:</strong> Body weight percentage moved per rep. Push-ups move ~64% of your body weight, pull-ups move 100%.</li>
-                  <li><strong>Cardio:</strong> MET values (metabolic equivalent) and calories burned per km. Running burns ~70 kcal/km at 8-9 MET.</li>
-                  <li><strong>Team Sports:</strong> Average MET for intermittent activity with rest periods.</li>
-                </ul>
-              </div>
-
-              {/* Calisthenics */}
-              <div className="pt-2 border-t">
-                <h4 className="font-medium mb-1">Calisthenics (per rep)</h4>
-                <p className="text-xs text-muted-foreground mb-2">Based on % body weight lifted and range of motion</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  {EXERCISE_CATEGORIES.calisthenics.exercises
-                    .filter(type => XP_RATES[type] > 0)
-                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
-                    .map(type => (
-                      <div key={type} className="flex justify-between">
-                        <span>{EXERCISE_INFO[type]?.label || type}</span>
-                        <span className="text-primary">{XP_RATES[type]} XP</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* Cardio */}
-              <div className="pt-2 border-t">
-                <h4 className="font-medium mb-1">Cardio (per km)</h4>
-                <p className="text-xs text-muted-foreground mb-2">Based on MET values and energy expenditure</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  {EXERCISE_CATEGORIES.cardio.exercises
-                    .filter(type => XP_RATES[type] > 0)
-                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
-                    .map(type => (
-                      <div key={type} className="flex justify-between">
-                        <span>{EXERCISE_INFO[type]?.label || type}</span>
-                        <span className="text-primary">{XP_RATES[type]} XP</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* Team Sports */}
-              <div className="pt-2 border-t">
-                <h4 className="font-medium mb-1">Team Sports (per minute)</h4>
-                <p className="text-xs text-muted-foreground mb-2">Based on average MET for game activity</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  {EXERCISE_CATEGORIES.team_sports.exercises
-                    .filter(type => XP_RATES[type] > 0)
-                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
-                    .map(type => (
-                      <div key={type} className="flex justify-between">
-                        <span>{EXERCISE_INFO[type]?.label || type}</span>
-                        <span className="text-primary">{XP_RATES[type]} XP</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              <div className="pt-2 border-t">
-                <h4 className="font-medium mb-2">Leaderboard Rankings</h4>
-                <p className="text-xs text-muted-foreground">
-                  <strong>All:</strong> Ranked by total XP earned across all exercises.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  <strong>Exercise tabs:</strong> Ranked by total reps/km for that specific exercise.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              className="w-full mt-4"
-              onClick={() => setShowXpInfo(false)}
-            >
-              Got it
-            </Button>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }
