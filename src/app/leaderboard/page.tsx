@@ -171,7 +171,10 @@ export default function LeaderboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Rankings - shows first from cache */}
+        {/* Calisthenics Charts */}
+        <LeaderboardCharts firebaseUser={firebaseUser} />
+
+        {/* Rankings */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -263,9 +266,6 @@ export default function LeaderboardPage() {
             </Tabs>
           </CardContent>
         </Card>
-
-        {/* Calisthenics Charts - loads after rankings */}
-        <LeaderboardCharts firebaseUser={firebaseUser} />
       </div>
 
       {/* XP Info Modal */}
