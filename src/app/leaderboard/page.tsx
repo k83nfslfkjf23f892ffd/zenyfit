@@ -11,7 +11,7 @@ import { Trophy, Loader2, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
-import { EXERCISE_INFO } from '@shared/constants';
+import { EXERCISE_INFO, XP_RATES, EXERCISE_CATEGORIES } from '@shared/constants';
 
 // Dynamic import to avoid SSR issues with Recharts
 const LeaderboardCharts = dynamic(
@@ -171,10 +171,7 @@ export default function LeaderboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Calisthenics Charts - handles its own data fetching and caching */}
-        <LeaderboardCharts firebaseUser={firebaseUser} />
-
-        {/* Rankings */}
+        {/* Rankings - shows first from cache */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -266,6 +263,9 @@ export default function LeaderboardPage() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Calisthenics Charts - loads after rankings */}
+        <LeaderboardCharts firebaseUser={firebaseUser} />
       </div>
 
       {/* XP Info Modal */}
@@ -290,41 +290,67 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="space-y-4 text-sm">
-              <p className="text-muted-foreground">
-                XP is calculated based on <strong>biomechanical difficulty</strong> — how hard each exercise is on your body. Harder exercises earn more XP per rep.
-              </p>
+              {/* Methodology explanation */}
+              <div className="space-y-2">
+                <h4 className="font-medium">How We Calculate XP</h4>
+                <p className="text-xs text-muted-foreground">
+                  XP values are based on scientific measurements of exercise difficulty:
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
+                  <li><strong>Calisthenics:</strong> Body weight percentage moved per rep. Push-ups move ~64% of your body weight, pull-ups move 100%.</li>
+                  <li><strong>Cardio:</strong> MET values (metabolic equivalent) and calories burned per km. Running burns ~70 kcal/km at 8-9 MET.</li>
+                  <li><strong>Team Sports:</strong> Average MET for intermittent activity with rest periods.</li>
+                </ul>
+              </div>
 
-              <div>
-                <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
+              {/* Calisthenics */}
+              <div className="pt-2 border-t">
+                <h4 className="font-medium mb-1">Calisthenics (per rep)</h4>
+                <p className="text-xs text-muted-foreground mb-2">Based on % body weight lifted and range of motion</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Knee Push-ups</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Push-ups</span><span className="text-primary">3 XP</span></div>
-                  <div className="flex justify-between"><span>Diamond Push-ups</span><span className="text-primary">4 XP</span></div>
-                  <div className="flex justify-between"><span>Archer Push-ups</span><span className="text-primary">5 XP</span></div>
-                  <div className="flex justify-between"><span>Pull-ups</span><span className="text-primary">6 XP</span></div>
-                  <div className="flex justify-between"><span>Dips</span><span className="text-primary">6 XP</span></div>
-                  <div className="flex justify-between"><span>Ring Dips</span><span className="text-primary">7 XP</span></div>
-                  <div className="flex justify-between"><span>L-sit Pull-ups</span><span className="text-primary">8 XP</span></div>
-                  <div className="flex justify-between"><span>Muscle-ups</span><span className="text-primary">11 XP</span></div>
+                  {EXERCISE_CATEGORIES.calisthenics.exercises
+                    .filter(type => XP_RATES[type] > 0)
+                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
+                    .map(type => (
+                      <div key={type} className="flex justify-between">
+                        <span>{EXERCISE_INFO[type]?.label || type}</span>
+                        <span className="text-primary">{XP_RATES[type]} XP</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-2">Cardio (per km)</h4>
+              {/* Cardio */}
+              <div className="pt-2 border-t">
+                <h4 className="font-medium mb-1">Cardio (per km)</h4>
+                <p className="text-xs text-muted-foreground mb-2">Based on MET values and energy expenditure</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Walking</span><span className="text-primary">18 XP</span></div>
-                  <div className="flex justify-between"><span>Running</span><span className="text-primary">30 XP</span></div>
-                  <div className="flex justify-between"><span>Swimming</span><span className="text-primary">40 XP</span></div>
-                  <div className="flex justify-between"><span>Sprinting</span><span className="text-primary">50 XP</span></div>
+                  {EXERCISE_CATEGORIES.cardio.exercises
+                    .filter(type => XP_RATES[type] > 0)
+                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
+                    .map(type => (
+                      <div key={type} className="flex justify-between">
+                        <span>{EXERCISE_INFO[type]?.label || type}</span>
+                        <span className="text-primary">{XP_RATES[type]} XP</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-2">Team Sports (per minute)</h4>
+              {/* Team Sports */}
+              <div className="pt-2 border-t">
+                <h4 className="font-medium mb-1">Team Sports (per minute)</h4>
+                <p className="text-xs text-muted-foreground mb-2">Based on average MET for game activity</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Volleyball</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Basketball</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Soccer</span><span className="text-primary">2 XP</span></div>
+                  {EXERCISE_CATEGORIES.team_sports.exercises
+                    .filter(type => XP_RATES[type] > 0)
+                    .sort((a, b) => XP_RATES[a] - XP_RATES[b])
+                    .map(type => (
+                      <div key={type} className="flex justify-between">
+                        <span>{EXERCISE_INFO[type]?.label || type}</span>
+                        <span className="text-primary">{XP_RATES[type]} XP</span>
+                      </div>
+                    ))}
                 </div>
               </div>
 

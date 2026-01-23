@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const scope = searchParams.get('scope') || 'community';
     const range = searchParams.get('range') || 'weekly';
 
-    const now = Date.now();
+    const now = new Date();
     const userId = decodedToken.uid;
 
     // Calculate time range
@@ -39,18 +39,21 @@ export async function GET(request: NextRequest) {
 
     switch (range) {
       case 'daily':
-        startTime = now - 24 * 60 * 60 * 1000; // Last 24 hours
+        // Start of today at 00:00
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        startTime = todayStart.getTime();
         dateFormat = 'hour';
         numPeriods = 24;
         break;
       case 'monthly':
-        startTime = now - 30 * 24 * 60 * 60 * 1000; // Last 30 days
+        startTime = now.getTime() - 30 * 24 * 60 * 60 * 1000; // Last 30 days
         dateFormat = 'day';
         numPeriods = 30;
         break;
       case 'weekly':
       default:
-        startTime = now - 7 * 24 * 60 * 60 * 1000; // Last 7 days
+        startTime = now.getTime() - 7 * 24 * 60 * 60 * 1000; // Last 7 days
         dateFormat = 'day';
         numPeriods = 7;
         break;
@@ -72,16 +75,18 @@ export async function GET(request: NextRequest) {
 
     // Generate time period keys
     const periodKeys: string[] = [];
-    for (let i = 0; i < numPeriods; i++) {
-      const time = now - (numPeriods - 1 - i) * (dateFormat === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
-      const date = new Date(time);
-      let key: string;
-      if (dateFormat === 'hour') {
-        key = `${date.getHours()}:00`;
-      } else {
-        key = date.toISOString().split('T')[0];
+    if (dateFormat === 'hour') {
+      // For daily view, always show 00:00 through 23:00
+      for (let i = 0; i < 24; i++) {
+        periodKeys.push(`${i}:00`);
       }
-      periodKeys.push(key);
+    } else {
+      // For weekly/monthly, generate date keys
+      for (let i = 0; i < numPeriods; i++) {
+        const time = now.getTime() - (numPeriods - 1 - i) * 24 * 60 * 60 * 1000;
+        const date = new Date(time);
+        periodKeys.push(date.toISOString().split('T')[0]);
+      }
     }
 
     // Initialize data structures
