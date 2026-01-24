@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { type, amount, customExerciseId } = validation.data;
+    const sets = Math.min(Math.max(1, body.sets || 1), 20); // 1-20 sets max
 
     // For custom exercises, verify it exists and belongs to user
     let customExerciseName: string | undefined;
@@ -85,7 +86,9 @@ export async function POST(request: NextRequest) {
 
     // Calculate XP earned (server-side only) - custom exercises earn 0 XP
     const xpRate = type === 'custom' ? 0 : (XP_RATES[type as keyof typeof XP_RATES] || 0);
-    const xpEarned = Math.floor(amount * xpRate);
+    const xpPerSet = Math.floor(amount * xpRate);
+    const totalXpEarned = xpPerSet * sets;
+    const totalAmount = amount * sets;
 
     // Get current user data
     const userRef = db.collection('users').doc(userId);
@@ -105,35 +108,48 @@ export async function POST(request: NextRequest) {
       ? userData.totals
       : {
           ...userData.totals,
-          [type]: (userData.totals[type] || 0) + amount,
+          [type]: (userData.totals[type] || 0) + totalAmount,
         };
-    const newXp = userData.xp + xpEarned;
+    const newXp = userData.xp + totalXpEarned;
     const newLevel = calculateLevel(newXp);
 
-    // Create exercise log
-    const logRef = db.collection('exercise_logs').doc();
-    const logData: Record<string, unknown> = {
-      id: logRef.id,
-      userId,
-      type,
-      amount,
-      timestamp: Date.now(),
-      xpEarned,
-      synced: true,
-      isCustom: type === 'custom',
-    };
+    // Create exercise logs - one per set with slightly different timestamps
+    const baseTimestamp = Date.now();
+    const logRefs: FirebaseFirestore.DocumentReference[] = [];
+    const logDataList: Record<string, unknown>[] = [];
 
-    // Add custom exercise fields if applicable
-    if (type === 'custom') {
-      logData.customExerciseId = customExerciseId;
-      logData.customExerciseName = customExerciseName;
-      logData.customExerciseUnit = customExerciseUnit;
+    for (let i = 0; i < sets; i++) {
+      const logRef = db.collection('exercise_logs').doc();
+      logRefs.push(logRef);
+
+      const logData: Record<string, unknown> = {
+        id: logRef.id,
+        userId,
+        type,
+        amount,
+        timestamp: baseTimestamp + i, // Offset by 1ms per set to ensure unique timestamps
+        xpEarned: xpPerSet,
+        synced: true,
+        isCustom: type === 'custom',
+      };
+
+      // Add custom exercise fields if applicable
+      if (type === 'custom') {
+        logData.customExerciseId = customExerciseId;
+        logData.customExerciseName = customExerciseName;
+        logData.customExerciseUnit = customExerciseUnit;
+      }
+
+      logDataList.push(logData);
     }
 
-    // Use a batch write to update user and create log atomically
+    // Use a batch write to update user and create all logs atomically
     const batch = db.batch();
 
-    batch.set(logRef, logData);
+    for (let i = 0; i < logRefs.length; i++) {
+      batch.set(logRefs[i], logDataList[i]);
+    }
+
     batch.update(userRef, {
       totals: newTotals,
       xp: newXp,
@@ -168,7 +184,7 @@ export async function POST(request: NextRequest) {
 
           if (participantIndex !== -1) {
             participants[participantIndex].progress =
-              (participants[participantIndex].progress || 0) + amount;
+              (participants[participantIndex].progress || 0) + totalAmount;
 
             challengeUpdates.push(
               challengeDoc.ref.update({
@@ -189,8 +205,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        log: logData,
-        xpEarned,
+        log: logDataList[logDataList.length - 1], // Return last log for undo
+        logs: logDataList,
+        sets,
+        amountPerSet: amount,
+        totalAmount,
+        xpEarned: totalXpEarned,
+        xpPerSet: xpPerSet,
         newXp,
         newLevel,
         leveledUp: newLevel > userData.level,

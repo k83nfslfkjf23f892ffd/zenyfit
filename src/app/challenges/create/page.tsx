@@ -11,13 +11,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { EXERCISE_INFO, CALISTHENICS_BASE_TYPES } from '@shared/constants';
 
-const EXERCISE_TYPES = [
-  { id: 'pullups', name: 'Pull-ups', unit: 'reps' },
-  { id: 'pushups', name: 'Push-ups', unit: 'reps' },
-  { id: 'dips', name: 'Dips', unit: 'reps' },
-  { id: 'running', name: 'Running', unit: 'km' },
+// Base exercise categories for challenge creation
+const EXERCISE_CATEGORIES = [
+  { id: 'pullups', name: 'Pull-ups', unit: 'reps', hasVariants: true },
+  { id: 'pushups', name: 'Push-ups', unit: 'reps', hasVariants: true },
+  { id: 'dips', name: 'Dips', unit: 'reps', hasVariants: true },
+  { id: 'running', name: 'Running', unit: 'km', hasVariants: false },
 ];
+
+type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
 
 export default function CreateChallengePage() {
   const router = useRouter();
@@ -25,11 +29,36 @@ export default function CreateChallengePage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('pullups');
+  const [baseType, setBaseType] = useState('pullups');
+  const [selectedVariant, setSelectedVariant] = useState('pullups');
   const [goal, setGoal] = useState('');
   const [duration, setDuration] = useState('7');
   const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Check if current base type has variants
+  const hasVariants = baseType in CALISTHENICS_BASE_TYPES;
+  const variants = hasVariants
+    ? CALISTHENICS_BASE_TYPES[baseType as BaseExerciseType].variations
+    : [];
+
+  // When base type changes, update selected variant
+  useEffect(() => {
+    if (hasVariants) {
+      const baseConfig = CALISTHENICS_BASE_TYPES[baseType as BaseExerciseType];
+      if (baseConfig && !(baseConfig.variations as readonly string[]).includes(selectedVariant)) {
+        setSelectedVariant(baseConfig.variations[0]);
+      }
+    } else {
+      setSelectedVariant(baseType);
+    }
+  }, [baseType, hasVariants, selectedVariant]);
+
+  // Get the actual exercise type to use
+  const getActiveType = () => {
+    if (hasVariants) return selectedVariant;
+    return baseType;
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -68,7 +97,7 @@ export default function CreateChallengePage() {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          type,
+          type: getActiveType(),
           goal: parseInt(goal),
           duration: parseInt(duration),
           isPublic,
@@ -104,7 +133,9 @@ export default function CreateChallengePage() {
     return null;
   }
 
-  const selectedType = EXERCISE_TYPES.find((t) => t.id === type);
+  const selectedCategory = EXERCISE_CATEGORIES.find((t) => t.id === baseType);
+  const activeType = getActiveType();
+  const activeTypeInfo = EXERCISE_INFO[activeType];
 
   return (
     <AppLayout>
@@ -156,31 +187,69 @@ export default function CreateChallengePage() {
               <div className="space-y-2">
                 <Label>Exercise Type</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {EXERCISE_TYPES.map((exerciseType) => (
+                  {EXERCISE_CATEGORIES.map((category) => (
                     <Button
-                      key={exerciseType.id}
+                      key={category.id}
                       type="button"
-                      variant={type === exerciseType.id ? 'default' : 'outline'}
-                      onClick={() => setType(exerciseType.id)}
+                      variant={baseType === category.id ? 'default' : 'outline'}
+                      onClick={() => setBaseType(category.id)}
                       disabled={submitting}
                       className="w-full"
                     >
-                      {exerciseType.name}
+                      {category.name}
                     </Button>
                   ))}
                 </div>
+
+                {/* Variant selector for calisthenics */}
+                {hasVariants && variants.length > 1 && (
+                  <div className="mt-3">
+                    <Label className="text-xs text-muted-foreground mb-2 block">Variation</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {variants.map((variant) => {
+                        const variantInfo = EXERCISE_INFO[variant];
+                        const baseLabel = CALISTHENICS_BASE_TYPES[baseType as BaseExerciseType]?.label || '';
+                        // Shorten the label by removing the base type name
+                        const shortLabel = variantInfo?.label
+                          .replace(` ${baseLabel}`, '')
+                          .replace(baseLabel, 'Standard') || variant;
+
+                        return (
+                          <Button
+                            key={variant}
+                            type="button"
+                            variant={selectedVariant === variant ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedVariant(variant)}
+                            disabled={submitting}
+                            className="text-xs h-7"
+                          >
+                            {shortLabel}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show selected exercise info */}
+                {activeTypeInfo && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Selected: <span className="font-medium text-foreground">{activeTypeInfo.label}</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="goal">
-                  Goal ({selectedType?.unit || 'reps'})
+                  Goal ({activeTypeInfo?.unit || selectedCategory?.unit || 'reps'})
                 </Label>
                 <Input
                   id="goal"
                   type="number"
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
-                  placeholder={`e.g., ${type === 'running' ? '50' : '100'}`}
+                  placeholder={`e.g., ${baseType === 'running' ? '50' : '100'}`}
                   min="1"
                   required
                   disabled={submitting}

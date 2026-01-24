@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Target, Plus, Clock, Users } from 'lucide-react';
+import { Target, Plus, Clock, Users, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ChallengesSkeleton, Skeleton, SkeletonAvatar } from '@/components/ui/skeleton';
+import { EXERCISE_INFO } from '@shared/constants';
 
 interface Challenge {
   id: string;
@@ -26,13 +26,59 @@ interface Challenge {
   participantIds: string[];
 }
 
+// Cache helpers
+const CACHE_KEY = 'zenyfit_challenges';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+interface CacheEntry {
+  challenges: Challenge[];
+  timestamp: number;
+}
+
+function getCached(filter: string): Challenge[] | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached) as Record<string, CacheEntry>;
+    const entry = data[filter];
+    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+      return entry.challenges;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function setCache(filter: string, challenges: Challenge[]) {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    const data = cached ? JSON.parse(cached) : {};
+    data[filter] = { challenges, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore errors
+  }
+}
+
 export default function ChallengesPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [challenges, setChallenges] = useState<Challenge[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getCached('my') || [];
+    }
+    return [];
+  });
+  const [loadingChallenges, setLoadingChallenges] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCached('my');
+    }
+    return true;
+  });
+  const [updating, setUpdating] = useState(false);
   const [, setTick] = useState(0);
 
   // Real-time timer update every second
@@ -49,8 +95,22 @@ export default function ChallengesPage() {
     }
   }, [user, loading, router]);
 
-  const fetchChallenges = useCallback(async (filter: 'my' | 'public') => {
-    setLoadingChallenges(true);
+  const fetchChallenges = useCallback(async (filter: 'my' | 'public', skipCache = false) => {
+    // Try cache first
+    if (!skipCache) {
+      const cached = getCached(filter);
+      if (cached) {
+        setChallenges(cached);
+        setLoadingChallenges(false);
+        setUpdating(true);
+        fetchChallenges(filter, true);
+        return;
+      }
+    }
+
+    if (!skipCache) {
+      setLoadingChallenges(true);
+    }
 
     try {
       const token = await firebaseUser?.getIdToken();
@@ -64,15 +124,20 @@ export default function ChallengesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setChallenges(data.challenges || []);
-      } else {
+        const newChallenges = data.challenges || [];
+        setChallenges(newChallenges);
+        setCache(filter, newChallenges);
+      } else if (!getCached(filter)) {
         toast.error('Failed to load challenges');
       }
     } catch (error) {
       console.error('Error fetching challenges:', error);
-      toast.error('An error occurred');
+      if (!getCached(filter)) {
+        toast.error('An error occurred');
+      }
     } finally {
       setLoadingChallenges(false);
+      setUpdating(false);
     }
   }, [firebaseUser]);
 
@@ -113,15 +178,8 @@ export default function ChallengesPage() {
     return participant?.progress || 0;
   };
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <ChallengesSkeleton />
-      </AppLayout>
-    );
-  }
-
-  if (!user) {
+  // Don't block render for auth loading - show cached content immediately
+  if (!loading && !user) {
     return null;
   }
 
@@ -130,7 +188,14 @@ export default function ChallengesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Challenges</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold">Challenges</h1>
+              {updating && (
+                <span className="text-xs text-muted-foreground animate-pulse">
+                  Updating...
+                </span>
+              )}
+            </div>
             <p className="text-muted-foreground">Compete and push your limits</p>
           </div>
           <Button asChild>
@@ -149,38 +214,8 @@ export default function ChallengesPage() {
 
           <TabsContent value={activeTab} className="mt-6 space-y-4">
             {loadingChallenges ? (
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <Card key={i}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-5 w-48" />
-                          <Skeleton className="h-4 w-full max-w-xs" />
-                        </div>
-                        <Skeleton className="h-6 w-16 rounded-full" />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-20" />
-                      </div>
-                      <Skeleton className="h-2 w-full" />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-2">
-                            {[...Array(3)].map((_, j) => (
-                              <SkeletonAvatar key={j} className="h-6 w-6 border-2 border-background" />
-                            ))}
-                          </div>
-                          <Skeleton className="h-4 w-24" />
-                        </div>
-                        <Skeleton className="h-8 w-24" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : challenges.length === 0 ? (
               <Card>
@@ -198,7 +233,7 @@ export default function ChallengesPage() {
                 const timeRemaining = formatTimeRemaining(challenge.endDate);
                 const userProgress = getUserProgress(challenge);
                 const progressPercent = (userProgress / challenge.goal) * 100;
-                const isParticipant = challenge.participantIds.includes(user.id);
+                const isParticipant = user ? challenge.participantIds.includes(user.id) : false;
 
                 return (
                   <Link key={challenge.id} href={`/challenges/${challenge.id}`}>
@@ -225,7 +260,7 @@ export default function ChallengesPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <Target className="h-4 w-4 text-muted-foreground" />
-                            <span className="capitalize">{challenge.type}</span>
+                            <span>{EXERCISE_INFO[challenge.type]?.label || challenge.type}</span>
                           </div>
                           <div className="flex items-center gap-1 justify-end">
                             <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />

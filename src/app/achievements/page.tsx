@@ -47,6 +47,7 @@ export default function AchievementsPage() {
     }
     return true;
   });
+  const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState<Category>('workout');
 
   useEffect(() => {
@@ -55,7 +56,19 @@ export default function AchievementsPage() {
     }
   }, [user, loading, router]);
 
-  const fetchAchievements = useCallback(async () => {
+  const fetchAchievements = useCallback(async (skipCache = false) => {
+    // Try cache first
+    if (!skipCache) {
+      const cached = getCachedAchievements();
+      if (cached) {
+        setUnlockedIds(cached);
+        setLoadingAchievements(false);
+        setUpdating(true);
+        fetchAchievements(true);
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -76,6 +89,7 @@ export default function AchievementsPage() {
       console.error('Error fetching achievements:', error);
     } finally {
       setLoadingAchievements(false);
+      setUpdating(false);
     }
   }, [firebaseUser]);
 
@@ -85,15 +99,8 @@ export default function AchievementsPage() {
     }
   }, [user, firebaseUser, fetchAchievements]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
+  // Don't block render for auth loading - show cached content immediately
+  if (!loading && !user) {
     return null;
   }
 
@@ -114,6 +121,9 @@ export default function AchievementsPage() {
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Award className="h-8 w-8" />
             Achievements
+            {updating && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
           </h1>
           <p className="text-muted-foreground mt-1">
             {totalUnlocked} / {totalAchievements} unlocked

@@ -29,28 +29,31 @@ export async function GET(request: NextRequest) {
     const scope = searchParams.get('scope') || 'community';
     const range = searchParams.get('range') || 'weekly';
 
-    const now = Date.now();
+    const now = new Date();
     const userId = decodedToken.uid;
 
     // Calculate time range
     let startTime: number;
-    let dateFormat: 'hour' | 'day' | 'week';
+    let dateFormat: 'halfhour' | 'day' | 'week';
     let numPeriods: number;
 
     switch (range) {
       case 'daily':
-        startTime = now - 24 * 60 * 60 * 1000; // Last 24 hours
-        dateFormat = 'hour';
-        numPeriods = 24;
+        // Start of today at 00:00
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        startTime = todayStart.getTime();
+        dateFormat = 'halfhour';
+        numPeriods = 48; // 30-minute intervals
         break;
       case 'monthly':
-        startTime = now - 30 * 24 * 60 * 60 * 1000; // Last 30 days
+        startTime = now.getTime() - 30 * 24 * 60 * 60 * 1000; // Last 30 days
         dateFormat = 'day';
         numPeriods = 30;
         break;
       case 'weekly':
       default:
-        startTime = now - 7 * 24 * 60 * 60 * 1000; // Last 7 days
+        startTime = now.getTime() - 7 * 24 * 60 * 60 * 1000; // Last 7 days
         dateFormat = 'day';
         numPeriods = 7;
         break;
@@ -72,16 +75,20 @@ export async function GET(request: NextRequest) {
 
     // Generate time period keys
     const periodKeys: string[] = [];
-    for (let i = 0; i < numPeriods; i++) {
-      const time = now - (numPeriods - 1 - i) * (dateFormat === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
-      const date = new Date(time);
-      let key: string;
-      if (dateFormat === 'hour') {
-        key = `${date.getHours()}:00`;
-      } else {
-        key = date.toISOString().split('T')[0];
+    if (dateFormat === 'halfhour') {
+      // For daily view, show 30-minute intervals: 0:00, 0:30, 1:00, 1:30, ... 23:30
+      for (let i = 0; i < 48; i++) {
+        const hour = Math.floor(i / 2);
+        const minute = (i % 2) * 30;
+        periodKeys.push(`${hour}:${minute.toString().padStart(2, '0')}`);
       }
-      periodKeys.push(key);
+    } else {
+      // For weekly/monthly, generate date keys
+      for (let i = 0; i < numPeriods; i++) {
+        const time = now.getTime() - (numPeriods - 1 - i) * 24 * 60 * 60 * 1000;
+        const date = new Date(time);
+        periodKeys.push(date.toISOString().split('T')[0]);
+      }
     }
 
     // Initialize data structures
@@ -117,8 +124,11 @@ export async function GET(request: NextRequest) {
 
       // Get period key
       let periodKey: string;
-      if (dateFormat === 'hour') {
-        periodKey = `${date.getHours()}:00`;
+      if (dateFormat === 'halfhour') {
+        // Round down to nearest 30-minute interval
+        const hour = date.getHours();
+        const minute = date.getMinutes() < 30 ? '00' : '30';
+        periodKey = `${hour}:${minute}`;
       } else {
         periodKey = date.toISOString().split('T')[0];
       }

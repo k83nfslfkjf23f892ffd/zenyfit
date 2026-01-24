@@ -31,7 +31,7 @@ ZenyFit is built on these fundamental principles:
 
 When working with this codebase, Claude should:
 - **Ask for clarification** when requirements are ambiguous or more context is needed
-- **Say "I don't know"** when genuinely uncertain rather than guessing or making assumptions
+- **Say "I don't know" or "I don't fully understand"** - this is ALWAYS acceptable and preferred over guessing or making assumptions. Honesty about uncertainty leads to better outcomes.
 - **Flag potential issues** before implementing changes
 - **Suggest alternatives** when a better approach exists
 - **Be honest about limitations** - accuracy over assumptions

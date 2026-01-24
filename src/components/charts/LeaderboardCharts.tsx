@@ -16,16 +16,16 @@ import {
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
 
-// Colors for different exercises
+// Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
-  pushups: 'hsl(var(--primary))',
-  pullups: 'hsl(var(--chart-2))',
-  dips: 'hsl(var(--chart-3))',
-  muscleups: 'hsl(var(--chart-4))',
-  chinups: 'hsl(var(--chart-5))',
+  pushups: 'rgb(var(--primary))',
+  pullups: 'rgb(var(--secondary))',
+  dips: 'rgb(var(--accent))',
+  muscleups: 'rgb(var(--primary) / 0.7)',
+  chinups: 'rgb(var(--secondary) / 0.7)',
 };
 
-const DEFAULT_COLOR = 'hsl(var(--primary))';
+const DEFAULT_COLOR = 'rgb(var(--primary))';
 
 interface ChartData {
   scope: 'personal' | 'community';
@@ -327,20 +327,20 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
               <AreaChart data={data.activity}>
                 <defs>
                   <linearGradient id="repsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="rgb(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                 <XAxis
                   dataKey="period"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
                   tickFormatter={formatPeriod}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                   axisLine={false}
                   tickLine={false}
@@ -350,7 +350,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 <Area
                   type="monotone"
                   dataKey="reps"
-                  stroke="hsl(var(--primary))"
+                  stroke="rgb(var(--primary))"
                   strokeWidth={2}
                   fill="url(#repsGradient)"
                   animationDuration={400}
@@ -369,7 +369,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                   axisLine={false}
                   tickLine={false}
@@ -377,7 +377,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   width={70}
@@ -386,7 +386,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
-                  fill="hsl(var(--primary))"
+                  fill="rgb(var(--primary))"
                   animationDuration={400}
                 >
                   {data.exerciseTotals.slice(0, 6).map((entry) => (
