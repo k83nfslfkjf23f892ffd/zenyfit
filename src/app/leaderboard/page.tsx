@@ -18,8 +18,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Trophy, Loader2, Info, X } from 'lucide-react';
+import { Trophy, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -59,7 +58,7 @@ function getCachedRankings(type: string): Ranking[] | null {
       return entry.rankings;
     }
   } catch {
-    // ignore
+    // ignore cache errors
   }
   return null;
 }
@@ -71,7 +70,7 @@ function setCachedRankings(type: string, rankings: Ranking[]) {
     existing[type] = { rankings, timestamp: Date.now() };
     localStorage.setItem(RANKINGS_CACHE_KEY, JSON.stringify(existing));
   } catch {
-    // ignore
+    // ignore cache errors
   }
 }
 
@@ -93,7 +92,6 @@ export default function LeaderboardPage() {
     return true;
   });
   const [updating, setUpdating] = useState(false);
-  const [showXpInfo, setShowXpInfo] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -137,8 +135,8 @@ export default function LeaderboardPage() {
         } else if (!getCachedRankings(type)) {
           toast.error('Failed to load leaderboard');
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
         if (!getCachedRankings(type)) {
           toast.error('An error occurred');
         }
@@ -176,18 +174,20 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)}
-                  className="text-muted-foreground/60 hover:text-muted-foreground"
+                  onClick={() => router.push('/leaderboard/xp-info')}
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
                 </button>
               </CardTitle>
+
               {updating && (
                 <span className="text-xs text-muted-foreground animate-pulse">
                   Updating...
                 </span>
               )}
             </div>
+
             <CardDescription>
               Compete with other users and climb the ranks
             </CardDescription>
@@ -209,7 +209,7 @@ export default function LeaderboardPage() {
               <TabsContent value={activeTab} className="mt-4 space-y-3">
                 {loadingRankings ? (
                   <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : rankings.length === 0 ? (
                   <p className="py-12 text-center text-sm text-muted-foreground">
@@ -233,7 +233,7 @@ export default function LeaderboardPage() {
                             : ''
                         }`}
                       >
-                        <div className="h-12 w-12 rounded-full overflow-hidden bg-muted">
+                        <div className="h-12 w-12 overflow-hidden rounded-full bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={avatarUrl}
@@ -242,7 +242,7 @@ export default function LeaderboardPage() {
                           />
                         </div>
 
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="font-semibold truncate">
                             {ranking.username}
                           </div>
@@ -270,32 +270,6 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {showXpInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowXpInfo(false)}
-        >
-          <div
-            className="bg-background border rounded-lg p-5 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-semibold">How XP Works</h3>
-              <button onClick={() => setShowXpInfo(false)}>
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <Button
-              className="w-full mt-4"
-              onClick={() => setShowXpInfo(false)}
-            >
-              Got it
-            </Button>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }
