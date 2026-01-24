@@ -7,8 +7,8 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Loader2, Info, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Trophy, Loader2, Info, X } from 'lucide-react'; // FIXED: Added X
+import { Button } from '@/components/ui/button';       // FIXED: Added Button
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -65,6 +65,8 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
+  // FIXED: Added state for the modal
+  const [showXpInfo, setShowXpInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>(() => {
     // Load cached rankings on initial render
@@ -81,7 +83,6 @@ export default function LeaderboardPage() {
     return true;
   });
   const [updating, setUpdating] = useState(false);
-  const [showXpInfo, setShowXpInfo] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -147,17 +148,8 @@ export default function LeaderboardPage() {
     }
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!user) {
+  // Don't block render for auth loading - show cached content immediately
+  if (!loading && !user) {
     return null;
   }
 
@@ -171,7 +163,7 @@ export default function LeaderboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Calisthenics Charts - handles its own data fetching and caching */}
+        {/* Calisthenics Charts */}
         <LeaderboardCharts firebaseUser={firebaseUser} />
 
         {/* Rankings */}
@@ -183,7 +175,7 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)}
+                  onClick={() => setShowXpInfo(true)} // FIXED: Triggers modal instead of router push
                   className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
@@ -220,7 +212,7 @@ export default function LeaderboardPage() {
                   </p>
                 ) : (
                   rankings.map((ranking) => {
-                    const isCurrentUser = ranking.id === user.id;
+                    const isCurrentUser = user ? ranking.id === user.id : false;
                     const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
                     return (
                       <div
