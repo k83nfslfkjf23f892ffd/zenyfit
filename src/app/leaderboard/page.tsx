@@ -145,17 +145,8 @@ export default function LeaderboardPage() {
     }
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!user) {
+  // Don't block render for auth loading - show cached content immediately
+  if (!loading && !user) {
     return null;
   }
 
@@ -218,7 +209,7 @@ export default function LeaderboardPage() {
                   </p>
                 ) : (
                   rankings.map((ranking) => {
-                    const isCurrentUser = ranking.id === user.id;
+                    const isCurrentUser = user ? ranking.id === user.id : false;
                     const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
                     return (
                       <div

@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
+import { EXERCISE_INFO } from '@shared/constants';
 
 interface Challenge {
   id: string;
@@ -25,20 +26,58 @@ interface Challenge {
   createdBy: string;
 }
 
+// Cache helpers
+const CACHE_KEY_PREFIX = 'zenyfit_challenge_';
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+function getCachedChallenge(id: string): Challenge | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_PREFIX + id);
+    if (!cached) return null;
+    const data = JSON.parse(cached);
+    if (data && Date.now() - data.timestamp < CACHE_TTL) {
+      return data.challenge;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function setCachedChallenge(id: string, challenge: Challenge) {
+  try {
+    localStorage.setItem(CACHE_KEY_PREFIX + id, JSON.stringify({ challenge, timestamp: Date.now() }));
+  } catch {
+    // Ignore errors
+  }
+}
+
 export default function ChallengeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [loadingChallenge, setLoadingChallenge] = useState(true);
-  const [joining, setJoining] = useState(false);
   const [challengeId, setChallengeId] = useState<string>('');
+  const [challenge, setChallenge] = useState<Challenge | null>(() => {
+    // Can't access challengeId yet, will be set in useEffect
+    return null;
+  });
+  const [loadingChallenge, setLoadingChallenge] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    params.then((p) => setChallengeId(p.id));
+    params.then((p) => {
+      setChallengeId(p.id);
+      // Load cached data immediately
+      const cached = getCachedChallenge(p.id);
+      if (cached) {
+        setChallenge(cached);
+        setLoadingChallenge(false);
+      }
+    });
   }, [params]);
 
   useEffect(() => {
@@ -47,7 +86,19 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     }
   }, [user, loading, router]);
 
-  const fetchChallenge = useCallback(async () => {
+  const fetchChallenge = useCallback(async (skipCache = false) => {
+    // Try cache first
+    if (!skipCache) {
+      const cached = getCachedChallenge(challengeId);
+      if (cached) {
+        setChallenge(cached);
+        setLoadingChallenge(false);
+        setUpdating(true);
+        fetchChallenge(true);
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -61,15 +112,19 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
       if (response.ok) {
         const data = await response.json();
         setChallenge(data.challenge);
-      } else {
+        setCachedChallenge(challengeId, data.challenge);
+      } else if (!getCachedChallenge(challengeId)) {
         toast.error('Challenge not found');
         router.push('/challenges');
       }
     } catch (error) {
       console.error('Error fetching challenge:', error);
-      toast.error('An error occurred');
+      if (!getCachedChallenge(challengeId)) {
+        toast.error('An error occurred');
+      }
     } finally {
       setLoadingChallenge(false);
+      setUpdating(false);
     }
   }, [firebaseUser, challengeId, router]);
 
@@ -138,22 +193,28 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     setPullDistance(0);
   };
 
-  if (loading || loadingChallenge) {
+  // Don't block render for auth loading - show cached content immediately
+  if (!loading && !user) {
+    return null;
+  }
+
+  // Show loading only if no cached data
+  if (loadingChallenge && !challenge) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
     );
   }
 
-  if (!user || !challenge) {
+  if (!challenge) {
     return null;
   }
 
   const daysRemaining = Math.ceil((challenge.endDate - Date.now()) / (1000 * 60 * 60 * 24));
-  const isParticipant = challenge.participantIds.includes(user.id);
+  const isParticipant = user ? challenge.participantIds.includes(user.id) : false;
   const sortedParticipants = [...challenge.participants].sort((a, b) => b.progress - a.progress);
 
   return (
@@ -198,7 +259,12 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-2xl">{challenge.title}</CardTitle>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  {challenge.title}
+                  {updating && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </CardTitle>
                 {challenge.description && (
                   <CardDescription className="mt-2">{challenge.description}</CardDescription>
                 )}
@@ -213,12 +279,12 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold capitalize">{challenge.type}</div>
+                <div className="text-2xl font-bold">{EXERCISE_INFO[challenge.type]?.label || challenge.type}</div>
                 <div className="text-xs text-muted-foreground">Exercise</div>
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {challenge.goal} {challenge.type === 'running' ? 'km' : 'reps'}
+                  {challenge.goal} {EXERCISE_INFO[challenge.type]?.unit || 'reps'}
                 </div>
                 <div className="text-xs text-muted-foreground">Goal</div>
               </div>
@@ -251,7 +317,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           <CardContent className="space-y-3">
             {sortedParticipants.map((participant) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
-              const isCurrentUser = participant.userId === user.id;
+              const isCurrentUser = user ? participant.userId === user.id : false;
 
               return (
                 <div

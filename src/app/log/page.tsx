@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, Info, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 
@@ -155,15 +155,24 @@ export default function LogPage() {
   const [sets, setSets] = useState('3');
   const [reps, setReps] = useState('');
 
-  // Recent workouts
-  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
+  // Recent workouts (with cache)
+  const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>(() => {
+    if (typeof window !== 'undefined') {
+      return getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+    }
+    return [];
+  });
+  const [loadingRecent, setLoadingRecent] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts);
+    }
+    return true;
+  });
+  const [updatingRecent, setUpdatingRecent] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteMode, setDeleteMode] = useState(false);
   const [workoutToDelete, setWorkoutToDelete] = useState<RecentWorkout | null>(null);
 
-  // XP Info modal
-  const [showXpInfo, setShowXpInfo] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if current selection is calisthenics
@@ -178,7 +187,7 @@ export default function LogPage() {
 
   // Lock scroll when dialogs are open
   useEffect(() => {
-    if (setsRepsModal?.open || showXpInfo || workoutToDelete) {
+    if (setsRepsModal?.open || workoutToDelete) {
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
     } else {
@@ -189,7 +198,7 @@ export default function LogPage() {
       document.body.style.overflow = '';
       document.body.style.touchAction = '';
     };
-  }, [setsRepsModal, showXpInfo, workoutToDelete]);
+  }, [setsRepsModal, workoutToDelete]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -268,24 +277,39 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchCustomExercises]);
 
-  // Fetch recent workouts
-  const fetchRecentWorkouts = useCallback(async () => {
+  // Fetch recent workouts (cache-first)
+  const fetchRecentWorkouts = useCallback(async (skipCache = false) => {
+    // Try cache first
+    if (!skipCache) {
+      const cached = getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts);
+      if (cached) {
+        setRecentWorkouts(cached);
+        setLoadingRecent(false);
+        setUpdatingRecent(true);
+        fetchRecentWorkouts(true);
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
 
-      const response = await fetch('/api/workouts?limit=10', {
+      const response = await fetch('/api/workouts?limit=7', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setRecentWorkouts(data.logs || []);
+        const workouts = data.logs || [];
+        setRecentWorkouts(workouts);
+        setCache(STORAGE_KEYS.recentWorkouts, workouts);
       }
     } catch (error) {
       console.error('Error fetching recent workouts:', error);
     } finally {
       setLoadingRecent(false);
+      setUpdatingRecent(false);
     }
   }, [firebaseUser]);
 
@@ -514,18 +538,20 @@ export default function LogPage() {
     }
   };
 
-  if (loading) {
+  // Don't block render for auth loading
+  if (!loading && !user) {
+    return null;
+  }
+
+  // Show minimal loading while user is being fetched
+  if (!user) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const activeExercise = getActiveExercise();
@@ -588,7 +614,22 @@ export default function LogPage() {
                   <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
                     {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-4 w-4" />}
                   </div>
-                  <div className="font-semibold">{exerciseLabel}</div>
+                  {/* Exercise name with variant dropdown */}
+                  {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
+                    <select
+                      value={selectedVariation}
+                      onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
+                      className="font-semibold bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer text-foreground appearance-none pr-5 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0_center]"
+                    >
+                      {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                        <option key={variation} value={variation}>
+                          {EXERCISE_INFO[variation]?.label || variation}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="font-semibold">{exerciseLabel}</div>
+                  )}
                 </div>
                 {lastWorkout && (
                   <Button
@@ -606,23 +647,6 @@ export default function LogPage() {
                   </Button>
                 )}
               </div>
-              {/* Variation selector for calisthenics */}
-              {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                    <Button
-                      key={variation}
-                      type="button"
-                      variant={selectedVariation === variation ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedVariation(variation as ExerciseType)}
-                      className="text-xs h-7 px-2"
-                    >
-                      {EXERCISE_INFO[variation]?.label.replace(` ${CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label}`, '').replace(CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.label, 'Standard') || variation}
-                    </Button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Session Total Display */}
@@ -664,15 +688,8 @@ export default function LogPage() {
 
             {/* Quick Add Section */}
             <div className="px-4 pb-4">
-              <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="flex items-center justify-center mb-2">
                 <span className="text-xs font-medium text-muted-foreground">Quick Add</span>
-                <button
-                  type="button"
-                  onClick={() => setShowXpInfo(true)}
-                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
               </div>
 
               {/* Calisthenics 3-row layout */}
@@ -768,7 +785,12 @@ export default function LogPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Recent Logs</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">Recent Logs</h3>
+                {updatingRecent && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                )}
+              </div>
               {recentWorkouts.length > 0 && (
                 <Button
                   variant={deleteMode ? 'default' : 'ghost'}
@@ -893,77 +915,6 @@ export default function LogPage() {
                 Log {(parseInt(sets) || 0) * (parseFloat(reps) || 0)} {getUnitLabel()}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* XP Info Modal */}
-      {showXpInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowXpInfo(false)}
-        >
-          <div
-            className="bg-background border rounded-lg p-5 max-w-md w-full shadow-lg max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">How XP Works</h3>
-              <button
-                type="button"
-                onClick={() => setShowXpInfo(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-sm">
-              <p className="text-muted-foreground">
-                XP is calculated based on <strong>biomechanical difficulty</strong> — how hard each exercise is on your body.
-              </p>
-
-              <div>
-                <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Knee Push-ups</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Push-ups</span><span className="text-primary">3 XP</span></div>
-                  <div className="flex justify-between"><span>Diamond Push-ups</span><span className="text-primary">4 XP</span></div>
-                  <div className="flex justify-between"><span>Archer Push-ups</span><span className="text-primary">5 XP</span></div>
-                  <div className="flex justify-between"><span>Pull-ups</span><span className="text-primary">6 XP</span></div>
-                  <div className="flex justify-between"><span>Dips</span><span className="text-primary">6 XP</span></div>
-                  <div className="flex justify-between"><span>Ring Dips</span><span className="text-primary">7 XP</span></div>
-                  <div className="flex justify-between"><span>L-sit Pull-ups</span><span className="text-primary">8 XP</span></div>
-                  <div className="flex justify-between"><span>Muscle-ups</span><span className="text-primary">11 XP</span></div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Cardio (per km)</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Walking</span><span className="text-primary">18 XP</span></div>
-                  <div className="flex justify-between"><span>Running</span><span className="text-primary">30 XP</span></div>
-                  <div className="flex justify-between"><span>Swimming</span><span className="text-primary">40 XP</span></div>
-                  <div className="flex justify-between"><span>Sprinting</span><span className="text-primary">50 XP</span></div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Team Sports (per minute)</h4>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span>Volleyball</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Basketball</span><span className="text-primary">2 XP</span></div>
-                  <div className="flex justify-between"><span>Soccer</span><span className="text-primary">2 XP</span></div>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              className="w-full mt-4"
-              onClick={() => setShowXpInfo(false)}
-            >
-              Got it
-            </Button>
           </div>
         </div>
       )}

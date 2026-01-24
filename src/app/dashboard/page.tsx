@@ -20,18 +20,20 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  // Don't block render for auth loading
+  if (!loading && !user) {
+    return null;
+  }
+
+  // Show minimal content while loading
+  if (!user) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
