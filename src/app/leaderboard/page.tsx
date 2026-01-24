@@ -3,17 +3,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import Image from 'next/image'; // Fixed: Replaced img with Next.js Image
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Loader2, Info, X } from 'lucide-react'; // Fixed: Added X
 import { Button } from '@/components/ui/button';       // Fixed: Added Button
-import { toast } from 'sonner';
+// Removed unused 'toast' import to fix ESLint warning
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 
-// Dynamic import to avoid SSR issues with Recharts
 const LeaderboardCharts = dynamic(
   () => import('@/components/charts/LeaderboardCharts').then(mod => mod.LeaderboardCharts),
   { ssr: false }
@@ -31,9 +31,8 @@ interface Ranking {
   score: number;
 }
 
-// Cache for rankings
 const RANKINGS_CACHE_KEY = 'zenyfit_rankings_cache';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 2 * 60 * 1000;
 
 function getCachedRankings(type: string): Ranking[] | null {
   try {
@@ -56,36 +55,28 @@ function setCachedRankings(type: string, rankings: Ranking[]) {
     const existing = cached ? JSON.parse(cached) : {};
     existing[type] = { rankings, timestamp: Date.now() };
     localStorage.setItem(RANKINGS_CACHE_KEY, JSON.stringify(existing));
-  } catch {
-    // Ignore
-  }
+  } catch { /* ignore */ }
 }
 
 export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
-
+  
   // State
-  const [showXpInfo, setShowXpInfo] = useState(false); // Fixed: Added missing state
+  const [showXpInfo, setShowXpInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>(() => {
-    if (typeof window !== 'undefined') {
-      return getCachedRankings('xp') || [];
-    }
+    if (typeof window !== 'undefined') return getCachedRankings('xp') || [];
     return [];
   });
   const [loadingRankings, setLoadingRankings] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !getCachedRankings('xp');
-    }
+    if (typeof window !== 'undefined') return !getCachedRankings('xp');
     return true;
   });
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
+    if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
 
   const fetchRankings = useCallback(async (type: RankingType, skipCache = false) => {
@@ -105,12 +96,8 @@ export default function LeaderboardPage() {
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
-
       const url = type === 'xp' ? '/api/leaderboard' : `/api/leaderboard?type=${type}`;
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) {
         const data = await response.json();
         const newRankings = data.rankings || [];
@@ -118,7 +105,7 @@ export default function LeaderboardPage() {
         setCachedRankings(type, newRankings);
       }
     } catch (error) {
-      console.error('Error fetching rankings:', error);
+      console.error('Error:', error);
     } finally {
       setLoadingRankings(false);
       setUpdating(false);
@@ -126,9 +113,7 @@ export default function LeaderboardPage() {
   }, [firebaseUser]);
 
   useEffect(() => {
-    if (user && firebaseUser) {
-      fetchRankings(activeTab);
-    }
+    if (user && firebaseUser) fetchRankings(activeTab);
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
   if (!loading && !user) return null;
@@ -152,7 +137,7 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)} // Fixed: Now triggers modal
+                  onClick={() => setShowXpInfo(true)}
                   className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
@@ -183,8 +168,13 @@ export default function LeaderboardPage() {
                     const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
                     return (
                       <div key={ranking.id} className={`flex items-center gap-3 rounded-lg border p-3 ${isCurrentUser ? 'border-primary bg-primary/5' : ''}`}>
-                        <div className="h-12 w-12 overflow-hidden rounded-full bg-muted flex-shrink-0">
-                          <img src={avatarUrl} alt={ranking.username} className="h-full w-full object-cover" />
+                        <div className="relative h-12 w-12 overflow-hidden rounded-full bg-muted flex-shrink-0">
+                          <Image 
+                            src={avatarUrl} 
+                            alt={ranking.username} 
+                            fill
+                            className="object-cover" 
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold truncate">{ranking.username}</div>
@@ -204,7 +194,6 @@ export default function LeaderboardPage() {
         </Card>
       </div>
 
-      {/* XP Info Modal */}
       {showXpInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowXpInfo(false)}>
           <div className="bg-background border rounded-lg p-5 max-w-md w-full shadow-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -215,7 +204,7 @@ export default function LeaderboardPage() {
               </button>
             </div>
             <div className="space-y-4 text-sm">
-              <p className="text-muted-foreground">XP is calculated based on <strong>biomechanical difficulty</strong>.</p>
+              <p className="text-muted-foreground">XP is based on <strong>biomechanical difficulty</strong>.</p>
               <div>
                 <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
