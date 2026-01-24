@@ -3,16 +3,36 @@ import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { LIMITS } from '@shared/constants';
 
+// Word lists for generating memorable invite codes
+const ADJECTIVES = [
+  'SWIFT', 'BOLD', 'CALM', 'WILD', 'GOLD', 'IRON', 'DARK', 'FAST', 'KEEN', 'LOUD',
+  'WARM', 'COOL', 'BRAVE', 'WISE', 'FREE', 'PURE', 'RARE', 'EPIC', 'MEGA', 'SUPER',
+  'BRIGHT', 'SHARP', 'GRAND', 'PRIME', 'ELITE', 'NOBLE', 'ROYAL', 'VITAL', 'RAPID', 'MIGHTY',
+  'FIERCE', 'SLICK', 'CRISP', 'VIVID', 'PROUD', 'LUCKY', 'HAPPY', 'FRESH', 'STARK', 'SOLID',
+];
+
+const COLORS = [
+  'RED', 'BLUE', 'GOLD', 'JADE', 'ONYX', 'RUBY', 'CYAN', 'LIME', 'MINT', 'NAVY',
+  'PINK', 'PLUM', 'ROSE', 'SAGE', 'SAND', 'SNOW', 'TEAL', 'WINE', 'ZINC', 'AMBER',
+  'AZURE', 'CORAL', 'CREAM', 'FROST', 'GRAPE', 'HONEY', 'IVORY', 'LEMON', 'LILAC', 'MAPLE',
+  'OCEAN', 'OLIVE', 'PEACH', 'PEARL', 'SLATE', 'STEEL', 'STORM', 'SUNNY', 'BLAZE', 'EMBER',
+];
+
+const NOUNS = [
+  'TIGER', 'EAGLE', 'STORM', 'FLAME', 'WOLF', 'HAWK', 'BEAR', 'LION', 'CROW', 'FROG',
+  'SHARK', 'WHALE', 'HORSE', 'RAVEN', 'COBRA', 'VIPER', 'OTTER', 'PANDA', 'ZEBRA', 'FALCON',
+  'PHOENIX', 'DRAGON', 'PANTHER', 'JAGUAR', 'LEOPARD', 'CONDOR', 'PYTHON', 'RAPTOR', 'BADGER', 'BISON',
+  'COYOTE', 'DINGO', 'FERRET', 'GAZELLE', 'HERON', 'IGUANA', 'JACKAL', 'KOALA', 'LEMUR', 'MAMBA',
+];
+
 /**
- * Generate a random 10-character invite code
+ * Generate a memorable 3-word invite code (e.g., SWIFT-RED-TIGER)
  */
 function generateInviteCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 10; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return `${adj}-${color}-${noun}`;
 }
 
 /**

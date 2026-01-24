@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2 } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { LIMITS, APP_URL } from '@shared/constants';
 import { ThemeSelector } from '@/components/ThemeSelector';
@@ -28,6 +29,8 @@ export default function SettingsPage() {
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showQrCode, setShowQrCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -251,6 +254,18 @@ export default function SettingsPage() {
                             </span>
                           )}
                         </div>
+
+                        {/* QR Code Display */}
+                        {showQrCode === invite.code && !invite.used && (
+                          <div className="mt-3 flex justify-center p-4 bg-white rounded-lg">
+                            <QRCodeSVG
+                              value={`${APP_URL}/signup?invite=${invite.code}`}
+                              size={160}
+                              level="M"
+                            />
+                          </div>
+                        )}
+
                         <div className="mt-2 flex items-center justify-between">
                           <div className="text-xs text-muted-foreground">
                             {invite.used && invite.usedBy ? (
@@ -261,6 +276,15 @@ export default function SettingsPage() {
                           </div>
                           {!invite.used && (
                             <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowQrCode(showQrCode === invite.code ? null : invite.code)}
+                                className="h-7 text-xs"
+                              >
+                                <QrCode className="mr-1 h-3 w-3" />
+                                QR
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -312,14 +336,39 @@ export default function SettingsPage() {
         {/* Log Out */}
         <Card>
           <CardContent className="pt-6">
-            <Button
-              variant="outline"
-              className="w-full justify-start text-destructive hover:text-destructive"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log Out
-            </Button>
+            {showLogoutConfirm ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to log out?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log Out
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowLogoutConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full justify-start text-destructive hover:text-destructive"
+                onClick={() => setShowLogoutConfirm(true)}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Log Out
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -123,11 +123,23 @@ export async function GET(request: NextRequest) {
 
 #### 4. XP and Leveling System
 **XP Rates** (defined in `shared/constants.ts`):
-- Pull-ups: 15 XP/rep
-- Push-ups: 3 XP/rep
-- Dips: 12 XP/rep
-- Running: 30 XP/km
-- Custom exercises: 0 XP (tracking only)
+
+Calisthenics (per rep):
+- Push-ups: 3 XP (baseline), variations: 2-6 XP based on difficulty
+- Pull-ups: 6 XP, variations: 2-8 XP (chin-ups 5, wide 7, L-sit 8)
+- Dips: 6 XP, variations: 2-7 XP (bench 2, ring 7)
+- Muscle-ups: 11 XP
+
+Cardio (per km):
+- Running: 30 XP
+- Walking: 18 XP
+- Swimming: 40 XP
+- Sprinting: 50 XP
+
+Team Sports (per minute):
+- Volleyball/Basketball/Soccer: 2 XP
+
+Custom exercises: 0 XP (tracking only)
 
 **Level Calculation**:
 - Levels 1-10: Fixed thresholds `[0, 500, 1500, 3000, 5000, 8000, 12000, 17000, 23000, 30000]`

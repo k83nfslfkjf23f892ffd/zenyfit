@@ -194,7 +194,10 @@ export default function XPInfoPage() {
               XP = Amount × Rate
             </p>
             <p className="text-xs text-muted-foreground">
-              Tap any exercise below to see the detailed reasoning and an example calculation.
+              XP rates are based on average biomechanics and may not reflect individual differences in strength, body proportions, or training background.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Tap any exercise below to see the detailed reasoning.
             </p>
           </CardContent>
         </Card>
