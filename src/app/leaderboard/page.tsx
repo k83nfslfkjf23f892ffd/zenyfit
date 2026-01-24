@@ -5,10 +5,20 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Loader2, Info, X } from 'lucide-react'; // FIXED: Added X
-import { Button } from '@/components/ui/button';       // FIXED: Added Button
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { Trophy, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -68,8 +78,6 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
-  // FIXED: Added state for the modal
-  const [showXpInfo, setShowXpInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>(() => {
     if (typeof window !== 'undefined') {
@@ -146,10 +154,7 @@ export default function LeaderboardPage() {
     }
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
-  // Don't block render for auth loading - show cached content immediately
-  if (!loading && !user) {
-    return null;
-  }
+  if (!loading && !user) return null;
 
   const getScoreLabel = (type: RankingType) => {
     if (type === 'xp') return 'XP';
@@ -159,7 +164,6 @@ export default function LeaderboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Calisthenics Charts */}
         <LeaderboardCharts firebaseUser={firebaseUser} />
 
         <Card>
@@ -170,7 +174,7 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)} // FIXED: Triggers modal instead of router push
+                  onClick={() => router.push('/leaderboard/xp-info')}
                   className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
@@ -213,8 +217,13 @@ export default function LeaderboardPage() {
                   </p>
                 ) : (
                   rankings.map((ranking) => {
-                    const isCurrentUser = user ? ranking.id === user.id : false;
-                    const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
+                    const isCurrentUser =
+                      user && ranking.id === user.id;
+                    const avatarUrl = getAvatarDisplayUrl(
+                      ranking.avatar,
+                      ranking.username
+                    );
+
                     return (
                       <div
                         key={ranking.id}
