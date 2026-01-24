@@ -130,9 +130,6 @@ function ExerciseRow({ type, xpRate, details, unit }: ExerciseRowProps) {
   const [expanded, setExpanded] = useState(false);
   const label = EXERCISE_INFO[type]?.label || type;
 
-  const exampleAmount = details?.example.amount || 10;
-  const totalXp = Math.round(exampleAmount * xpRate);
-
   return (
     <div className="border-b last:border-0">
       <button
@@ -152,18 +149,10 @@ function ExerciseRow({ type, xpRate, details, unit }: ExerciseRowProps) {
       </button>
 
       {expanded && details && (
-        <div className="pb-3 space-y-2">
+        <div className="pb-3">
           <p className="text-xs text-muted-foreground leading-relaxed">
             {details.reason}
           </p>
-          <div className="bg-muted/50 rounded-lg p-2.5">
-            <p className="text-xs font-medium text-foreground">
-              Example: {exampleAmount} {details.example.unit}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {exampleAmount} × {xpRate} XP = <span className="text-primary font-semibold">{totalXp} XP</span>
-            </p>
-          </div>
         </div>
       )}
     </div>
