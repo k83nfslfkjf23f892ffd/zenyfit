@@ -256,6 +256,87 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* XP Info Modal */}
+      {showXpInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowXpInfo(false)}
+        >
+          <div
+            className="bg-background border rounded-lg p-5 max-w-md w-full shadow-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">How XP Works</h3>
+              <button
+                type="button"
+                onClick={() => setShowXpInfo(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <p className="text-muted-foreground">
+                XP is calculated based on <strong>biomechanical difficulty</strong> — how hard each exercise is on your body. Harder exercises earn more XP per rep.
+              </p>
+
+              <div>
+                <h4 className="font-medium mb-2">Calisthenics (per rep)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Knee Push-ups</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Push-ups</span><span className="text-primary">3 XP</span></div>
+                  <div className="flex justify-between"><span>Diamond Push-ups</span><span className="text-primary">4 XP</span></div>
+                  <div className="flex justify-between"><span>Archer Push-ups</span><span className="text-primary">5 XP</span></div>
+                  <div className="flex justify-between"><span>Pull-ups</span><span className="text-primary">6 XP</span></div>
+                  <div className="flex justify-between"><span>Dips</span><span className="text-primary">6 XP</span></div>
+                  <div className="flex justify-between"><span>Ring Dips</span><span className="text-primary">7 XP</span></div>
+                  <div className="flex justify-between"><span>L-sit Pull-ups</span><span className="text-primary">8 XP</span></div>
+                  <div className="flex justify-between"><span>Muscle-ups</span><span className="text-primary">11 XP</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Cardio (per km)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Walking</span><span className="text-primary">18 XP</span></div>
+                  <div className="flex justify-between"><span>Running</span><span className="text-primary">30 XP</span></div>
+                  <div className="flex justify-between"><span>Swimming</span><span className="text-primary">40 XP</span></div>
+                  <div className="flex justify-between"><span>Sprinting</span><span className="text-primary">50 XP</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Team Sports (per minute)</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between"><span>Volleyball</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Basketball</span><span className="text-primary">2 XP</span></div>
+                  <div className="flex justify-between"><span>Soccer</span><span className="text-primary">2 XP</span></div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t">
+                <h4 className="font-medium mb-2">Leaderboard Rankings</h4>
+                <p className="text-xs text-muted-foreground">
+                  <strong>All:</strong> Ranked by total XP earned across all exercises.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  <strong>Exercise tabs:</strong> Ranked by total reps/km for that specific exercise.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              className="w-full mt-4"
+              onClick={() => setShowXpInfo(false)}
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
