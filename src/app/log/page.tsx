@@ -570,7 +570,7 @@ export default function LogPage() {
       <div className="space-y-3">
         {/* Exercise Type Selector */}
         <div className="space-y-2">
-          {/* Main calisthenics + running (icon only) */}
+          {/* Main calisthenics + running (icon only, full width) */}
           <div className="flex gap-2">
             {mainExercises.map((ex) => (
               <Button
@@ -580,8 +580,7 @@ export default function LogPage() {
                   setSelectedBaseType(ex.key);
                   setSelectedCustomExercise(null);
                 }}
-                size="icon"
-                className="h-11 w-11"
+                className="h-12 flex-1"
               >
                 {ex.icon}
               </Button>
@@ -592,8 +591,7 @@ export default function LogPage() {
                 setSelectedBaseType('running');
                 setSelectedCustomExercise(null);
               }}
-              size="icon"
-              className="h-11 w-11"
+              className="h-12 flex-1"
             >
               <span className="text-lg">🏃</span>
             </Button>
@@ -697,7 +695,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -716,7 +714,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -735,7 +733,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -760,7 +758,7 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
+                      className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
@@ -777,54 +775,49 @@ export default function LogPage() {
           </CardContent>
         </Card>
 
-        {/* Last Workout - Compact inline display */}
-        {recentWorkouts.length > 0 && !loadingRecent && (
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Last:</span>
-              <span className="text-foreground font-medium">
-                {recentWorkouts[0].customExerciseName || EXERCISE_INFO[recentWorkouts[0].type]?.label || recentWorkouts[0].type}
-              </span>
-              <span>
-                {recentWorkouts[0].amount} {EXERCISE_INFO[recentWorkouts[0].type]?.unit || 'reps'}
-              </span>
-              <span className="text-primary">+{recentWorkouts[0].xpEarned} XP</span>
-              <span>{getTimeAgo(recentWorkouts[0].timestamp)}</span>
-              {updatingRecent && (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDeleteMode(!deleteMode)}
-              className="h-7 px-2"
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
-
-        {/* Full Recent Logs - Only shown in delete mode */}
-        {deleteMode && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
+        {/* Recent Logs */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
                 <h3 className="font-semibold">Recent Logs</h3>
+                {updatingRecent && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {recentWorkouts.length > 0 && (
                 <Button
-                  variant="default"
+                  variant={deleteMode ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setDeleteMode(false)}
+                  onClick={() => setDeleteMode(!deleteMode)}
                   className="h-8 px-2"
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Done
+                  {deleteMode ? (
+                    <>
+                      <X className="h-4 w-4 mr-1" />
+                      Done
+                    </>
+                  ) : (
+                    <Pencil className="h-4 w-4" />
+                  )}
                 </Button>
+              )}
+            </div>
+            {loadingRecent ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Tap a workout to delete it
+            ) : recentWorkouts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No recent workouts
               </p>
+            ) : (
               <div className="space-y-2">
+                {deleteMode && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Tap a workout to delete it
+                  </p>
+                )}
                 {recentWorkouts.map((workout) => {
                   const exerciseLabel = workout.customExerciseName || EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
@@ -833,8 +826,10 @@ export default function LogPage() {
                   return (
                     <div
                       key={workout.id}
-                      onClick={() => setWorkoutToDelete(workout)}
-                      className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:border-destructive hover:bg-destructive/5"
+                      onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
+                      className={`flex items-center justify-between rounded-lg border p-3 ${
+                        deleteMode ? 'cursor-pointer hover:border-destructive hover:bg-destructive/5' : ''
+                      }`}
                     >
                       <div className="flex-1">
                         <div className="font-medium">{exerciseLabel}</div>
@@ -842,14 +837,16 @@ export default function LogPage() {
                           {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
                         </div>
                       </div>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      {deleteMode && (
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Sets x Reps Modal */}
