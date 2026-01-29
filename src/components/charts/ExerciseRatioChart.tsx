@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Palette } from 'lucide-react';
 import {
   PieChart,
   Pie,
@@ -30,6 +32,7 @@ export function ExerciseRatioChart({
   title = 'Calisthenics Distribution',
 }: ExerciseRatioChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [colorMode, setColorMode] = useState(true); // true = colored, false = monochrome
 
   const data = EXERCISE_CONFIG
     .map(config => ({
@@ -61,7 +64,18 @@ export function ExerciseRatioChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle>{title}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>{title}</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setColorMode(!colorMode)}
+            title={colorMode ? 'Switch to single color' : 'Switch to multiple colors'}
+          >
+            <Palette className={`h-4 w-4 ${colorMode ? 'text-primary' : 'text-muted-foreground'}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="relative">
@@ -81,12 +95,13 @@ export function ExerciseRatioChart({
                 {data.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={entry.color}
+                    fill={colorMode ? entry.color : 'hsl(var(--primary))'}
                     stroke={activeIndex === index ? 'hsl(var(--foreground))' : 'transparent'}
                     strokeWidth={activeIndex === index ? 2 : 0}
                     style={{
                       filter: activeIndex !== null && activeIndex !== index ? 'opacity(0.5)' : 'none',
                       cursor: 'pointer',
+                      opacity: colorMode ? 1 : (0.4 + (index * 0.3)), // gradient effect in mono mode
                     }}
                   />
                 ))}
