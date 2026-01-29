@@ -21,10 +21,11 @@ interface ExerciseRatioChartProps {
   title?: string;
 }
 
+// Distinct, easily differentiable colors
 const EXERCISE_CONFIG = [
-  { key: 'pullups', name: 'Pull-ups', color: 'hsl(var(--chart-1))', unit: 'reps' },
-  { key: 'pushups', name: 'Push-ups', color: 'hsl(var(--chart-2))', unit: 'reps' },
-  { key: 'dips', name: 'Dips', color: 'hsl(var(--chart-3))', unit: 'reps' },
+  { key: 'pullups', name: 'Pull-ups', color: '#3b82f6', unit: 'reps' },  // Blue
+  { key: 'pushups', name: 'Push-ups', color: '#ef4444', unit: 'reps' }, // Red
+  { key: 'dips', name: 'Dips', color: '#22c55e', unit: 'reps' },        // Green
 ];
 
 export function ExerciseRatioChart({

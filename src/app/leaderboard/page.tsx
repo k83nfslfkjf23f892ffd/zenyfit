@@ -167,7 +167,7 @@ export default function LeaderboardPage() {
                 Leaderboard
                 <button
                   type="button"
-                  onClick={() => setShowXpInfo(true)} // FIXED: Triggers modal instead of router push
+                  onClick={() => router.push('/leaderboard/xp-info')}
                   className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   <Info className="h-4 w-4" />
