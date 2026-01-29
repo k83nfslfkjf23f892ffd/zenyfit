@@ -66,9 +66,7 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 rounded-lg border ${
-        isHidden ? 'opacity-50 bg-muted/30' : 'bg-card'
-      } ${isDragging ? 'shadow-lg z-50' : ''}`}
+      className={`flex items-center gap-3 p-3 rounded-lg border bg-card ${isDragging ? 'shadow-lg z-50' : ''}`}
     >
       {/* Drag handle */}
       <button

@@ -55,7 +55,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
 ];
 
-// Default widget configuration for new users
+// Default widget configuration for new users - all visible
 export const DEFAULT_WIDGET_CONFIG = {
   order: [
     'user-header',
@@ -68,14 +68,7 @@ export const DEFAULT_WIDGET_CONFIG = {
     'xp-history',
     'active-challenges',
   ],
-  // Widgets that are hidden by default
-  hidden: [
-    'consistency',
-    'personal-bests',
-    'exercise-totals',
-    'xp-history',
-    'active-challenges',
-  ],
+  hidden: [], // All widgets visible by default
 };
 
 // Get widget definition by ID
