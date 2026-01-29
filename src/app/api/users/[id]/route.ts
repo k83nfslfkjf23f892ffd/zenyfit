@@ -116,7 +116,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Only allow updating specific fields
-    const allowedFields = ['avatar', 'theme', 'quickAddPresets'];
+    const allowedFields = ['avatar', 'theme', 'quickAddPresets', 'dashboardWidgets'];
     const updates: Record<string, unknown> = {};
 
     for (const field of allowedFields) {
@@ -178,6 +178,53 @@ export async function PATCH(
           if (typeof v !== 'number' || v <= 0) {
             return NextResponse.json(
               { error: `All preset values must be positive numbers` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
+    if (updates.dashboardWidgets !== undefined) {
+      // Validate dashboardWidgets is { order: string[], hidden: string[] }
+      if (typeof updates.dashboardWidgets !== 'object' || updates.dashboardWidgets === null) {
+        return NextResponse.json(
+          { error: 'dashboardWidgets must be an object' },
+          { status: 400 }
+        );
+      }
+      const widgets = updates.dashboardWidgets as Record<string, unknown>;
+
+      // Validate order array
+      if (widgets.order !== undefined) {
+        if (!Array.isArray(widgets.order) || widgets.order.length > 20) {
+          return NextResponse.json(
+            { error: 'order must be an array (max 20 items)' },
+            { status: 400 }
+          );
+        }
+        for (const id of widgets.order) {
+          if (typeof id !== 'string' || id.length > 50) {
+            return NextResponse.json(
+              { error: 'Widget IDs must be strings (max 50 chars)' },
+              { status: 400 }
+            );
+          }
+        }
+      }
+
+      // Validate hidden array
+      if (widgets.hidden !== undefined) {
+        if (!Array.isArray(widgets.hidden) || widgets.hidden.length > 20) {
+          return NextResponse.json(
+            { error: 'hidden must be an array (max 20 items)' },
+            { status: 400 }
+          );
+        }
+        for (const id of widgets.hidden) {
+          if (typeof id !== 'string' || id.length > 50) {
+            return NextResponse.json(
+              { error: 'Widget IDs must be strings (max 50 chars)' },
               { status: 400 }
             );
           }

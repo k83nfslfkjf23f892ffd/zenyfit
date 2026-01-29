@@ -49,6 +49,12 @@ export const EXERCISE_TYPES = [
 
 export const exerciseTypeSchema = z.enum(EXERCISE_TYPES);
 
+// Dashboard widget configuration schema
+export const dashboardWidgetsSchema = z.object({
+  order: z.array(z.string().max(50)).max(20).default([]),
+  hidden: z.array(z.string().max(50)).max(20).default([]),
+});
+
 export const userSchema = z.object({
   id: z.string(),
   username: z.string(),
@@ -63,6 +69,7 @@ export const userSchema = z.object({
   createdAt: z.number(), // timestamp
   theme: z.string().optional(),
   quickAddPresets: z.record(z.string(), z.array(z.number().positive()).max(8)).optional(),
+  dashboardWidgets: dashboardWidgetsSchema.optional(),
 });
 
 // ============================================================================
@@ -166,6 +173,7 @@ export const inviteCodeSchema = z.object({
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type User = z.infer<typeof userSchema>;
+export type DashboardWidgets = z.infer<typeof dashboardWidgetsSchema>;
 export type ExerciseType = z.infer<typeof exerciseTypeSchema>;
 export type ExerciseLog = z.infer<typeof exerciseLogSchema>;
 export type CustomExerciseLog = z.infer<typeof customExerciseLogSchema>;
