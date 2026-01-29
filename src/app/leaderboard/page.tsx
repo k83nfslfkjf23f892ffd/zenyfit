@@ -7,8 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Loader2, Info, X } from 'lucide-react'; // FIXED: Added X
-import { Button } from '@/components/ui/button';       // FIXED: Added Button
+import { Trophy, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -68,8 +67,6 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
-  // FIXED: Added state for the modal
-  const [showXpInfo, setShowXpInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>(() => {
     if (typeof window !== 'undefined') {
