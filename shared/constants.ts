@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '1.3.13';
+export const APP_VERSION = '1.3.14';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -115,8 +115,8 @@ export const EXERCISE_INFO: Record<string, { label: string; category: string; un
 
 // Calisthenics preset layout (3 rows)
 export const CALISTHENICS_PRESETS = {
-  row1: [1, 3, 5, 10],      // 4 items
-  row2: [15, 20, 25],       // 3 items (centered)
+  row1: [1, 3, 5, 7],       // 4 items
+  row2: [10, 15, 20, 25],   // 4 items
   row3: [30, 50, 70, 100],  // 4 items
 } as const;
 
@@ -250,7 +250,7 @@ export function getXPNeededForNextLevel(currentLevel: number): number {
 
 export const LIMITS = {
   customExercises: 12,
-  inviteCodes: 10,
+  inviteCodes: 25,
   usernameMinLength: 3,
   usernameMaxLength: 12,
   passwordMinLength: 7,

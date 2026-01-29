@@ -558,11 +558,11 @@ export default function LogPage() {
   const activeXpRate = XP_RATES[activeExercise] || 0;
   const exerciseLabel = EXERCISE_INFO[activeExercise]?.label || activeExercise;
 
-  // Main exercise types for quick selection
+  // Main exercise types for quick selection (icon only)
   const mainExercises = [
-    { key: 'pullups', label: 'Pull-ups', icon: <ArrowUp className="h-4 w-4" /> },
-    { key: 'pushups', label: 'Push-ups', icon: <Minus className="h-4 w-4" /> },
-    { key: 'dips', label: 'Dips', icon: <Circle className="h-4 w-4" /> },
+    { key: 'pullups', icon: <ArrowUp className="h-5 w-5" /> },
+    { key: 'pushups', icon: <Minus className="h-5 w-5" /> },
+    { key: 'dips', icon: <Circle className="h-5 w-5" /> },
   ];
 
   return (
@@ -570,8 +570,8 @@ export default function LogPage() {
       <div className="space-y-3">
         {/* Exercise Type Selector */}
         <div className="space-y-2">
-          {/* Main calisthenics */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Main calisthenics + running (icon only) */}
+          <div className="flex gap-2">
             {mainExercises.map((ex) => (
               <Button
                 key={ex.key}
@@ -580,26 +580,22 @@ export default function LogPage() {
                   setSelectedBaseType(ex.key);
                   setSelectedCustomExercise(null);
                 }}
-                className="h-12 px-4 gap-2"
+                size="icon"
+                className="h-11 w-11"
               >
                 {ex.icon}
-                {ex.label}
               </Button>
             ))}
-          </div>
-
-          {/* Secondary row */}
-          <div className="flex gap-2 flex-wrap">
             <Button
               variant={selectedBaseType === 'running' ? 'default' : 'outline'}
               onClick={() => {
                 setSelectedBaseType('running');
                 setSelectedCustomExercise(null);
               }}
-              className="h-12 px-4 gap-2 flex-1"
+              size="icon"
+              className="h-11 w-11"
             >
-              <span>🏃</span>
-              Running
+              <span className="text-lg">🏃</span>
             </Button>
           </div>
         </div>
@@ -694,14 +690,14 @@ export default function LogPage() {
 
               {/* Calisthenics 3-row layout */}
               {isCalisthenics ? (
-                <div className="space-y-1.5">
-                  {/* Row 1: 1, 3, 5, 10 */}
-                  <div className="grid grid-cols-4 gap-1.5">
+                <div className="space-y-2.5">
+                  {/* Row 1: 1, 3, 5, 7 */}
+                  <div className="grid grid-cols-4 gap-2.5">
                     {CALISTHENICS_PRESETS.row1.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -714,13 +710,13 @@ export default function LogPage() {
                       </Button>
                     ))}
                   </div>
-                  {/* Row 2: 15, 20, 25 (centered) */}
-                  <div className="flex justify-center gap-1.5">
+                  {/* Row 2: 10, 15, 20, 25 */}
+                  <div className="grid grid-cols-4 gap-2.5">
                     {CALISTHENICS_PRESETS.row2.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-10 text-base font-semibold w-[4.5rem] bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -734,12 +730,12 @@ export default function LogPage() {
                     ))}
                   </div>
                   {/* Row 3: 30, 50, 70, 100 */}
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-4 gap-2.5">
                     {CALISTHENICS_PRESETS.row3.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
-                        className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
+                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -755,7 +751,7 @@ export default function LogPage() {
                 </div>
               ) : (
                 /* Non-calisthenics: cardio/team sports presets */
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-4 gap-2.5">
                   {(selectedBaseType === 'running' ? [1, 3, 5, 10] :
                     selectedBaseType === 'walking' ? [1, 2, 3, 5] :
                     selectedBaseType === 'swimming' ? [0.5, 1, 2, 3] :
@@ -764,7 +760,7 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      className="h-10 text-base font-semibold bg-primary hover:bg-primary/90"
+                      className="h-12 text-base font-semibold bg-primary hover:bg-primary/90"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
@@ -781,49 +777,54 @@ export default function LogPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Logs */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold">Recent Logs</h3>
-                {updatingRecent && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              {recentWorkouts.length > 0 && (
-                <Button
-                  variant={deleteMode ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setDeleteMode(!deleteMode)}
-                  className="h-8 px-2"
-                >
-                  {deleteMode ? (
-                    <>
-                      <X className="h-4 w-4 mr-1" />
-                      Done
-                    </>
-                  ) : (
-                    <Pencil className="h-4 w-4" />
-                  )}
-                </Button>
+        {/* Last Workout - Compact inline display */}
+        {recentWorkouts.length > 0 && !loadingRecent && (
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Last:</span>
+              <span className="text-foreground font-medium">
+                {recentWorkouts[0].customExerciseName || EXERCISE_INFO[recentWorkouts[0].type]?.label || recentWorkouts[0].type}
+              </span>
+              <span>
+                {recentWorkouts[0].amount} {EXERCISE_INFO[recentWorkouts[0].type]?.unit || 'reps'}
+              </span>
+              <span className="text-primary">+{recentWorkouts[0].xpEarned} XP</span>
+              <span>{getTimeAgo(recentWorkouts[0].timestamp)}</span>
+              {updatingRecent && (
+                <Loader2 className="h-3 w-3 animate-spin" />
               )}
             </div>
-            {loadingRecent ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteMode(!deleteMode)}
+              className="h-7 px-2"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
+        {/* Full Recent Logs - Only shown in delete mode */}
+        {deleteMode && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Recent Logs</h3>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setDeleteMode(false)}
+                  className="h-8 px-2"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Done
+                </Button>
               </div>
-            ) : recentWorkouts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No recent workouts
+              <p className="text-xs text-muted-foreground mb-2">
+                Tap a workout to delete it
               </p>
-            ) : (
               <div className="space-y-2">
-                {deleteMode && (
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Tap a workout to delete it
-                  </p>
-                )}
                 {recentWorkouts.map((workout) => {
                   const exerciseLabel = workout.customExerciseName || EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
@@ -832,10 +833,8 @@ export default function LogPage() {
                   return (
                     <div
                       key={workout.id}
-                      onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-lg border p-3 ${
-                        deleteMode ? 'cursor-pointer hover:border-destructive hover:bg-destructive/5' : ''
-                      }`}
+                      onClick={() => setWorkoutToDelete(workout)}
+                      className="flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:border-destructive hover:bg-destructive/5"
                     >
                       <div className="flex-1">
                         <div className="font-medium">{exerciseLabel}</div>
@@ -843,16 +842,14 @@ export default function LogPage() {
                           {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
                         </div>
                       </div>
-                      {deleteMode && (
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      )}
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </div>
                   );
                 })}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Sets x Reps Modal */}
