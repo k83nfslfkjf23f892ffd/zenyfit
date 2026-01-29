@@ -1,9 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ChevronUp, ChevronDown, X, RotateCcw, Loader2 } from 'lucide-react';
+import { GripVertical, X, RotateCcw, Loader2 } from 'lucide-react';
 import { DEFAULT_WIDGET_CONFIG, getWidgetDefinition } from '@/lib/widgets';
 import { toast } from 'sonner';
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -21,6 +38,64 @@ interface WidgetCustomizerProps {
   userId: string;
 }
 
+interface SortableWidgetItemProps {
+  widgetId: string;
+  isHidden: boolean;
+  onToggle: () => void;
+}
+
+function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: widgetId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const widget = getWidgetDefinition(widgetId);
+  if (!widget) return null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 p-3 rounded-lg border ${
+        isHidden ? 'opacity-50 bg-muted/30' : 'bg-card'
+      } ${isDragging ? 'shadow-lg z-50' : ''}`}
+    >
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="touch-none p-1 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="h-5 w-5 text-muted-foreground" />
+      </button>
+
+      {/* Widget info */}
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm">{widget.name}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {widget.description}
+        </div>
+      </div>
+
+      {/* Toggle */}
+      <Switch
+        checked={!isHidden}
+        onCheckedChange={onToggle}
+      />
+    </div>
+  );
+}
+
 export function WidgetCustomizer({
   open,
   onOpenChange,
@@ -31,19 +106,27 @@ export function WidgetCustomizer({
   const [localConfig, setLocalConfig] = useState<WidgetConfig>(config);
   const [saving, setSaving] = useState(false);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   if (!open) return null;
 
-  const moveWidget = (widgetId: string, direction: 'up' | 'down') => {
-    const currentIndex = localConfig.order.indexOf(widgetId);
-    if (currentIndex === -1) return;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= localConfig.order.length) return;
+    if (over && active.id !== over.id) {
+      const oldIndex = localConfig.order.indexOf(active.id as string);
+      const newIndex = localConfig.order.indexOf(over.id as string);
 
-    const newOrder = [...localConfig.order];
-    [newOrder[currentIndex], newOrder[newIndex]] = [newOrder[newIndex], newOrder[currentIndex]];
-
-    setLocalConfig({ ...localConfig, order: newOrder });
+      setLocalConfig({
+        ...localConfig,
+        order: arrayMove(localConfig.order, oldIndex, newIndex),
+      });
+    }
   };
 
   const toggleWidget = (widgetId: string) => {
@@ -85,7 +168,8 @@ export function WidgetCustomizer({
 
       toast.success('Dashboard saved');
       onOpenChange(false);
-      // Reload to apply changes
+      // Clear user cache and reload to apply changes
+      localStorage.removeItem('zenyfit_user_cache');
       window.location.reload();
     } catch (error) {
       console.error('Error saving config:', error);
@@ -115,64 +199,30 @@ export function WidgetCustomizer({
         {/* Content */}
         <div className="p-4 overflow-y-auto max-h-[60vh]">
           <p className="text-sm text-muted-foreground mb-4">
-            Reorder widgets and toggle visibility
+            Drag to reorder, toggle to show/hide
           </p>
 
-          <div className="space-y-2">
-            {localConfig.order.map((widgetId, index) => {
-              const widget = getWidgetDefinition(widgetId);
-              if (!widget) return null;
-
-              const isHidden = localConfig.hidden.includes(widgetId);
-              const isFirst = index === 0;
-              const isLast = index === localConfig.order.length - 1;
-
-              return (
-                <div
-                  key={widgetId}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    isHidden ? 'opacity-50 bg-muted/30' : 'bg-card'
-                  }`}
-                >
-                  {/* Reorder buttons */}
-                  <div className="flex flex-col gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => moveWidget(widgetId, 'up')}
-                      disabled={isFirst}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => moveWidget(widgetId, 'down')}
-                      disabled={isLast}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Widget info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{widget.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {widget.description}
-                    </div>
-                  </div>
-
-                  {/* Toggle */}
-                  <Switch
-                    checked={!isHidden}
-                    onCheckedChange={() => toggleWidget(widgetId)}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={localConfig.order}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {localConfig.order.map((widgetId) => (
+                  <SortableWidgetItem
+                    key={widgetId}
+                    widgetId={widgetId}
+                    isHidden={localConfig.hidden.includes(widgetId)}
+                    onToggle={() => toggleWidget(widgetId)}
                   />
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* Footer */}
