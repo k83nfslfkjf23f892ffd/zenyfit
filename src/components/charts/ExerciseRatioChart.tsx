@@ -24,8 +24,8 @@ interface ExerciseRatioChartProps {
 // Pastel, pleasant colors (soft lavender, peach, mint)
 const PASTEL_COLORS = ['#c4b5fd', '#fcd5ce', '#b5ead7'];
 
-// Dark/black monochrome colors
-const BLACK_COLORS = ['#1f2937', '#374151', '#4b5563'];
+// Dark/black monochrome colors (more distinct contrast)
+const BLACK_COLORS = ['#111827', '#4b5563', '#9ca3af'];
 
 // Original theme colors (CSS variables) - how it was before toggle was added
 const THEME_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
