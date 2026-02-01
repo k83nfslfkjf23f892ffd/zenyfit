@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -10,6 +10,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -105,6 +106,11 @@ export function WidgetCustomizer({
   const [localConfig, setLocalConfig] = useState<WidgetConfig>(config);
   const [saving, setSaving] = useState(false);
 
+  // Sync localConfig when config prop changes (e.g., after save and reload)
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -124,7 +130,15 @@ export function WidgetCustomizer({
 
   if (!open) return null;
 
+  const handleDragStart = (_event: DragStartEvent) => {
+    // Prevent page scroll during drag on mobile
+    document.body.style.overflow = 'hidden';
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    // Re-enable page scroll
+    document.body.style.overflow = '';
+
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -136,6 +150,11 @@ export function WidgetCustomizer({
         order: arrayMove(localConfig.order, oldIndex, newIndex),
       });
     }
+  };
+
+  const handleDragCancel = () => {
+    // Re-enable page scroll if drag is cancelled
+    document.body.style.overflow = '';
   };
 
   const toggleWidget = (widgetId: string) => {
@@ -214,7 +233,9 @@ export function WidgetCustomizer({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
               items={localConfig.order}

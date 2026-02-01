@@ -21,11 +21,14 @@ interface ExerciseRatioChartProps {
   title?: string;
 }
 
-// Pastel, pleasant colors
-const PASTEL_COLORS = ['#93c5fd', '#fca5a5', '#86efac']; // Light blue, light red, light green
+// Pastel, pleasant colors (soft lavender, peach, mint)
+const PASTEL_COLORS = ['#c4b5fd', '#fcd5ce', '#b5ead7'];
 
-// Black/dark mode colors with different opacities
-const BLACK_COLORS = ['#374151', '#4b5563', '#6b7280']; // Different grays
+// Dark/black monochrome colors
+const BLACK_COLORS = ['#1f2937', '#374151', '#4b5563'];
+
+// Original theme colors (CSS variables) - how it was before toggle was added
+const THEME_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
 const EXERCISE_CONFIG = [
   { key: 'pullups', name: 'Pull-ups', unit: 'reps' },
@@ -33,7 +36,7 @@ const EXERCISE_CONFIG = [
   { key: 'dips', name: 'Dips', unit: 'reps' },
 ];
 
-type ColorMode = 'pastel' | 'black' | 'primary';
+type ColorMode = 'theme' | 'pastel' | 'black';
 
 const STORAGE_KEY = 'zenyfit_chart_color_mode';
 
@@ -42,23 +45,27 @@ export function ExerciseRatioChart({
   title = 'Calisthenics Distribution',
 }: ExerciseRatioChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [colorMode, setColorMode] = useState<ColorMode>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'pastel' || saved === 'black' || saved === 'primary') {
-        return saved;
-      }
-    }
-    return 'pastel';
-  });
+  const [colorMode, setColorMode] = useState<ColorMode>('theme');
+  const [mounted, setMounted] = useState(false);
 
-  // Save color mode to localStorage
+  // Load saved color mode on mount
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, colorMode);
-  }, [colorMode]);
+    const saved = localStorage.getItem(STORAGE_KEY) as ColorMode | null;
+    if (saved === 'theme' || saved === 'pastel' || saved === 'black') {
+      setColorMode(saved);
+    }
+    setMounted(true);
+  }, []);
+
+  // Save color mode when it changes
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(STORAGE_KEY, colorMode);
+    }
+  }, [colorMode, mounted]);
 
   const cycleColorMode = () => {
-    const modes: ColorMode[] = ['pastel', 'black', 'primary'];
+    const modes: ColorMode[] = ['theme', 'pastel', 'black'];
     const currentIndex = modes.indexOf(colorMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setColorMode(modes[nextIndex]);
@@ -66,12 +73,12 @@ export function ExerciseRatioChart({
 
   const getColor = (index: number): string => {
     switch (colorMode) {
+      case 'theme':
+        return THEME_COLORS[index] || THEME_COLORS[0];
       case 'pastel':
         return PASTEL_COLORS[index] || PASTEL_COLORS[0];
       case 'black':
         return BLACK_COLORS[index] || BLACK_COLORS[0];
-      case 'primary':
-        return 'hsl(var(--primary))';
     }
   };
 
@@ -104,9 +111,9 @@ export function ExerciseRatioChart({
 
   const getModeLabel = () => {
     switch (colorMode) {
+      case 'theme': return 'Theme colors';
       case 'pastel': return 'Pastel colors';
       case 'black': return 'Dark colors';
-      case 'primary': return 'Theme color';
     }
   };
 
@@ -122,7 +129,7 @@ export function ExerciseRatioChart({
             onClick={cycleColorMode}
             title={`Current: ${getModeLabel()}. Click to change.`}
           >
-            <Palette className={`h-4 w-4 ${colorMode === 'pastel' ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Palette className={`h-4 w-4 ${colorMode !== 'theme' ? 'text-primary' : 'text-muted-foreground'}`} />
           </Button>
         </div>
       </CardHeader>
@@ -150,7 +157,6 @@ export function ExerciseRatioChart({
                     style={{
                       filter: activeIndex !== null && activeIndex !== index ? 'opacity(0.5)' : 'none',
                       cursor: 'pointer',
-                      opacity: colorMode === 'primary' ? (0.5 + (index * 0.25)) : 1,
                     }}
                   />
                 ))}
