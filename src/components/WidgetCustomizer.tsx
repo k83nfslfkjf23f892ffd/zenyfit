@@ -63,6 +63,12 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
   const widget = getWidgetDefinition(widgetId);
   if (!widget) return null;
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onToggle();
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -86,11 +92,13 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
         </div>
       </div>
 
-      {/* Toggle */}
-      <Switch
-        checked={!isHidden}
-        onCheckedChange={onToggle}
-      />
+      {/* Toggle - wrapped in div to handle click separately from drag */}
+      <div onClick={handleToggle} className="flex-shrink-0">
+        <Switch
+          checked={!isHidden}
+          onCheckedChange={() => onToggle()}
+        />
+      </div>
     </div>
   );
 }
@@ -189,6 +197,11 @@ export function WidgetCustomizer({
   const saveConfig = async () => {
     setSaving(true);
     try {
+      if (!userId) {
+        toast.error('User ID not found');
+        return;
+      }
+
       const token = await firebaseUser?.getIdToken();
       if (!token) {
         toast.error('Not authenticated');
