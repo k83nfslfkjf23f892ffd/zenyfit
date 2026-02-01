@@ -27,6 +27,17 @@ ZenyFit is built on these fundamental principles:
 - Challenges are **single exercise type only** - ensures all participants compete fairly on the same metric
 - Seeing others "going all out" in a challenge creates motivation to push harder
 
+## Mobile-First Development
+
+**CRITICAL**: ZenyFit is primarily a mobile app. All features MUST be designed and tested for mobile first.
+
+- **Always test on mobile viewport** before considering desktop
+- **Touch targets** must be large enough (min 44x44px)
+- **Modals/sheets** must have visible buttons without scrolling
+- **Drag-and-drop** must work with touch gestures
+- **No hover-only interactions** - everything must work with tap
+- **Bottom sheets** preferred over centered modals on mobile
+
 ## Communication Guidelines
 
 When working with this codebase, Claude should:

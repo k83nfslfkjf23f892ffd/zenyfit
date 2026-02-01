@@ -243,27 +243,27 @@ export function WidgetCustomizer({
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[85vh] overflow-hidden shadow-lg"
+        className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        {/* Header - fixed */}
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h3 className="text-lg font-semibold">Customize Dashboard</h3>
           <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Content */}
+        {/* Content - scrollable */}
         <div
-          className="p-4 max-h-[60vh]"
+          className="p-4 flex-1 overflow-y-auto min-h-0"
           style={{
             overflowY: isDragging ? 'hidden' : 'auto',
             touchAction: isDragging ? 'none' : 'auto',
           }}
         >
           <p className="text-sm text-muted-foreground mb-4">
-            Hold the grip icon to drag and reorder
+            Toggle to show/hide widgets
           </p>
 
           <DndContext
@@ -291,8 +291,8 @@ export function WidgetCustomizer({
           </DndContext>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t bg-muted/30">
+        {/* Footer - fixed at bottom */}
+        <div className="flex items-center justify-between p-4 border-t bg-muted/30 shrink-0">
           <Button variant="outline" size="sm" onClick={resetToDefault}>
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
