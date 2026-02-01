@@ -215,11 +215,14 @@ export function WidgetCustomizer({
         return;
       }
 
-      toast.success('Dashboard saved');
+      toast.success('Dashboard saved - reloading...');
       // Clear user cache so fresh data is loaded
       localStorage.removeItem('zenyfit_user_cache');
       onOpenChange(false);
-      // Don't reload - Firestore's onSnapshot will update the UI automatically
+      // Small delay to ensure Firestore has synced before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('An error occurred');
