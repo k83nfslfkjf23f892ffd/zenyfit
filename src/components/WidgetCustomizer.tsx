@@ -10,7 +10,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -131,7 +130,7 @@ export function WidgetCustomizer({
 
   if (!open) return null;
 
-  const handleDragStart = (_event: DragStartEvent) => {
+  const handleDragStart = () => {
     setIsDragging(true);
     // Prevent page scroll during drag on mobile
     document.body.style.overflow = 'hidden';
