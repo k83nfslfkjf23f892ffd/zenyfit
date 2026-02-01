@@ -216,10 +216,10 @@ export function WidgetCustomizer({
       }
 
       toast.success('Dashboard saved');
-      onOpenChange(false);
-      // Clear user cache and reload to apply changes
+      // Clear user cache so fresh data is loaded
       localStorage.removeItem('zenyfit_user_cache');
-      window.location.reload();
+      onOpenChange(false);
+      // Don't reload - Firestore's onSnapshot will update the UI automatically
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('An error occurred');
