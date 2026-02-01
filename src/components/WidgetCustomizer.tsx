@@ -63,12 +63,6 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
   const widget = getWidgetDefinition(widgetId);
   if (!widget) return null;
 
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onToggle();
-  };
-
   return (
     <div
       ref={setNodeRef}
@@ -92,13 +86,11 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
         </div>
       </div>
 
-      {/* Toggle - wrapped in div to handle click separately from drag */}
-      <div onClick={handleToggle} className="flex-shrink-0">
-        <Switch
-          checked={!isHidden}
-          onCheckedChange={() => onToggle()}
-        />
-      </div>
+      {/* Toggle */}
+      <Switch
+        checked={!isHidden}
+        onCheckedChange={onToggle}
+      />
     </div>
   );
 }
