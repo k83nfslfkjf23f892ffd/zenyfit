@@ -111,6 +111,16 @@ export function WidgetCustomizer({
     setLocalConfig(config);
   }, [config]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -132,15 +142,10 @@ export function WidgetCustomizer({
 
   const handleDragStart = () => {
     setIsDragging(true);
-    // Prevent page scroll during drag on mobile
-    document.body.style.overflow = 'hidden';
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setIsDragging(false);
-    // Re-enable page scroll
-    document.body.style.overflow = '';
-
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -156,8 +161,6 @@ export function WidgetCustomizer({
 
   const handleDragCancel = () => {
     setIsDragging(false);
-    // Re-enable page scroll if drag is cancelled
-    document.body.style.overflow = '';
   };
 
   const toggleWidget = (widgetId: string) => {
