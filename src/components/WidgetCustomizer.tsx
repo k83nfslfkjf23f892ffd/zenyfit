@@ -105,6 +105,7 @@ export function WidgetCustomizer({
 }: WidgetCustomizerProps) {
   const [localConfig, setLocalConfig] = useState<WidgetConfig>(config);
   const [saving, setSaving] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Sync localConfig when config prop changes (e.g., after save and reload)
   useEffect(() => {
@@ -119,8 +120,8 @@ export function WidgetCustomizer({
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200, // 200ms hold before drag starts on touch
-        tolerance: 5, // 5px movement allowed during delay
+        delay: 250, // 250ms hold before drag starts on touch
+        tolerance: 8, // 8px movement allowed during delay
       },
     }),
     useSensor(KeyboardSensor, {
@@ -131,11 +132,13 @@ export function WidgetCustomizer({
   if (!open) return null;
 
   const handleDragStart = (_event: DragStartEvent) => {
+    setIsDragging(true);
     // Prevent page scroll during drag on mobile
     document.body.style.overflow = 'hidden';
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);
     // Re-enable page scroll
     document.body.style.overflow = '';
 
@@ -153,6 +156,7 @@ export function WidgetCustomizer({
   };
 
   const handleDragCancel = () => {
+    setIsDragging(false);
     // Re-enable page scroll if drag is cancelled
     document.body.style.overflow = '';
   };
@@ -225,9 +229,15 @@ export function WidgetCustomizer({
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
+        <div
+          className="p-4 max-h-[60vh]"
+          style={{
+            overflowY: isDragging ? 'hidden' : 'auto',
+            touchAction: isDragging ? 'none' : 'auto',
+          }}
+        >
           <p className="text-sm text-muted-foreground mb-4">
-            Drag to reorder, toggle to show/hide
+            Hold the grip icon to drag and reorder
           </p>
 
           <DndContext

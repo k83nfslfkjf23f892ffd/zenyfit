@@ -97,7 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userDocRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          const userData = snapshot.data() as User;
+          // Include document ID in user data (snapshot.data() doesn't include it)
+          const userData = { id: snapshot.id, ...snapshot.data() } as User;
 
           // Check for level-up
           if (previousLevelRef.current !== null && userData.level > previousLevelRef.current) {
