@@ -200,22 +200,28 @@ export function WidgetCustomizer({
         return;
       }
 
+      const payload = { dashboardWidgets: localConfig };
+      console.log('Saving to userId:', userId);
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ dashboardWidgets: localConfig }),
+        body: JSON.stringify(payload),
       });
 
+      const data = await response.json();
+      console.log('Response:', response.status, data);
+
       if (!response.ok) {
-        const data = await response.json();
         toast.error(data.error || 'Failed to save');
         return;
       }
 
-      toast.success('Dashboard saved - reloading...');
+      toast.success(`Saved! Hidden: ${localConfig.hidden.length} widgets`);
       // Clear user cache so fresh data is loaded
       localStorage.removeItem('zenyfit_user_cache');
       onOpenChange(false);
