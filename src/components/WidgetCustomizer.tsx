@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { GripVertical, X, RotateCcw, Loader2 } from 'lucide-react';
+import { GripVertical, X } from 'lucide-react';
 import { DEFAULT_WIDGET_CONFIG, getWidgetDefinition } from '@/lib/widgets';
 import { toast } from 'sonner';
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -43,9 +43,10 @@ interface SortableWidgetItemProps {
   widgetId: string;
   isHidden: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }
 
-function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItemProps) {
+function SortableWidgetItem({ widgetId, isHidden, onToggle, disabled }: SortableWidgetItemProps) {
   const {
     attributes,
     listeners,
@@ -67,13 +68,14 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 rounded-lg border bg-card ${isDragging ? 'shadow-lg z-50' : ''}`}
+      className={`flex items-center gap-3 p-3 rounded-lg border bg-card ${isDragging ? 'shadow-lg z-50' : ''} ${disabled ? 'opacity-50' : ''}`}
     >
       {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
         className="touch-none p-1 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+        disabled={disabled}
       >
         <GripVertical className="h-5 w-5 text-muted-foreground" />
       </button>
@@ -90,6 +92,7 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle }: SortableWidgetItem
       <Switch
         checked={!isHidden}
         onCheckedChange={onToggle}
+        disabled={disabled}
       />
     </div>
   );
@@ -111,8 +114,9 @@ export function WidgetCustomizer({
   const [localConfig, setLocalConfig] = useState<WidgetConfig>(safeConfig);
   const [saving, setSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Sync localConfig when config prop changes (e.g., after save and reload)
+  // Sync localConfig when config prop changes
   useEffect(() => {
     setLocalConfig({
       order: config?.order ?? DEFAULT_WIDGET_CONFIG.order,
@@ -130,22 +134,74 @@ export function WidgetCustomizer({
     };
   }, [open]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px movement required before drag starts
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250, // 250ms hold before drag starts on touch
-        tolerance: 8, // 8px movement allowed during delay
+        delay: 250,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Auto-save function
+  const saveConfig = async (configToSave: WidgetConfig) => {
+    if (!userId || !firebaseUser) return;
+
+    setSaving(true);
+    try {
+      const token = await firebaseUser.getIdToken();
+
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dashboardWidgets: configToSave }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to save');
+        return;
+      }
+
+      // Clear cache so fresh data loads on next visit
+      localStorage.removeItem('zenyfit_user_cache');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast.error('Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Debounced save - waits 500ms after last change
+  const debouncedSave = (newConfig: WidgetConfig) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveConfig(newConfig);
+    }, 500);
+  };
 
   if (!open) return null;
 
@@ -160,11 +216,11 @@ export function WidgetCustomizer({
     if (over && active.id !== over.id) {
       const oldIndex = localConfig.order.indexOf(active.id as string);
       const newIndex = localConfig.order.indexOf(over.id as string);
+      const newOrder = arrayMove(localConfig.order, oldIndex, newIndex);
+      const newConfig = { ...localConfig, order: newOrder };
 
-      setLocalConfig({
-        ...localConfig,
-        order: arrayMove(localConfig.order, oldIndex, newIndex),
-      });
+      setLocalConfig(newConfig);
+      debouncedSave(newConfig);
     }
   };
 
@@ -178,63 +234,13 @@ export function WidgetCustomizer({
       const newHidden = isHidden
         ? prev.hidden.filter((id) => id !== widgetId)
         : [...prev.hidden, widgetId];
-      return { ...prev, hidden: newHidden };
+      const newConfig = { ...prev, hidden: newHidden };
+
+      // Auto-save after toggle
+      debouncedSave(newConfig);
+
+      return newConfig;
     });
-  };
-
-  const resetToDefault = () => {
-    setLocalConfig(DEFAULT_WIDGET_CONFIG);
-  };
-
-  const saveConfig = async () => {
-    setSaving(true);
-    try {
-      if (!userId) {
-        toast.error('User ID not found');
-        return;
-      }
-
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
-      }
-
-      const payload = { dashboardWidgets: localConfig };
-      console.log('Saving to userId:', userId);
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      console.log('Response:', response.status, data);
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to save');
-        return;
-      }
-
-      toast.success(`Saved! Hidden: ${localConfig.hidden.length} widgets`);
-      // Clear user cache so fresh data is loaded
-      localStorage.removeItem('zenyfit_user_cache');
-      onOpenChange(false);
-      // Small delay to ensure Firestore has synced before reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    } catch (error) {
-      console.error('Error saving config:', error);
-      toast.error('An error occurred');
-    } finally {
-      setSaving(false);
-    }
   };
 
   return (
@@ -246,9 +252,12 @@ export function WidgetCustomizer({
         className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - fixed */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b shrink-0">
-          <h3 className="text-lg font-semibold">Customize Dashboard</h3>
+          <div>
+            <h3 className="text-lg font-semibold">Customize Dashboard</h3>
+            {saving && <p className="text-xs text-muted-foreground">Saving...</p>}
+          </div>
           <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
             <X className="h-4 w-4" />
           </Button>
@@ -262,10 +271,6 @@ export function WidgetCustomizer({
             touchAction: isDragging ? 'none' : 'auto',
           }}
         >
-          <p className="text-sm text-muted-foreground mb-4">
-            Toggle to show/hide widgets
-          </p>
-
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -284,6 +289,7 @@ export function WidgetCustomizer({
                     widgetId={widgetId}
                     isHidden={localConfig.hidden.includes(widgetId)}
                     onToggle={() => toggleWidget(widgetId)}
+                    disabled={saving}
                   />
                 ))}
               </div>
@@ -291,22 +297,6 @@ export function WidgetCustomizer({
           </DndContext>
         </div>
 
-        {/* Footer - fixed at bottom */}
-        <div className="flex items-center justify-between p-4 border-t bg-muted/30 shrink-0">
-          <Button variant="outline" size="sm" onClick={resetToDefault}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveConfig} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );
