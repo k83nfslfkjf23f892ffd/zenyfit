@@ -245,11 +245,11 @@ export function WidgetCustomizer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 touch-none"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-lg"
+        className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-lg overscroll-none touch-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -265,7 +265,7 @@ export function WidgetCustomizer({
 
         {/* Content - scrollable */}
         <div
-          className="p-4 flex-1 overflow-y-auto min-h-0"
+          className="p-4 flex-1 overflow-y-auto min-h-0 overscroll-contain"
           style={{
             overflowY: isDragging ? 'hidden' : 'auto',
             touchAction: isDragging ? 'none' : 'auto',
