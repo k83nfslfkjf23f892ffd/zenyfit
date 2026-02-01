@@ -102,13 +102,22 @@ export function WidgetCustomizer({
   firebaseUser,
   userId,
 }: WidgetCustomizerProps) {
-  const [localConfig, setLocalConfig] = useState<WidgetConfig>(config);
+  // Ensure config has valid structure
+  const safeConfig: WidgetConfig = {
+    order: config?.order ?? DEFAULT_WIDGET_CONFIG.order,
+    hidden: config?.hidden ?? [],
+  };
+
+  const [localConfig, setLocalConfig] = useState<WidgetConfig>(safeConfig);
   const [saving, setSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   // Sync localConfig when config prop changes (e.g., after save and reload)
   useEffect(() => {
-    setLocalConfig(config);
+    setLocalConfig({
+      order: config?.order ?? DEFAULT_WIDGET_CONFIG.order,
+      hidden: config?.hidden ?? [],
+    });
   }, [config]);
 
   // Lock body scroll when modal is open
@@ -164,12 +173,13 @@ export function WidgetCustomizer({
   };
 
   const toggleWidget = (widgetId: string) => {
-    const isHidden = localConfig.hidden.includes(widgetId);
-    const newHidden = isHidden
-      ? localConfig.hidden.filter((id) => id !== widgetId)
-      : [...localConfig.hidden, widgetId];
-
-    setLocalConfig({ ...localConfig, hidden: newHidden });
+    setLocalConfig(prev => {
+      const isHidden = prev.hidden.includes(widgetId);
+      const newHidden = isHidden
+        ? prev.hidden.filter((id) => id !== widgetId)
+        : [...prev.hidden, widgetId];
+      return { ...prev, hidden: newHidden };
+    });
   };
 
   const resetToDefault = () => {
