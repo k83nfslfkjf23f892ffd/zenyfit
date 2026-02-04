@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/auth-context';
@@ -35,7 +35,7 @@ interface Ranking {
 
 // Cache
 const RANKINGS_CACHE_KEY = 'zenyfit_rankings_cache';
-const CACHE_TTL = 2 * 60 * 1000;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function getCachedRankings(type: string): Ranking[] | null {
   try {
@@ -81,6 +81,16 @@ export default function LeaderboardPage() {
     return true;
   });
   const [updating, setUpdating] = useState(false);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -96,6 +106,9 @@ export default function LeaderboardPage() {
           setRankings(cached);
           setLoadingRankings(false);
           setUpdating(true);
+          // Set timeout to clear updating state if fetch hangs
+          if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+          updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
           fetchRankings(type, true);
           return;
         }
@@ -132,6 +145,10 @@ export default function LeaderboardPage() {
       } finally {
         setLoadingRankings(false);
         setUpdating(false);
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+          updateTimeoutRef.current = null;
+        }
       }
     },
     [firebaseUser]

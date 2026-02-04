@@ -13,7 +13,7 @@ import { EXERCISE_INFO } from '@shared/constants';
 
 // Cache helpers
 const CACHE_KEY = 'zenyfit_profile_stats';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface Stats {
   totalWorkouts: number;

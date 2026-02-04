@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -28,7 +28,7 @@ interface Challenge {
 
 // Cache helpers
 const CACHE_KEY = 'zenyfit_challenges';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface CacheEntry {
   challenges: Challenge[];
@@ -80,6 +80,16 @@ export default function ChallengesPage() {
   });
   const [updating, setUpdating] = useState(false);
   const [, setTick] = useState(0);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Real-time timer update every second
   useEffect(() => {
@@ -103,6 +113,9 @@ export default function ChallengesPage() {
         setChallenges(cached);
         setLoadingChallenges(false);
         setUpdating(true);
+        // Set timeout to clear updating state if fetch hangs
+        if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
         fetchChallenges(filter, true);
         return;
       }
@@ -138,6 +151,10 @@ export default function ChallengesPage() {
     } finally {
       setLoadingChallenges(false);
       setUpdating(false);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
+      }
     }
   }, [firebaseUser]);
 

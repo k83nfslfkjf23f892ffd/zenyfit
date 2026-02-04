@@ -1,6 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence, type Firestore } from 'firebase/firestore';
+import { getAuth, setPersistence, browserLocalPersistence, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { getFirestore, enableIndexedDbPersistence, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
 
 let firebaseApp: FirebaseApp | null = null;
 let firebaseAuth: Auth | null = null;
@@ -52,6 +52,14 @@ export async function initializeFirebase() {
 
     // Initialize Firestore with offline persistence
     firebaseDb = getFirestore(firebaseApp);
+
+    // Connect to emulators in development mode
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
+      console.log('🔧 Connecting to Firebase Emulators...');
+      connectAuthEmulator(firebaseAuth, 'http://localhost:9099', { disableWarnings: true });
+      connectFirestoreEmulator(firebaseDb, 'localhost', 8080);
+      console.log('✅ Connected to Firebase Emulators');
+    }
 
     // Enable offline persistence (wrapped in try-catch as it can fail in some environments)
     try {

@@ -13,7 +13,7 @@ interface Stats {
 }
 
 const CACHE_KEY = 'zenyfit_stats_grid';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function getCachedStats(): Stats | null {
   try {

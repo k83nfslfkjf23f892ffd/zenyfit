@@ -7,6 +7,10 @@
   },
   "scripts": {
     "dev": "next dev -p 3001",
+    "dev:emulator": "USE_FIREBASE_EMULATOR=true NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true next dev -p 3001",
+    "emulators": "firebase emulators:start",
+    "emulators:export": "firebase emulators:export ./emulator-data",
+    "emulators:import": "firebase emulators:start --import=./emulator-data",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

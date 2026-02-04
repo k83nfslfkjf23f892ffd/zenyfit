@@ -28,7 +28,7 @@ interface Challenge {
 
 // Cache helpers
 const CACHE_KEY_PREFIX = 'zenyfit_challenge_';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function getCachedChallenge(id: string): Challenge | null {
   try {

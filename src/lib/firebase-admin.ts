@@ -2,6 +2,14 @@ import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
+// Set emulator environment variables before initializing
+const useEmulator = process.env.USE_FIREBASE_EMULATOR === 'true';
+if (useEmulator) {
+  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
+  console.log('🔧 Firebase Admin using emulators');
+}
+
 let adminApp: App | null = null;
 let adminDb: Firestore | null = null;
 let adminAuth: Auth | null = null;
@@ -16,6 +24,11 @@ export function getAdminInstances() {
     const existingApps = getApps();
     if (existingApps.length > 0) {
       adminApp = existingApps[0];
+    } else if (useEmulator) {
+      // For emulator, initialize without credentials
+      adminApp = initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'zenyfit',
+      });
     } else {
       // Parse service account key from environment variable
       const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
