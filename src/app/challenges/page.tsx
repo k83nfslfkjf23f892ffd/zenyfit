@@ -15,6 +15,7 @@ import { Target, Plus, Clock, Users, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISE_INFO } from '@shared/constants';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
 
 interface Challenge {
   id: string;
@@ -29,40 +30,7 @@ interface Challenge {
   participantIds: string[];
 }
 
-// Cache helpers
-const CACHE_KEY = 'zenyfit_challenges';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-interface CacheEntry {
-  challenges: Challenge[];
-  timestamp: number;
-}
-
-function getCached(filter: string): Challenge[] | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const data = JSON.parse(cached) as Record<string, CacheEntry>;
-    const entry = data[filter];
-    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-      return entry.challenges;
-    }
-  } catch {
-    // Ignore errors
-  }
-  return null;
-}
-
-function setCache(filter: string, challenges: Challenge[]) {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const data = cached ? JSON.parse(cached) : {};
-    data[filter] = { challenges, timestamp: Date.now() };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch {
-    // Ignore errors
-  }
-}
+const CACHE_TTL = 5 * 60 * 1000;
 
 export default function ChallengesPage() {
   const router = useRouter();
@@ -71,13 +39,14 @@ export default function ChallengesPage() {
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
   const [challenges, setChallenges] = useState<Challenge[]>(() => {
     if (typeof window !== 'undefined') {
-      return getCached('my') || [];
+      const cached = getNestedCache<Challenge[]>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+      return cached?.data || [];
     }
     return [];
   });
   const [loadingChallenges, setLoadingChallenges] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCached('my');
+      return !getNestedCache<Challenge[]>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
     }
     return true;
   });
@@ -111,15 +80,16 @@ export default function ChallengesPage() {
   const fetchChallenges = useCallback(async (filter: 'my' | 'public', skipCache = false) => {
     // Try cache first
     if (!skipCache) {
-      const cached = getCached(filter);
+      const cached = getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL);
       if (cached) {
-        setChallenges(cached);
+        setChallenges(cached.data);
         setLoadingChallenges(false);
-        setUpdating(true);
-        // Set timeout to clear updating state if fetch hangs
-        if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-        updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
-        fetchChallenges(filter, true);
+        if (cached.isStale) {
+          setUpdating(true);
+          if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+          updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
+          fetchChallenges(filter, true);
+        }
         return;
       }
     }
@@ -142,13 +112,13 @@ export default function ChallengesPage() {
         const data = await response.json();
         const newChallenges = data.challenges || [];
         setChallenges(newChallenges);
-        setCache(filter, newChallenges);
-      } else if (!getCached(filter)) {
+        setNestedCache(CACHE_KEYS.challenges, filter, newChallenges);
+      } else if (!getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
         toast.error('Failed to load challenges');
       }
     } catch (error) {
       console.error('Error fetching challenges:', error);
-      if (!getCached(filter)) {
+      if (!getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
         toast.error('An error occurred');
       }
     } finally {

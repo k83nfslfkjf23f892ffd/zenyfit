@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
 import {
   AreaChart,
   Area,
@@ -18,12 +19,47 @@ interface XPData {
   xp: number;
 }
 
+interface TrendData {
+  trend: Array<{ date: string; workouts: number; xp: number }>;
+  totalWorkouts: number;
+  totalXp: number;
+  xpHistory?: XPData[];
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
+
 export function XPHistoryWidget() {
   const { user, firebaseUser } = useAuth();
-  const [data, setData] = useState<XPData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<XPData[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+      if (cached?.data.xpHistory) return cached.data.xpHistory;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+      return !cached?.data.xpHistory;
+    }
+    return true;
+  });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+      if (cached) {
+        if (cached.data.xpHistory) {
+          setData(cached.data.xpHistory);
+        }
+        setLoading(false);
+        if (cached.isStale) {
+          fetchData(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -37,6 +73,7 @@ export function XPHistoryWidget() {
         if (result.xpHistory) {
           setData(result.xpHistory);
         }
+        setLocalCache(CACHE_KEYS.trend, result);
       }
     } catch (error) {
       console.error('Error fetching XP history:', error);

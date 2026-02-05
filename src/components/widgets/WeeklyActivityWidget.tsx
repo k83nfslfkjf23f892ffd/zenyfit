@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
 import {
   BarChart,
   Bar,
@@ -19,12 +20,47 @@ interface DayData {
   xp: number;
 }
 
+interface ProfileStatsData {
+  personalBests: Record<string, number>;
+  consistencyScore: number;
+  workoutDaysLast30: number;
+  weeklyActivity?: DayData[];
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
+
 export function WeeklyActivityWidget() {
   const { firebaseUser } = useAuth();
-  const [data, setData] = useState<DayData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DayData[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached?.data.weeklyActivity) return cached.data.weeklyActivity;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      return !cached?.data.weeklyActivity;
+    }
+    return true;
+  });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) {
+        if (cached.data.weeklyActivity) {
+          setData(cached.data.weeklyActivity);
+        }
+        setLoading(false);
+        if (cached.isStale) {
+          fetchData(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -38,6 +74,7 @@ export function WeeklyActivityWidget() {
         if (result.weeklyActivity) {
           setData(result.weeklyActivity);
         }
+        setLocalCache(CACHE_KEYS.profileStats, result);
       }
     } catch (error) {
       console.error('Error fetching weekly activity:', error);

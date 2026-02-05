@@ -15,8 +15,8 @@ import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame
 import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
 
-const CACHE_KEY = 'zenyfit_profile_stats';
 const CACHE_TTL = 5 * 60 * 1000;
 
 interface Stats {
@@ -27,32 +27,32 @@ interface Stats {
   achievementsCount: number;
 }
 
+interface TrendData {
+  totalWorkouts: number;
+  totalXp: number;
+}
+
+interface AchievementsData {
+  unlockedAchievements: string[];
+}
+
 interface ProfileStats {
   personalBests: Record<string, number>;
   consistencyScore: number;
   workoutDaysLast30: number;
 }
 
-function getCachedStats(): Stats | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const data = JSON.parse(cached);
-    if (data && Date.now() - data.timestamp < CACHE_TTL) {
-      return data.stats;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function setCachedStats(stats: Stats) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ stats, timestamp: Date.now() }));
-  } catch {
-    // Ignore
-  }
+function buildStatsFromCache(): Stats | null {
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+  if (!trend && !achievements) return null;
+  return {
+    totalWorkouts: trend?.data.totalWorkouts || 0,
+    thisWeekWorkouts: trend?.data.totalWorkouts || 0,
+    totalXP: trend?.data.totalXp || 0,
+    thisWeekXP: trend?.data.totalXp || 0,
+    achievementsCount: achievements?.data.unlockedAchievements?.length || 0,
+  };
 }
 
 const statItems = [
@@ -68,19 +68,30 @@ export default function ProfilePage() {
 
   const [stats, setStats] = useState<Stats>(() => {
     if (typeof window !== 'undefined') {
-      return getCachedStats() || {
+      return buildStatsFromCache() || {
         totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0,
       };
     }
     return { totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0 };
   });
   const [loadingStats, setLoadingStats] = useState(() => {
-    if (typeof window !== 'undefined') return !getCachedStats();
+    if (typeof window !== 'undefined') return !buildStatsFromCache();
     return true;
   });
   const [updating, setUpdating] = useState(false);
-  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
-  const [loadingProfileStats, setLoadingProfileStats] = useState(true);
+  const [profileStats, setProfileStats] = useState<ProfileStats | null>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) return cached.data;
+    }
+    return null;
+  });
+  const [loadingProfileStats, setLoadingProfileStats] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -88,12 +99,20 @@ export default function ProfilePage() {
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const cached = getCachedStats();
-      if (cached) {
-        setStats(cached);
-        setLoadingStats(false);
-        setUpdating(true);
-        fetchStats(true);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+
+      if (trendCache || achievementsCache) {
+        const cached = buildStatsFromCache();
+        if (cached) {
+          setStats(cached);
+          setLoadingStats(false);
+        }
+        const anyStale = (trendCache?.isStale ?? true) || (achievementsCache?.isStale ?? true);
+        if (anyStale) {
+          setUpdating(true);
+          fetchStats(true);
+        }
         return;
       }
     }
@@ -111,13 +130,17 @@ export default function ProfilePage() {
         }),
       ]);
 
-      let trendData = { totalWorkouts: 0, totalXp: 0 };
+      let trendData: TrendData = { totalWorkouts: 0, totalXp: 0 };
       let achievementsCount = 0;
 
-      if (trendResponse.ok) trendData = await trendResponse.json();
+      if (trendResponse.ok) {
+        trendData = await trendResponse.json();
+        setLocalCache(CACHE_KEYS.trend, trendData);
+      }
       if (achievementsResponse.ok) {
         const achievementsData = await achievementsResponse.json();
         achievementsCount = achievementsData.unlockedAchievements?.length || 0;
+        setLocalCache(CACHE_KEYS.statsGrid, achievementsData);
       }
 
       const newStats = {
@@ -129,7 +152,6 @@ export default function ProfilePage() {
       };
 
       setStats(newStats);
-      setCachedStats(newStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -142,7 +164,19 @@ export default function ProfilePage() {
     if (user && firebaseUser) fetchStats();
   }, [user, firebaseUser, fetchStats]);
 
-  const fetchProfileStats = useCallback(async () => {
+  const fetchProfileStats = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) {
+        setProfileStats(cached.data);
+        setLoadingProfileStats(false);
+        if (cached.isStale) {
+          fetchProfileStats(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -154,6 +188,7 @@ export default function ProfilePage() {
       if (response.ok) {
         const data = await response.json();
         setProfileStats(data);
+        setLocalCache(CACHE_KEYS.profileStats, data);
       }
     } catch (error) {
       console.error('Error fetching profile stats:', error);

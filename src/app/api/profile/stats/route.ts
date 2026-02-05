@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 
 /**
  * GET /api/profile/stats
@@ -19,6 +20,13 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const userId = decodedToken.uid;
+
+    // Check server cache
+    const cached = getCached('/api/profile/stats', userId);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const { db } = getAdminInstances();
 
     // Fetch all exercise logs for the user
@@ -67,11 +75,15 @@ export async function GET(request: NextRequest) {
     // Score formula: min(100, (recentWorkoutDays / 16) * 100)
     const consistencyScore = Math.min(100, Math.round((recentWorkoutDays / 16) * 100));
 
-    return NextResponse.json({
+    const responseData = {
       personalBests,
       consistencyScore,
       workoutDaysLast30: recentWorkoutDays,
-    });
+    };
+
+    setCache('/api/profile/stats', userId, responseData);
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error in GET /api/profile/stats:', error);
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });

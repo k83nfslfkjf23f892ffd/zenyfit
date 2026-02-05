@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache, invalidateCache } from '@/lib/api-cache';
 import { z } from 'zod';
 
 const createChallengeSchema = z.object({
@@ -86,6 +87,9 @@ export async function POST(request: NextRequest) {
 
     await challengeRef.set(challengeData);
 
+    // Invalidate challenges cache for creator
+    invalidateCache('/api/challenges', userId);
+
     // Create invites if specified
     if (inviteUserIds && inviteUserIds.length > 0) {
       const inviteBatch = db.batch();
@@ -138,10 +142,17 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const userId = decodedToken.uid;
-    const { db } = getAdminInstances();
 
     const searchParams = request.nextUrl.searchParams;
     const filter = searchParams.get('filter') || 'my'; // 'my' or 'public'
+
+    // Check server cache
+    const cached = getCached('/api/challenges', userId, `filter=${filter}`);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
+
+    const { db } = getAdminInstances();
 
     let challenges: unknown[] = [];
 
@@ -206,7 +217,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ challenges }, { status: 200 });
+    const responseData = { challenges };
+    setCache('/api/challenges', userId, responseData, undefined, `filter=${filter}`);
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     console.error('Error in GET /api/challenges:', error);
     return NextResponse.json(

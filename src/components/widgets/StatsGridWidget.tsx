@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Activity, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
 
 interface Stats {
   totalWorkouts: number;
@@ -13,29 +14,29 @@ interface Stats {
   achievementsCount: number;
 }
 
-const CACHE_KEY = 'zenyfit_stats_grid';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-function getCachedStats(): Stats | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const data = JSON.parse(cached);
-    if (data && Date.now() - data.timestamp < CACHE_TTL) {
-      return data.stats;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+interface TrendData {
+  totalWorkouts: number;
+  totalXp: number;
 }
 
-function setCachedStats(stats: Stats) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ stats, timestamp: Date.now() }));
-  } catch {
-    // Ignore
-  }
+interface AchievementsData {
+  unlockedAchievements: string[];
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
+
+function buildStatsFromCache(): Stats | null {
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+
+  if (!trend && !achievements) return null;
+
+  return {
+    totalWorkouts: trend?.data.totalWorkouts || 0,
+    thisWeekWorkouts: trend?.data.totalWorkouts || 0,
+    thisWeekXP: trend?.data.totalXp || 0,
+    achievementsCount: achievements?.data.unlockedAchievements?.length || 0,
+  };
 }
 
 const statCards = [
@@ -49,7 +50,7 @@ export function StatsGridWidget() {
   const { user, firebaseUser } = useAuth();
   const [stats, setStats] = useState<Stats>(() => {
     if (typeof window !== 'undefined') {
-      return getCachedStats() || {
+      return buildStatsFromCache() || {
         totalWorkouts: 0,
         thisWeekWorkouts: 0,
         thisWeekXP: 0,
@@ -60,18 +61,28 @@ export function StatsGridWidget() {
   });
   const [loading, setLoading] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCachedStats();
+      return !buildStatsFromCache();
     }
     return true;
   });
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const cached = getCachedStats();
-      if (cached) {
-        setStats(cached);
-        setLoading(false);
-        fetchStats(true);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+
+      if (trendCache || achievementsCache) {
+        const cached = buildStatsFromCache();
+        if (cached) {
+          setStats(cached);
+          setLoading(false);
+        }
+
+        // Only background fetch if any cache is stale
+        const anyStale = (trendCache?.isStale ?? true) || (achievementsCache?.isStale ?? true);
+        if (anyStale) {
+          fetchStats(true);
+        }
         return;
       }
     }
@@ -89,16 +100,18 @@ export function StatsGridWidget() {
         }),
       ]);
 
-      let trendData = { totalWorkouts: 0, totalXp: 0 };
+      let trendData: TrendData = { totalWorkouts: 0, totalXp: 0 };
       let achievementsCount = 0;
 
       if (trendResponse.ok) {
         trendData = await trendResponse.json();
+        setLocalCache(CACHE_KEYS.trend, trendData);
       }
 
       if (achievementsResponse.ok) {
         const achievementsData = await achievementsResponse.json();
         achievementsCount = achievementsData.unlockedAchievements?.length || 0;
+        setLocalCache(CACHE_KEYS.statsGrid, achievementsData);
       }
 
       const newStats = {
@@ -109,7 +122,6 @@ export function StatsGridWidget() {
       };
 
       setStats(newStats);
-      setCachedStats(newStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {

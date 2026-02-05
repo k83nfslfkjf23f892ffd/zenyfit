@@ -6,18 +6,58 @@ import { Progress } from '@/components/ui/progress';
 import { Flame, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+
+interface ProfileStatsData {
+  personalBests: Record<string, number>;
+  consistencyScore: number;
+  workoutDaysLast30: number;
+}
 
 interface ConsistencyData {
   consistencyScore: number;
   workoutDaysLast30: number;
 }
 
+const CACHE_TTL = 5 * 60 * 1000;
+
 export function ConsistencyWidget() {
   const { firebaseUser } = useAuth();
-  const [data, setData] = useState<ConsistencyData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<ConsistencyData | null>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) {
+        return {
+          consistencyScore: cached.data.consistencyScore || 0,
+          workoutDaysLast30: cached.data.workoutDaysLast30 || 0,
+        };
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+    }
+    return true;
+  });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) {
+        setData({
+          consistencyScore: cached.data.consistencyScore || 0,
+          workoutDaysLast30: cached.data.workoutDaysLast30 || 0,
+        });
+        setLoading(false);
+        if (cached.isStale) {
+          fetchData(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -32,6 +72,7 @@ export function ConsistencyWidget() {
           consistencyScore: result.consistencyScore || 0,
           workoutDaysLast30: result.workoutDaysLast30 || 0,
         });
+        setLocalCache(CACHE_KEYS.profileStats, result);
       }
     } catch (error) {
       console.error('Error fetching consistency:', error);

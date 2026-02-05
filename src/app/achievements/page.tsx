@@ -8,28 +8,11 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Lock } from 'lucide-react';
 import { ACHIEVEMENTS, type Achievement } from '@shared/achievements';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
 
 type Category = 'workout' | 'progress' | 'challenge' | 'social';
 
-const ACHIEVEMENTS_CACHE_KEY = 'zenyfit_achievements';
-
-function getCachedAchievements(): string[] | null {
-  try {
-    const cached = localStorage.getItem(ACHIEVEMENTS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-  } catch {
-    // Ignore errors
-  }
-  return null;
-}
-
-function setCachedAchievements(ids: string[]) {
-  try {
-    localStorage.setItem(ACHIEVEMENTS_CACHE_KEY, JSON.stringify(ids));
-  } catch {
-    // Ignore errors
-  }
-}
+const CACHE_TTL = 5 * 60 * 1000;
 
 export default function AchievementsPage() {
   const router = useRouter();
@@ -37,13 +20,14 @@ export default function AchievementsPage() {
 
   const [unlockedIds, setUnlockedIds] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      return getCachedAchievements() || [];
+      const cached = getCache<string[]>(CACHE_KEYS.achievements, CACHE_TTL);
+      return cached?.data || [];
     }
     return [];
   });
   const [loadingAchievements, setLoadingAchievements] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCachedAchievements();
+      return !getCache<string[]>(CACHE_KEYS.achievements, CACHE_TTL);
     }
     return true;
   });
@@ -59,12 +43,14 @@ export default function AchievementsPage() {
   const fetchAchievements = useCallback(async (skipCache = false) => {
     // Try cache first
     if (!skipCache) {
-      const cached = getCachedAchievements();
+      const cached = getCache<string[]>(CACHE_KEYS.achievements, CACHE_TTL);
       if (cached) {
-        setUnlockedIds(cached);
+        setUnlockedIds(cached.data);
         setLoadingAchievements(false);
-        setUpdating(true);
-        fetchAchievements(true);
+        if (cached.isStale) {
+          setUpdating(true);
+          fetchAchievements(true);
+        }
         return;
       }
     }
@@ -83,7 +69,7 @@ export default function AchievementsPage() {
         const data = await response.json();
         const ids = data.unlockedAchievements || [];
         setUnlockedIds(ids);
-        setCachedAchievements(ids);
+        setLocalCache(CACHE_KEYS.achievements, ids);
       }
     } catch (error) {
       console.error('Error fetching achievements:', error);

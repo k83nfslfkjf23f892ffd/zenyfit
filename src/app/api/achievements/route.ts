@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 import { checkAchievements, type AchievementStats } from '@shared/achievements';
 
 /**
@@ -21,6 +22,14 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const userId = decodedToken.uid;
+    const route = '/api/achievements';
+
+    // Check server cache
+    const cached = getCached(route, userId);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
+
     const { db } = getAdminInstances();
 
     // Get user data
@@ -30,19 +39,21 @@ export async function GET(request: NextRequest) {
     }
     const userData = userDoc.data()!;
 
-    // Get workout count
-    const workoutsSnapshot = await db
+    // Get workout count (count only, no doc reads)
+    const workoutsCount = await db
       .collection('exercise_logs')
       .where('userId', '==', userId)
+      .count()
       .get();
 
-    // Get challenges created
-    const challengesCreatedSnapshot = await db
+    // Get challenges created (count only)
+    const challengesCreatedCount = await db
       .collection('challenges')
       .where('createdBy', '==', userId)
+      .count()
       .get();
 
-    // Get completed challenges (where user reached 100% of goal)
+    // Get completed challenges (need docs to check participant progress)
     const challengesSnapshot = await db
       .collection('challenges')
       .where('participantIds', 'array-contains', userId)
@@ -57,34 +68,36 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Get users invited (count used invite codes)
-    const inviteCodesSnapshot = await db
+    // Get users invited (count only)
+    const inviteCodesCount = await db
       .collection('inviteCodes')
       .where('createdBy', '==', userId)
       .where('used', '==', true)
+      .count()
       .get();
 
     // Build stats object
     const stats: AchievementStats = {
-      totalWorkouts: workoutsSnapshot.size,
+      totalWorkouts: workoutsCount.data().count,
       totalXP: userData.xp || 0,
       level: userData.level || 1,
       totals: userData.totals || { pullups: 0, pushups: 0, dips: 0, running: 0 },
       challengesCompleted,
-      challengesCreated: challengesCreatedSnapshot.size,
-      usersInvited: inviteCodesSnapshot.size,
+      challengesCreated: challengesCreatedCount.data().count,
+      usersInvited: inviteCodesCount.data().count,
     };
 
     // Check achievements
     const unlockedIds = checkAchievements(stats);
 
-    return NextResponse.json(
-      {
-        unlockedAchievements: unlockedIds,
-        stats,
-      },
-      { status: 200 }
-    );
+    const responseData = {
+      unlockedAchievements: unlockedIds,
+      stats,
+    };
+
+    setCache(route, userId, responseData);
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     console.error('Error in GET /api/achievements:', error);
     return NextResponse.json(

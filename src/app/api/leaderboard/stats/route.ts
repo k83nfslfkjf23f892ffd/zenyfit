@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 import { EXERCISE_INFO, EXERCISE_CATEGORIES } from '@shared/constants';
 
 // Get calisthenics exercise types
@@ -32,6 +33,13 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const userId = decodedToken.uid;
 
+    // Check server cache
+    const cacheParams = `scope=${scope}&range=${range}`;
+    const cached = getCached('/api/leaderboard/stats', userId, cacheParams);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
+
     // Calculate time range
     let startTime: number;
     let dateFormat: 'halfhour' | 'day' | 'week';
@@ -62,7 +70,8 @@ export async function GET(request: NextRequest) {
     // Build query based on scope
     let logsQuery = db.collection('exercise_logs')
       .where('timestamp', '>', startTime)
-      .orderBy('timestamp', 'asc');
+      .orderBy('timestamp', 'asc')
+      .limit(5000); // Safety cap for community scope
 
     if (scope === 'personal') {
       logsQuery = db.collection('exercise_logs')
@@ -187,7 +196,7 @@ export async function GET(request: NextRequest) {
       CALISTHENICS_TYPES.includes(doc.data().type)
     ).length;
 
-    return NextResponse.json({
+    const responseData = {
       scope,
       range,
       exerciseTotals,
@@ -199,7 +208,11 @@ export async function GET(request: NextRequest) {
         totalWorkouts,
         periodLabel: range === 'daily' ? 'today' : range === 'weekly' ? 'this week' : 'this month',
       },
-    }, { status: 200 });
+    };
+
+    setCache('/api/leaderboard/stats', userId, responseData, undefined, cacheParams);
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in GET /api/leaderboard/stats:', errorMessage, error);

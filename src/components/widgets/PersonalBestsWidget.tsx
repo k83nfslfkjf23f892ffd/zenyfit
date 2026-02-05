@@ -5,13 +5,45 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { EXERCISE_INFO } from '@shared/constants';
+import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+
+interface ProfileStatsData {
+  personalBests: Record<string, number>;
+  consistencyScore: number;
+  workoutDaysLast30: number;
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
 
 export function PersonalBestsWidget() {
   const { firebaseUser } = useAuth();
-  const [personalBests, setPersonalBests] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const [personalBests, setPersonalBests] = useState<Record<string, number>>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) return cached.data.personalBests || {};
+    }
+    return {};
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+    }
+    return true;
+  });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
+      if (cached) {
+        setPersonalBests(cached.data.personalBests || {});
+        setLoading(false);
+        if (cached.isStale) {
+          fetchData(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -23,6 +55,7 @@ export function PersonalBestsWidget() {
       if (response.ok) {
         const result = await response.json();
         setPersonalBests(result.personalBests || {});
+        setLocalCache(CACHE_KEYS.profileStats, result);
       }
     } catch (error) {
       console.error('Error fetching personal bests:', error);

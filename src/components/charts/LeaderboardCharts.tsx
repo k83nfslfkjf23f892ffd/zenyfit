@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
+import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -45,14 +46,11 @@ interface LeaderboardChartsProps {
   firebaseUser: { getIdToken: () => Promise<string> } | null;
 }
 
-const CACHE_KEY = 'zenyfit_chart_cache';
-const FILTER_KEY = 'zenyfit_chart_filters';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
-// Get saved filter preferences
 function getSavedFilters(): { scope: 'personal' | 'community'; range: 'daily' | 'weekly' | 'monthly' } {
   try {
-    const saved = localStorage.getItem(FILTER_KEY);
+    const saved = localStorage.getItem(CACHE_KEYS.chartFilters);
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
@@ -66,10 +64,9 @@ function getSavedFilters(): { scope: 'personal' | 'community'; range: 'daily' | 
   return { scope: 'personal', range: 'weekly' };
 }
 
-// Save filter preferences
 function saveFilters(scope: string, range: string) {
   try {
-    localStorage.setItem(FILTER_KEY, JSON.stringify({ scope, range }));
+    localStorage.setItem(CACHE_KEYS.chartFilters, JSON.stringify({ scope, range }));
   } catch {
     // Ignore errors
   }
@@ -98,39 +95,12 @@ function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps
   );
 }
 
-function getCachedData(scope: string, range: string): ChartData | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-
-    const data = JSON.parse(cached);
-    const key = `${scope}_${range}`;
-    const entry = data[key];
-
-    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-      return entry.data;
-    }
-  } catch {
-    // Ignore cache errors
-  }
-  return null;
+function getCachedData(scope: string, range: string) {
+  return getNestedCache<ChartData>(CACHE_KEYS.chartData, `${scope}_${range}`, CACHE_TTL);
 }
 
 function setCachedData(scope: string, range: string, data: ChartData) {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const existing = cached ? JSON.parse(cached) : {};
-    const key = `${scope}_${range}`;
-
-    existing[key] = {
-      data,
-      timestamp: Date.now(),
-    };
-
-    localStorage.setItem(CACHE_KEY, JSON.stringify(existing));
-  } catch {
-    // Ignore cache errors
-  }
+  setNestedCache(CACHE_KEYS.chartData, `${scope}_${range}`, data);
 }
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
@@ -155,9 +125,11 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     if (!skipCache) {
       const cached = getCachedData(newScope, newRange);
       if (cached) {
-        setData(cached);
-        // Still fetch fresh data in background
-        fetchStats(newScope, newRange, true);
+        setData(cached.data);
+        // Only background fetch when stale
+        if (cached.isStale) {
+          fetchStats(newScope, newRange, true);
+        }
         return;
       }
     }
@@ -204,7 +176,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     if (firebaseUser) {
       const cached = getCachedData(scope, range);
       if (cached) {
-        setData(cached);
+        setData(cached.data);
       }
       fetchStats(scope, range);
     }

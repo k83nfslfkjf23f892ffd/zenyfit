@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 
 /**
  * GET /api/leaderboard/trend
@@ -23,6 +24,13 @@ export async function GET(request: NextRequest) {
     const { db } = getAdminInstances();
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId'); // Optional: specific user, otherwise global
+
+    // Check server cache (key by requesting user + target userId)
+    const cacheParams = `userId=${userId || 'global'}`;
+    const cached = getCached('/api/leaderboard/trend', decodedToken.uid, cacheParams);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
 
     // Calculate timestamp for 7 days ago
     const now = Date.now();
@@ -71,14 +79,15 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    return NextResponse.json(
-      {
-        trend: trendData,
-        totalWorkouts: snapshot.size,
-        totalXp: trendData.reduce((sum, day) => sum + day.xp, 0),
-      },
-      { status: 200 }
-    );
+    const responseData = {
+      trend: trendData,
+      totalWorkouts: snapshot.size,
+      totalXp: trendData.reduce((sum, day) => sum + day.xp, 0),
+    };
+
+    setCache('/api/leaderboard/trend', decodedToken.uid, responseData, undefined, cacheParams);
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     console.error('Error in GET /api/leaderboard/trend:', error);
     return NextResponse.json(

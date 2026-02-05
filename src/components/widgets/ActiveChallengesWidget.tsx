@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Target, Loader2, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
 
 interface Challenge {
   id: string;
@@ -15,12 +16,63 @@ interface Challenge {
   endDate: number;
 }
 
+interface ChallengesResponse {
+  challenges: Array<{
+    id: string;
+    title: string;
+    goal: number;
+    participants: Array<{ userId: string; progress: number }>;
+    participantIds: string[];
+    endDate: number;
+  }>;
+}
+
+const CACHE_TTL = 5 * 60 * 1000;
+
 export function ActiveChallengesWidget() {
   const { user, firebaseUser } = useAuth();
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
+  const extractChallenges = useCallback((data: ChallengesResponse): Challenge[] => {
+    const now = Date.now();
+    return (data.challenges || [])
+      .filter((c) => c.endDate > now && c.participantIds?.includes(user?.id || ''))
+      .slice(0, 3)
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        goal: c.goal,
+        progress: c.participants?.find((p) => p.userId === user?.id)?.progress || 0,
+        endDate: c.endDate,
+      }));
+  }, [user?.id]);
+
+  const [challenges, setChallenges] = useState<Challenge[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getNestedCache<ChallengesResponse>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+      if (cached) return extractChallenges(cached.data);
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !getNestedCache<ChallengesResponse>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+    }
+    return true;
+  });
+
+  const fetchData = useCallback(async (skipCache = false) => {
+    if (!skipCache) {
+      const cached = getNestedCache<ChallengesResponse>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+      if (cached) {
+        setChallenges(extractChallenges(cached.data));
+        setLoading(false);
+        if (cached.isStale) {
+          fetchData(true);
+        }
+        return;
+      }
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) return;
@@ -31,27 +83,15 @@ export function ActiveChallengesWidget() {
 
       if (response.ok) {
         const result = await response.json();
-        const now = Date.now();
-        const activeChallenges = (result.challenges || [])
-          .filter((c: { endDate: number; participantIds: string[] }) =>
-            c.endDate > now && c.participantIds?.includes(user?.id || '')
-          )
-          .slice(0, 3)
-          .map((c: { id: string; title: string; goal: number; participants: { userId: string; progress: number }[]; endDate: number }) => ({
-            id: c.id,
-            title: c.title,
-            goal: c.goal,
-            progress: c.participants?.find((p: { userId: string }) => p.userId === user?.id)?.progress || 0,
-            endDate: c.endDate,
-          }));
-        setChallenges(activeChallenges);
+        setChallenges(extractChallenges(result));
+        setNestedCache(CACHE_KEYS.challenges, 'my', result);
       }
     } catch (error) {
       console.error('Error fetching challenges:', error);
     } finally {
       setLoading(false);
     }
-  }, [firebaseUser, user?.id]);
+  }, [firebaseUser, extractChallenges]);
 
   useEffect(() => {
     if (user && firebaseUser) {

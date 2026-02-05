@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
 
 const LeaderboardCharts = dynamic(
   () =>
@@ -34,34 +35,7 @@ interface Ranking {
   score: number;
 }
 
-const RANKINGS_CACHE_KEY = 'zenyfit_rankings_cache';
 const CACHE_TTL = 5 * 60 * 1000;
-
-function getCachedRankings(type: string): Ranking[] | null {
-  try {
-    const cached = localStorage.getItem(RANKINGS_CACHE_KEY);
-    if (!cached) return null;
-    const data = JSON.parse(cached);
-    const entry = data[type];
-    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-      return entry.rankings;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function setCachedRankings(type: string, rankings: Ranking[]) {
-  try {
-    const cached = localStorage.getItem(RANKINGS_CACHE_KEY);
-    const existing = cached ? JSON.parse(cached) : {};
-    existing[type] = { rankings, timestamp: Date.now() };
-    localStorage.setItem(RANKINGS_CACHE_KEY, JSON.stringify(existing));
-  } catch {
-    // ignore
-  }
-}
 
 const rankBadge = (rank: number) => {
   if (rank === 1) return <Badge variant="gold">1st</Badge>;
@@ -77,13 +51,14 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<RankingType>('xp');
   const [rankings, setRankings] = useState<Ranking[]>(() => {
     if (typeof window !== 'undefined') {
-      return getCachedRankings('xp') || [];
+      const cached = getNestedCache<Ranking[]>(CACHE_KEYS.rankings, 'xp', CACHE_TTL);
+      return cached?.data || [];
     }
     return [];
   });
   const [loadingRankings, setLoadingRankings] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCachedRankings('xp');
+      return !getNestedCache<Ranking[]>(CACHE_KEYS.rankings, 'xp', CACHE_TTL);
     }
     return true;
   });
@@ -107,14 +82,16 @@ export default function LeaderboardPage() {
   const fetchRankings = useCallback(
     async (type: RankingType, skipCache = false) => {
       if (!skipCache) {
-        const cached = getCachedRankings(type);
+        const cached = getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL);
         if (cached) {
-          setRankings(cached);
+          setRankings(cached.data);
           setLoadingRankings(false);
-          setUpdating(true);
-          if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-          updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
-          fetchRankings(type, true);
+          if (cached.isStale) {
+            setUpdating(true);
+            if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+            updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
+            fetchRankings(type, true);
+          }
           return;
         }
       }
@@ -138,13 +115,13 @@ export default function LeaderboardPage() {
           const data = await response.json();
           const newRankings = data.rankings || [];
           setRankings(newRankings);
-          setCachedRankings(type, newRankings);
-        } else if (!getCachedRankings(type)) {
+          setNestedCache(CACHE_KEYS.rankings, type, newRankings);
+        } else if (!getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL)) {
           toast.error('Failed to load leaderboard');
         }
       } catch (error) {
         console.error(error);
-        if (!getCachedRankings(type)) {
+        if (!getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL)) {
           toast.error('An error occurred');
         }
       } finally {

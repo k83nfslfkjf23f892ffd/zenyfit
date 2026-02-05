@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 
 /**
  * GET /api/leaderboard
@@ -22,12 +23,20 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = rateLimitByUser(decodedToken, request.nextUrl.pathname, RATE_LIMITS.READ_HEAVY);
     if (rateLimitResponse) return rateLimitResponse;
 
+    const userId = decodedToken.uid;
     const { db } = getAdminInstances();
     const searchParams = request.nextUrl.searchParams;
 
     const type = searchParams.get('type'); // 'pullups', 'pushups', 'dips', 'running', or null for total XP
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+    // Check server cache
+    const cacheParams = `type=${type || 'xp'}&limit=${limit}&offset=${offset}`;
+    const cached = getCached('/api/leaderboard', userId, cacheParams);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
 
     let query;
 
@@ -64,18 +73,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(
-      {
-        rankings,
-        type: type || 'xp',
-        pagination: {
-          limit,
-          offset,
-          hasMore: snapshot.size === limit,
-        },
+    const responseData = {
+      rankings,
+      type: type || 'xp',
+      pagination: {
+        limit,
+        offset,
+        hasMore: snapshot.size === limit,
       },
-      { status: 200 }
-    );
+    };
+
+    setCache('/api/leaderboard', userId, responseData, undefined, cacheParams);
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     console.error('Error in GET /api/leaderboard:', error);
     return NextResponse.json(
