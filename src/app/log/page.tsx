@@ -194,6 +194,7 @@ export default function LogPage() {
     if (saved) {
       setSessionTotal(parseInt(saved, 10));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save selections to localStorage
@@ -493,6 +494,10 @@ export default function LogPage() {
     }
   };
 
+  const activeExercise = getActiveExercise();
+  const activeXpRate = useMemo(() => XP_RATES[activeExercise] || 0, [activeExercise]);
+  const exerciseLabel = useMemo(() => EXERCISE_INFO[activeExercise]?.label || activeExercise, [activeExercise]);
+
   // Don't block render for auth loading
   if (!loading && !user) {
     return null;
@@ -508,10 +513,6 @@ export default function LogPage() {
       </AppLayout>
     );
   }
-
-  const activeExercise = getActiveExercise();
-  const activeXpRate = useMemo(() => XP_RATES[activeExercise] || 0, [activeExercise]);
-  const exerciseLabel = useMemo(() => EXERCISE_INFO[activeExercise]?.label || activeExercise, [activeExercise]);
 
   // Main exercise types for quick selection (icon only)
   const mainExercises = [

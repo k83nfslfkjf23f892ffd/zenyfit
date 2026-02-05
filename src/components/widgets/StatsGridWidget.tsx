@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Activity, Calendar, TrendingUp, Award, Loader2 } from 'lucide-react';
+import { Activity, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 

@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Award, Lock } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { ACHIEVEMENTS, type Achievement } from '@shared/achievements';
 
 type Category = 'workout' | 'progress' | 'challenge' | 'social';
