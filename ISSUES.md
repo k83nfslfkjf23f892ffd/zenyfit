@@ -1,5 +1,67 @@
 # ONGOING FEATURES & ISSUES
 
+## CRITICAL
+
+### 21. Firestore Read Quota Exhaustion — 46k reads in 1 hour
+- **Status:** Open
+- **Severity:** Critical — app becomes unusable when quota is hit
+- **Problem:** Normal browsing burns through Firestore read quota extremely fast. Went from 5k to 46k reads in ~1 hour of light testing on dev branch.
+
+#### Root Cause: Unbounded queries + no server-side cache + fake client cache
+
+**1. Unbounded collection reads (no `.limit()`):**
+
+| Route | What it reads | Reads per call |
+|-------|--------------|----------------|
+| `/api/achievements` (line 34-37) | ALL user's exercise_logs `.get()` | N logs |
+| `/api/achievements` (line 46-49) | ALL user's challenges | M challenges |
+| `/api/leaderboard/trend` (line 38-42) | ALL exercise_logs in 7 days | N logs |
+| `/api/profile/stats` (line 25-29) | ALL user's exercise_logs | N logs |
+| `/api/leaderboard/stats` (line 63-74) | **ALL exercise_logs from ALL users** (community scope) | **Every log in the system** |
+
+The `/api/leaderboard/stats` with `scope=community` is the worst offender — it reads every single exercise log from every user in the time range, with no limit.
+
+`/api/achievements` reads ALL logs just to count them (`workoutsSnapshot.size`) when it could use `.count()`.
+
+**2. Client-side "cache" doesn't actually prevent API calls:**
+The stale-while-revalidate pattern in every widget (e.g., StatsGridWidget, profile page):
+```typescript
+const fetchStats = useCallback(async (skipCache = false) => {
+  if (!skipCache) {
+    const cached = getCachedStats();
+    if (cached) {
+      setStats(cached);         // Show cached data instantly
+      setLoading(false);
+      fetchStats(true);          // ← ALWAYS fires background fetch
+      return;
+    }
+  }
+  // ... actual API call happens every time
+```
+The cache only skips the loading spinner — it ALWAYS makes API calls in the background. So every page visit = full Firestore reads regardless of cache.
+
+**3. No server-side caching:**
+Every API request hits Firestore directly. No in-memory TTL cache on the server. On Vercel serverless this is harder (instances don't share memory), but even per-instance caching would help since warm instances handle many requests.
+
+**4. Dashboard is the worst page — loads 5+ API calls simultaneously:**
+- `/api/leaderboard/trend` → N exercise_log reads
+- `/api/achievements` → N exercise_log reads + M challenge reads + K invite reads
+- `/api/profile/stats` → N exercise_log reads (AGAIN, same collection)
+- `/api/leaderboard/stats` → ALL exercise_logs from ALL users
+- `/api/challenges` → challenge reads + participant user reads
+
+If a user has 200 logs and there are 500 total logs in the system, each dashboard visit = ~1,400+ Firestore reads. With background refetch, every navigation back to dashboard repeats this.
+
+#### Fix Plan (in priority order):
+1. **Use `.count()` instead of `.get()` where only counts are needed** — `/api/achievements` reads all logs just for `workoutsSnapshot.size`
+2. **Add server-side in-memory TTL cache** to expensive routes (even 60s cache would cut reads 90%+)
+3. **Make client cache actually skip background fetch when cache is fresh** — only refetch if cache is older than TTL, not every time
+4. **Add `.limit()` to all unbounded queries** or paginate results
+5. **Deduplicate overlapping reads** — `/api/profile/stats` and `/api/achievements` both read all exercise_logs separately; could combine into one call
+6. **Store pre-computed stats in user document** — total workout count, consistency score, etc. updated on each workout log, so reads are 1 doc instead of N logs
+
+---
+
 ## HIGH PRIORITY
 
 ### ~~Dev Deployment API Errors (Firebase Quota)~~ (Fixed)
@@ -227,7 +289,7 @@
 
 1. **XP rate constants** - Extensive variation tables (e.g., 8 different pull-up variations with different XP). Users unlikely to distinguish "wide grip" vs "regular" pull-ups. Could simplify to 3-4 tiers.
 
-2. **Theme system** - 24 themes is a lot to maintain. Most apps have 2-5. Each theme adds testing surface area.
+2. ~~**Theme system** - 24 themes is a lot to maintain.~~ (Fixed in v2.0.0 — reduced to 6 themes)
 
 3. **Challenge participant tracking** - Stores full participant objects with progress in challenge doc. Could use subcollection for scalability, but current user count probably doesn't need it.
 
