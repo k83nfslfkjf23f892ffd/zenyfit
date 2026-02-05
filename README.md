@@ -22,7 +22,7 @@ ZenyFit is a gamified fitness tracking application that turns workouts into an R
 - **Workout Logging** - Track pull-ups, push-ups, dips, running with quick-add buttons
 - **Custom Exercises** - Create your own exercises with custom units and quick actions (tracking only, no XP)
 - **XP & Leveling** - Earn XP for standard workouts and level up
-- **24 Themes** - User-selectable color schemes with dark/light mode
+- **6 Themes** - User-selectable color schemes with dark/light mode
 - **Challenges** - Create and join time-based fitness competitions
   - Public challenges anyone can join
   - Private challenges with invitation system
@@ -52,6 +52,7 @@ ZenyFit is a gamified fitness tracking application that turns workouts into an R
 - Firebase Firestore (database)
 - Firebase Auth (authentication)
 - Server-side XP calculations (anti-cheat)
+- Two-layer caching (server in-memory + client localStorage) — see `ARCHITECTURE.md`
 
 **Infrastructure:**
 - Vercel (hosting + edge functions)
@@ -135,9 +136,10 @@ MASTER_INVITE_CODE=BOOTSTRAP123
 ## XP System
 
 **Standard Exercises:**
-- Pull-ups: **15 XP/rep**
-- Push-ups: **3 XP/rep**
-- Dips: **12 XP/rep**
+- Pull-ups: **6 XP/rep** (variations: 2-8 XP)
+- Push-ups: **3 XP/rep** (variations: 2-6 XP)
+- Dips: **6 XP/rep** (variations: 2-7 XP)
+- Muscle-ups: **11 XP/rep**
 - Running: **30 XP/km**
 
 **Custom Exercises:** 0 XP (tracking only)

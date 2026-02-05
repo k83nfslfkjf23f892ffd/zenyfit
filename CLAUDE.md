@@ -157,12 +157,18 @@ Custom exercises: 0 XP (tracking only)
 - Level 11+: Additional 7000 XP per level
 
 #### 5. Theme System
-- 24 themes defined in `src/lib/themes.ts`
+- 6 themes defined in `src/lib/themes.ts`
 - Theme provider injects CSS variables dynamically
 - Uses `next-themes` for dark/light mode support
 - User theme preference stored in Firestore and localStorage
 
-#### 6. Security Features
+#### 6. Caching Architecture (see `ARCHITECTURE.md` for full details)
+Two-layer caching to minimize Firestore reads:
+- **Server-side** (`src/lib/api-cache.ts`): In-memory Map with 1-2 min TTLs on 6 heavy routes
+- **Client-side** (`src/lib/client-cache.ts`): localStorage with 5 min TTL, shared cache keys across widgets
+- **Pattern**: Fresh cache → no API call. Stale cache → show old data, background refresh. No cache → loading spinner, fetch.
+
+#### 7. Security Features
 - **Rate Limiting**: All API endpoints protected (IP-based for public, user-based for authenticated)
 - **Input Sanitization**: `src/lib/sanitize.ts` for XSS prevention
 - **Security Headers**: CSP, HSTS, X-Frame-Options, etc. in `next.config.js`

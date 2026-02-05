@@ -1,20 +1,115 @@
-# ZenyFit Backend Overview
+# ZenyFit Architecture
 
 Everything that happens behind the scenes when users interact with ZenyFit.
 
 ---
 
-## Firebase Free Tier Limits
+## Service Limits & Costs
 
-| Resource | Daily Free Limit | What Counts |
-|----------|-----------------|-------------|
-| Firestore reads | 50,000/day | Every `.get()` on a doc or query result doc |
-| Firestore writes | 20,000/day | Every `.set()`, `.update()`, `.delete()` |
-| Firestore deletes | 20,000/day | Every `.delete()` |
-| `.count()` queries | 1 read per 1,000 docs | Much cheaper than `.get()` when you only need the count |
-| Auth operations | 10,000/day | Sign-ups, sign-ins, token verifications |
+ZenyFit runs entirely on free tiers. Here's what we get and what to watch.
+
+### Firebase — Spark Plan (Free)
+
+#### Firestore (our database)
+
+| Resource | Free Limit | Reset | What Counts |
+|----------|-----------|-------|-------------|
+| Reads | **50,000/day** | Midnight PT | Every `.get()` on a doc or query result doc. A query returning 200 docs = 200 reads |
+| Writes | **20,000/day** | Midnight PT | Every `.set()`, `.update()`, `.delete()` |
+| Deletes | **20,000/day** | Midnight PT | Every `.delete()` |
+| `.count()` queries | **1 read per 1,000 docs** | — | Much cheaper than `.get()` when you only need the count |
+| Stored data | **1 GiB** | Cumulative | All documents + indexes |
+| Network egress | **10 GiB/month** | Monthly | Data transferred out to clients |
 
 **Key insight:** A single `.get()` on a query returning 200 documents = **200 reads**. A `.count()` on the same query = **1 read**.
+
+**When exceeded:** Service stops entirely for the rest of the day. API calls return `RESOURCE_EXHAUSTED` errors. No surprise billing — Firebase never auto-upgrades you.
+
+#### Firebase Auth
+
+| Resource | Free Limit |
+|----------|-----------|
+| Monthly Active Users (email/password) | **50,000 MAU** |
+| Daily Active Users | **3,000 DAU** |
+| Sign-up rate | ~100/hour per IP |
+| Phone/SMS auth | Not available on Spark (Blaze only) |
+
+**Included free:** Email/password, social login (Google, Facebook, Apple, GitHub), anonymous auth, custom email templates, account linking.
+
+#### What ZenyFit Actually Uses
+
+| Firebase Service | Used? | Notes |
+|-----------------|-------|-------|
+| Firestore | Yes | Primary database — the bottleneck to watch |
+| Auth | Yes | Email/password only (emails are `username@zenyfit.local`) |
+| Cloud Storage | No | Avatars are Dicebear URLs, not uploaded files |
+| Cloud Functions | No | We use Next.js API routes on Vercel instead |
+| Hosting | No | We deploy on Vercel |
+| Cloud Messaging (FCM) | No | Push notifications use Web Push API directly |
+| Analytics | No | — |
+
+### Vercel — Hobby Plan (Free)
+
+#### Serverless Functions (our API routes)
+
+| Resource | Free Limit |
+|----------|-----------|
+| Invocations | **1,000,000/month** |
+| Active CPU time | **4 CPU-hours/month** |
+| Provisioned memory time | **360 GB-hours/month** |
+| Max duration per function | **300 seconds** (5 min) |
+| Max memory per function | **2 GB / 1 vCPU** |
+| Request/response body | **4.5 MB** max |
+| Concurrent executions | Auto-scales up to 30,000 |
+
+#### Bandwidth & Builds
+
+| Resource | Free Limit |
+|----------|-----------|
+| Data transfer (bandwidth) | **100 GB/month** |
+| Origin transfer | **10 GB/month** |
+| Build execution | **6,000 min/month** (100 hours) |
+| Max build time per deploy | **45 min** |
+| Concurrent builds | **1** |
+| Deployments per day | **100** |
+
+#### Other Limits
+
+| Resource | Free Limit |
+|----------|-----------|
+| Projects | 200 |
+| Domains per project | 50 |
+| Image optimization (source images) | 1,000/month |
+| Web Analytics events | 50,000/month |
+| Runtime log retention | 1 hour |
+| Cron jobs per project | 100 |
+| WAF custom rules | 3 |
+| DDoS protection | Included |
+
+**Important:** Hobby plan is for **personal, non-commercial use only**. If ZenyFit becomes commercial, it needs Vercel Pro ($20/user/month).
+
+**When exceeded:** Vercel will block further requests or builds until the next billing period. No surprise charges on Hobby.
+
+### ZenyFit Capacity on Free Tiers
+
+| Bottleneck | Limit | ZenyFit Usage per Active User/Day | Max Users |
+|-----------|-------|----------------------------------|-----------|
+| **Firestore reads** | 50,000/day | ~3,000-4,000 reads/day | **~12-15 users** |
+| **Firestore writes** | 20,000/day | ~20-50 writes/day (workouts) | ~400+ users |
+| **Vercel invocations** | 1M/month | ~200-500 calls/day | ~60-150 users |
+| **Vercel CPU** | 4 hrs/month | ~1-3 min/day | ~80-240 users |
+| **Vercel bandwidth** | 100 GB/month | ~5-20 MB/day | ~150-600 users |
+| **Auth MAU** | 50,000/month | 1 MAU per user | 50,000 users |
+
+**Firestore reads are the bottleneck.** Everything else has plenty of headroom.
+
+### Upgrading Path
+
+| Trigger | Action | Cost |
+|---------|--------|------|
+| > ~15 active users | Firebase Blaze (pay-as-you-go) | ~$0.06 per 100k reads beyond free tier |
+| Commercial use | Vercel Pro | $20/month |
+| Need Redis for rate limiting | Upstash or Vercel KV | Free tier available, ~$1/month after |
 
 ---
 
@@ -81,6 +176,10 @@ Everything that happens behind the scenes when users interact with ZenyFit.
 | `/api/workouts` | POST | `exercise_logs`, `users`, `challenges` | 2-4 | - | WRITE_HEAVY |
 | `/api/workouts/[id]` | DELETE | `exercise_logs`, `users`, `challenges` | 2-4 | - | MODERATE |
 | `/api/exercises/custom` | GET/POST | `custom_exercises` | 1-2 | - | MODERATE |
+| `/api/exercises/custom/[id]` | PATCH/DELETE | `custom_exercises` | 1-2 | - | MODERATE |
+| `/api/notifications/subscribe` | GET/POST/DELETE | `users` | 1 | - | MODERATE |
+| `/api/users/validate` | GET | — (Firebase Auth) | 0 | - | PUBLIC_MOD |
+| `/api/config` | GET | — (env vars only) | 0 | - | PUBLIC_MOD |
 | `/api/invites` | GET | `inviteCodes`, `users` | 1-10 | - | READ_HEAVY |
 | `/api/invites/generate` | POST | `inviteCodes` | 1-10 | - | MODERATE |
 | `/api/invites/validate` | GET | `inviteCodes` | 1 | - | PUBLIC_MOD |
