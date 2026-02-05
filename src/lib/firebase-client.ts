@@ -46,20 +46,35 @@ export async function initializeFirebase() {
       firebaseApp = initializeApp(config);
     }
 
-    // Initialize Auth with persistence
+    // Initialize Auth
     firebaseAuth = getAuth(firebaseApp);
-    await setPersistence(firebaseAuth, browserLocalPersistence);
 
-    // Initialize Firestore with offline persistence
+    // Initialize Firestore
     firebaseDb = getFirestore(firebaseApp);
 
-    // Connect to emulators in development mode
+    // Connect to emulators BEFORE setting persistence (must happen before auth state restoration)
     if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
-      console.log('🔧 Connecting to Firebase Emulators...');
-      connectAuthEmulator(firebaseAuth, 'http://localhost:9099', { disableWarnings: true });
-      connectFirestoreEmulator(firebaseDb, 'localhost', 8080);
-      console.log('✅ Connected to Firebase Emulators');
+      // Use the same host the page is served from (works for both localhost and network IP)
+      const emulatorHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      console.log(`🔧 Connecting to Firebase Emulators at ${emulatorHost}...`);
+      try {
+        // Use port 9199 (proxy) when accessing from network, 9099 when on localhost
+        const authPort = emulatorHost === 'localhost' || emulatorHost === '127.0.0.1' ? 9099 : 9199;
+        connectAuthEmulator(firebaseAuth, `http://${emulatorHost}:${authPort}`, { disableWarnings: true });
+        console.log(`✅ Auth emulator connected on port ${authPort}`);
+      } catch (e) {
+        console.error('❌ Auth emulator connection failed:', e);
+      }
+      try {
+        connectFirestoreEmulator(firebaseDb, emulatorHost, 8080);
+        console.log('✅ Firestore emulator connected');
+      } catch (e) {
+        console.error('❌ Firestore emulator connection failed:', e);
+      }
     }
+
+    // Set persistence AFTER emulator connection
+    await setPersistence(firebaseAuth, browserLocalPersistence);
 
     // Enable offline persistence (wrapped in try-catch as it can fail in some environments)
     try {

@@ -8,7 +8,7 @@ export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'animate-pulse rounded-md bg-muted/60',
+        'animate-pulse rounded-lg bg-border/20',
         className
       )}
     />
@@ -18,7 +18,7 @@ export function Skeleton({ className }: SkeletonProps) {
 // Pre-built skeleton patterns for common UI elements
 export function SkeletonCard({ className }: SkeletonProps) {
   return (
-    <div className={cn('rounded-lg border bg-card p-4 space-y-3', className)}>
+    <div className={cn('rounded-xl glass p-4 space-y-3', className)}>
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-4 w-1/2" />
       <Skeleton className="h-8 w-full" />
@@ -53,7 +53,7 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Workout Logger Card */}
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-xl glass">
         <div className="p-6 pb-2">
           <Skeleton className="h-6 w-32 mb-2" />
           <Skeleton className="h-4 w-48" />
@@ -87,7 +87,7 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Recent Activity */}
-      <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="rounded-xl glass p-6 space-y-4">
         <Skeleton className="h-6 w-32" />
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export function LeaderboardSkeleton() {
         {[...Array(10)].map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-4 rounded-lg border bg-card p-4"
+            className="flex items-center gap-4 rounded-xl glass p-4"
           >
             <Skeleton className="h-8 w-8" />
             <SkeletonAvatar />
@@ -163,7 +163,7 @@ export function ChallengesSkeleton() {
       {/* Challenge cards */}
       <div className="space-y-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="rounded-lg border bg-card p-4 space-y-3">
+          <div key={i} className="rounded-xl glass p-4 space-y-3">
             <div className="flex items-start justify-between">
               <div className="space-y-2 flex-1">
                 <Skeleton className="h-5 w-3/4" />
@@ -204,7 +204,7 @@ export function ProfileSkeleton() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="rounded-lg border bg-card p-4 space-y-2">
+          <div key={i} className="rounded-xl glass p-4 space-y-2">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-8 w-16" />
           </div>
@@ -212,7 +212,7 @@ export function ProfileSkeleton() {
       </div>
 
       {/* Exercise breakdown */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      <div className="rounded-xl glass p-4 space-y-4">
         <Skeleton className="h-6 w-40" />
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
@@ -249,7 +249,7 @@ export function ChallengeDetailSkeleton() {
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-3">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="rounded-lg border bg-card p-3 space-y-2 text-center">
+          <div key={i} className="rounded-xl glass p-3 space-y-2 text-center">
             <Skeleton className="h-4 w-16 mx-auto" />
             <Skeleton className="h-6 w-12 mx-auto" />
           </div>
@@ -257,7 +257,7 @@ export function ChallengeDetailSkeleton() {
       </div>
 
       {/* Participants */}
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      <div className="rounded-xl glass p-4 space-y-4">
         <Skeleton className="h-6 w-32" />
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center gap-3">

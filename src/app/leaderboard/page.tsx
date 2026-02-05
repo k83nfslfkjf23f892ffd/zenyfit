@@ -3,16 +3,18 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
+import { listContainerVariants, listItemVariants } from '@/lib/animations';
 
-// Dynamic import to avoid SSR issues with Recharts
 const LeaderboardCharts = dynamic(
   () =>
     import('@/components/charts/LeaderboardCharts').then(
@@ -33,9 +35,8 @@ interface Ranking {
   score: number;
 }
 
-// Cache
 const RANKINGS_CACHE_KEY = 'zenyfit_rankings_cache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
 function getCachedRankings(type: string): Ranking[] | null {
   try {
@@ -47,7 +48,7 @@ function getCachedRankings(type: string): Ranking[] | null {
       return entry.rankings;
     }
   } catch {
-    // ignore cache errors
+    return null;
   }
   return null;
 }
@@ -59,9 +60,16 @@ function setCachedRankings(type: string, rankings: Ranking[]) {
     existing[type] = { rankings, timestamp: Date.now() };
     localStorage.setItem(RANKINGS_CACHE_KEY, JSON.stringify(existing));
   } catch {
-    // ignore cache errors
+    // ignore
   }
 }
+
+const rankBadge = (rank: number) => {
+  if (rank === 1) return <Badge variant="gold">1st</Badge>;
+  if (rank === 2) return <Badge variant="silver">2nd</Badge>;
+  if (rank === 3) return <Badge variant="bronze">3rd</Badge>;
+  return <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>;
+};
 
 export default function LeaderboardPage() {
   const router = useRouter();
@@ -83,7 +91,6 @@ export default function LeaderboardPage() {
   const [updating, setUpdating] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
@@ -106,7 +113,6 @@ export default function LeaderboardPage() {
           setRankings(cached);
           setLoadingRankings(false);
           setUpdating(true);
-          // Set timeout to clear updating state if fetch hangs
           if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
           updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
           fetchRankings(type, true);
@@ -160,7 +166,6 @@ export default function LeaderboardPage() {
     }
   }, [user, firebaseUser, activeTab, fetchRankings]);
 
-  // Don't block render for auth loading - show cached content immediately
   if (!loading && !user) {
     return null;
   }
@@ -172,108 +177,107 @@ export default function LeaderboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Calisthenics Charts */}
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold gradient-text">Leaderboard</h1>
+            <button
+              type="button"
+              onClick={() => router.push('/leaderboard/xp-info')}
+              className="p-1 text-foreground/30 hover:text-foreground/60 transition-colors"
+            >
+              <Info className="h-4 w-4" />
+            </button>
+          </div>
+          {updating && (
+            <span className="text-xs text-foreground/30 animate-pulse">
+              Updating...
+            </span>
+          )}
+        </div>
+
         <LeaderboardCharts firebaseUser={firebaseUser} />
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-6 w-6" />
-                Leaderboard
-                <button
-                  type="button"
-                  onClick={() => router.push('/leaderboard/xp-info')}
-                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-              </CardTitle>
+        {/* Rankings */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as RankingType)}
+        >
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="xp">All</TabsTrigger>
+            <TabsTrigger value="pullups">Pull</TabsTrigger>
+            <TabsTrigger value="pushups">Push</TabsTrigger>
+            <TabsTrigger value="dips">Dips</TabsTrigger>
+            <TabsTrigger value="running">Run</TabsTrigger>
+          </TabsList>
 
-              {updating && (
-                <span className="text-xs text-muted-foreground animate-pulse">
-                  Updating...
-                </span>
-              )}
-            </div>
+          <TabsContent value={activeTab}>
+            {loadingRankings ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              </div>
+            ) : rankings.length === 0 ? (
+              <p className="py-12 text-center text-sm text-foreground/40">
+                No rankings yet
+              </p>
+            ) : (
+              <motion.div
+                className="space-y-2"
+                variants={listContainerVariants}
+                initial="hidden"
+                animate="visible"
+                key={activeTab}
+              >
+                {rankings.map((ranking) => {
+                  const isCurrentUser = user ? ranking.id === user.id : false;
+                  const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
+                  const isTop3 = ranking.rank <= 3;
+                  return (
+                    <motion.div
+                      key={ranking.id}
+                      variants={listItemVariants}
+                      className={`flex items-center gap-3 rounded-xl p-3 transition-all duration-200 ${
+                        isCurrentUser
+                          ? 'glass-strong glow-sm'
+                          : 'glass'
+                      }`}
+                    >
+                      {rankBadge(ranking.rank)}
 
-            <CardDescription>
-              Compete with other users and climb the ranks
-            </CardDescription>
-          </CardHeader>
+                      <div className={`h-10 w-10 overflow-hidden rounded-full ${isTop3 ? 'ring-2 ring-primary/30' : ''}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={avatarUrl}
+                          alt={ranking.username}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
 
-          <CardContent>
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as RankingType)}
-            >
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="xp">All</TabsTrigger>
-                <TabsTrigger value="pullups">Pull</TabsTrigger>
-                <TabsTrigger value="pushups">Push</TabsTrigger>
-                <TabsTrigger value="dips">Dips</TabsTrigger>
-                <TabsTrigger value="running">Run</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value={activeTab} className="mt-4 space-y-3">
-                {loadingRankings ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : rankings.length === 0 ? (
-                  <p className="py-12 text-center text-sm text-muted-foreground">
-                    No rankings yet
-                  </p>
-                ) : (
-                  rankings.map((ranking) => {
-                    const isCurrentUser = user ? ranking.id === user.id : false;
-                    const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
-                    return (
-                      <div
-                        key={ranking.id}
-                        className={`flex items-center gap-3 rounded-lg border p-3 ${
-                          isCurrentUser
-                            ? 'border-primary bg-primary/5'
-                            : ''
-                        }`}
-                      >
-                        <div className="h-12 w-12 overflow-hidden rounded-full bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={avatarUrl}
-                            alt={ranking.username}
-                            className="h-full w-full object-cover"
-                          />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">
+                          {ranking.username}
                         </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold truncate">
-                            {ranking.username}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Level {ranking.level}
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <div className="font-bold text-primary">
-                            {Math.floor(
-                              ranking.score
-                            ).toLocaleString()}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {getScoreLabel(activeTab)}
-                          </div>
+                        <div className="text-xs text-foreground/40">
+                          Lv. {ranking.level}
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+
+                      <div className="text-right">
+                        <div className={`font-bold text-sm ${isTop3 ? 'gradient-text' : ''}`}>
+                          {Math.floor(ranking.score).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-foreground/40">
+                          {getScoreLabel(activeTab)}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

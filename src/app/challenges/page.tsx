@@ -3,15 +3,18 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Target, Plus, Clock, Users, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISE_INFO } from '@shared/constants';
+import { listContainerVariants, listItemVariants } from '@/lib/animations';
 
 interface Challenge {
   id: string;
@@ -202,22 +205,23 @@ export default function ChallengesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-5">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold">Challenges</h1>
+              <h1 className="text-xl font-bold gradient-text">Challenges</h1>
               {updating && (
-                <span className="text-xs text-muted-foreground animate-pulse">
+                <span className="text-xs text-foreground/30 animate-pulse">
                   Updating...
                 </span>
               )}
             </div>
-            <p className="text-muted-foreground">Compete and push your limits</p>
+            <p className="text-sm text-foreground/50">Compete and push your limits</p>
           </div>
-          <Button asChild>
+          <Button size="sm" asChild>
             <Link href="/challenges/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-1.5 h-4 w-4" />
               Create
             </Link>
           </Button>
@@ -229,87 +233,92 @@ export default function ChallengesPage() {
             <TabsTrigger value="public">Discover</TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="mt-6 space-y-4">
+          <TabsContent value={activeTab}>
             {loadingChallenges ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
               </div>
             ) : challenges.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Target className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    {activeTab === 'my'
-                      ? 'No active challenges. Create one or join a public challenge!'
-                      : 'No public challenges available right now.'}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="py-12 text-center">
+                <div className="mx-auto mb-4 p-3 rounded-2xl gradient-bg-subtle w-fit">
+                  <Target className="h-8 w-8 text-primary" />
+                </div>
+                <p className="text-sm text-foreground/40">
+                  {activeTab === 'my'
+                    ? 'No active challenges. Create one or join a public challenge!'
+                    : 'No public challenges available right now.'}
+                </p>
+              </div>
             ) : (
-              challenges.map((challenge) => {
-                const timeRemaining = formatTimeRemaining(challenge.endDate);
-                const userProgress = getUserProgress(challenge);
-                const progressPercent = (userProgress / challenge.goal) * 100;
-                const isParticipant = user ? challenge.participantIds.includes(user.id) : false;
+              <motion.div
+                className="space-y-3"
+                variants={listContainerVariants}
+                initial="hidden"
+                animate="visible"
+                key={activeTab}
+              >
+                {challenges.map((challenge) => {
+                  const timeRemaining = formatTimeRemaining(challenge.endDate);
+                  const userProgress = getUserProgress(challenge);
+                  const progressPercent = (userProgress / challenge.goal) * 100;
+                  const isParticipant = user ? challenge.participantIds.includes(user.id) : false;
 
-                return (
-                  <Link key={challenge.id} href={`/challenges/${challenge.id}`}>
-                    <Card className="hover:border-primary transition-colors cursor-pointer">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle>{challenge.title}</CardTitle>
-                            {challenge.description && (
-                              <CardDescription className="mt-1">
-                                {challenge.description}
-                              </CardDescription>
+                  return (
+                    <motion.div key={challenge.id} variants={listItemVariants}>
+                      <Link href={`/challenges/${challenge.id}`}>
+                        <div className="glass rounded-xl p-4 space-y-3 transition-all active:scale-[0.98]">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm truncate">{challenge.title}</h3>
+                              {challenge.description && (
+                                <p className="text-xs text-foreground/40 mt-0.5 truncate">
+                                  {challenge.description}
+                                </p>
+                              )}
+                            </div>
+                            {challenge.isPublic && (
+                              <Badge variant="secondary" className="ml-2 shrink-0">Public</Badge>
                             )}
                           </div>
-                          {challenge.isPublic && (
-                            <span className="text-xs rounded-full bg-primary/10 px-2 py-1 text-primary">
-                              Public
-                            </span>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Challenge Info */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Target className="h-4 w-4 text-muted-foreground" />
-                            <span>{EXERCISE_INFO[challenge.type]?.label || challenge.type}</span>
-                          </div>
-                          <div className="flex items-center gap-1 justify-end">
-                            <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground whitespace-nowrap text-sm font-mono">
-                              {timeRemaining}
-                            </span>
-                          </div>
-                        </div>
 
-                        {/* Progress (if participant) */}
-                        {isParticipant && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span>Your Progress</span>
-                              <span className="text-muted-foreground">
-                                {Math.floor(userProgress)} / {challenge.goal}
+                          {/* Challenge Info */}
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5 text-foreground/60">
+                              <Target className="h-3.5 w-3.5" />
+                              <span>{EXERCISE_INFO[challenge.type]?.label || challenge.type}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-foreground/40">
+                              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="font-mono text-xs">
+                                {timeRemaining}
                               </span>
                             </div>
-                            <Progress value={progressPercent} />
                           </div>
-                        )}
 
-                        {/* Participants */}
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-4 w-4" />
-                          <span>{challenge.participants.length} participants</span>
+                          {/* Progress (if participant) */}
+                          {isParticipant && (
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-foreground/50">Progress</span>
+                                <span className="font-medium gradient-text">
+                                  {Math.floor(userProgress)} / {challenge.goal}
+                                </span>
+                              </div>
+                              <Progress value={progressPercent} glow />
+                            </div>
+                          )}
+
+                          {/* Participants */}
+                          <div className="flex items-center gap-1.5 text-xs text-foreground/40">
+                            <Users className="h-3.5 w-3.5" />
+                            <span>{challenge.participants.length} participants</span>
+                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
             )}
           </TabsContent>
         </Tabs>

@@ -29,12 +29,12 @@ export function LevelUpCelebration({
   // Generate confetti particles
   const confettiCount = 30;
   const confettiColors = [
-    'bg-violet-500',
+    'bg-primary',
     'bg-pink-500',
-    'bg-blue-500',
-    'bg-yellow-500',
-    'bg-green-500',
-    'bg-red-500',
+    'bg-blue-400',
+    'bg-yellow-400',
+    'bg-emerald-400',
+    'bg-orange-400',
   ];
 
   return (
@@ -69,7 +69,7 @@ export function LevelUpCelebration({
 
           {/* Main celebration card */}
           <motion.div
-            className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-center shadow-2xl max-w-md mx-4"
+            className="relative gradient-bg rounded-3xl p-12 text-center shadow-2xl max-w-md mx-4"
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             exit={{ scale: 0, rotate: 180 }}

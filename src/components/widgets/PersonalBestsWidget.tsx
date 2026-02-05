@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -42,16 +42,17 @@ export function PersonalBestsWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-yellow-500" />
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="p-1.5 rounded-lg bg-amber-500/15">
+            <Trophy className="h-4 w-4 text-amber-400" />
+          </div>
           Personal Bests
         </CardTitle>
-        <CardDescription>Your highest single-workout records</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         {loading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
           </div>
         ) : Object.keys(personalBests).length > 0 ? (
           Object.entries(personalBests)
@@ -61,16 +62,16 @@ export function PersonalBestsWidget() {
               const label = exerciseInfo?.label || type;
               const unit = exerciseInfo?.unit || 'reps';
               return (
-                <div key={type} className="flex items-center justify-between rounded-lg border p-3">
-                  <span className="font-medium">{label}</span>
-                  <span className="text-lg font-bold text-primary">
+                <div key={type} className="flex items-center justify-between rounded-lg glass p-3">
+                  <span className="text-sm font-medium">{label}</span>
+                  <span className="text-sm font-bold gradient-text">
                     {amount} {unit}
                   </span>
                 </div>
               );
             })
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <p className="text-sm text-foreground/40 text-center py-4">
             No personal bests yet. Log some workouts!
           </p>
         )}

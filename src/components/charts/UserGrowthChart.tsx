@@ -36,7 +36,7 @@ export function UserGrowthChart({
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64 text-muted-foreground">
+          <div className="flex items-center justify-center h-64 text-foreground/40">
             No growth data available
           </div>
         </CardContent>
@@ -71,11 +71,11 @@ export function UserGrowthChart({
             <XAxis
               dataKey="date"
               className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fill: 'rgb(var(--foreground) / 0.4)' }}
             />
             <YAxis
               className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fill: 'rgb(var(--foreground) / 0.4)' }}
             />
             <Tooltip
               contentStyle={{

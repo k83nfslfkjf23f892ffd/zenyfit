@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Activity, Calendar, TrendingUp, Award, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 
 interface Stats {
   totalWorkouts: number;
@@ -36,6 +37,13 @@ function setCachedStats(stats: Stats) {
     // Ignore
   }
 }
+
+const statCards = [
+  { key: 'totalWorkouts', label: 'Total Workouts', icon: Activity },
+  { key: 'thisWeekWorkouts', label: 'This Week', icon: Calendar },
+  { key: 'thisWeekXP', label: 'Week XP', icon: TrendingUp, highlight: true },
+  { key: 'achievementsCount', label: 'Achievements', icon: Award },
+] as const;
 
 export function StatsGridWidget() {
   const { user, firebaseUser } = useAuth();
@@ -116,62 +124,30 @@ export function StatsGridWidget() {
   }, [user, firebaseUser, fetchStats]);
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Total Workouts</span>
-          </div>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : (
-            <div className="text-3xl font-bold">{stats.totalWorkouts}</div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">This Week</span>
-          </div>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : (
-            <div className="text-3xl font-bold">{stats.thisWeekWorkouts}</div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Week XP</span>
-          </div>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : (
-            <div className="text-3xl font-bold text-primary">{stats.thisWeekXP}</div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Award className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Achievements</span>
-          </div>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : (
-            <div className="text-3xl font-bold">{stats.achievementsCount}</div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-2 gap-3">
+      {statCards.map((item) => {
+        const { key, label, icon: Icon } = item;
+        const highlight = 'highlight' in item && item.highlight;
+        return (
+        <Card key={key}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                <Icon className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span className="text-xs text-foreground/50">{label}</span>
+            </div>
+            {loading ? (
+              <div className="h-8 w-16 rounded-lg bg-border/20 animate-pulse" />
+            ) : (
+              <div className={`text-2xl font-bold ${highlight ? 'gradient-text' : ''}`}>
+                <AnimatedNumber value={stats[key]} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        );
+      })}
     </div>
   );
 }

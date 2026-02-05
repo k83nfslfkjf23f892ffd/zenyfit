@@ -118,14 +118,13 @@ export default function AchievementsPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Award className="h-8 w-8" />
+          <h1 className="text-xl font-bold flex items-center gap-2">
             Achievements
             {updating && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <Loader2 className="h-4 w-4 animate-spin text-foreground/40" />
             )}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-foreground/50 mt-0.5">
             {totalUnlocked} / {totalAchievements} unlocked
           </p>
         </div>
@@ -142,7 +141,7 @@ export default function AchievementsPage() {
             <TabsContent key={category} value={category} className="mt-6 space-y-4">
               {loadingAchievements ? (
                 <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-8 w-8 animate-spin text-foreground/40" />
                 </div>
               ) : (
                 categorizedAchievements[category].map((achievement) => {
@@ -159,7 +158,7 @@ export default function AchievementsPage() {
                           <div className="flex-1">
                             <CardTitle className="flex items-center gap-2">
                               {achievement.title}
-                              {!isUnlocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                              {!isUnlocked && <Lock className="h-4 w-4 text-foreground/40" />}
                             </CardTitle>
                             <CardDescription className="mt-1">
                               {achievement.description}

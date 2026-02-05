@@ -3,6 +3,7 @@
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { CelebrationProvider } from '@/lib/celebration-context';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SplashScreen } from '@/components/SplashScreen';
 import { Toaster } from 'sonner';
 
@@ -12,7 +13,9 @@ function AuthenticatedApp({ children }: { children: React.ReactNode }) {
   return (
     <SplashScreen loading={loading}>
       <CelebrationProvider>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <Toaster position="top-center" />
       </CelebrationProvider>
     </SplashScreen>

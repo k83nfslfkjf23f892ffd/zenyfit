@@ -45,16 +45,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>(() => {
-    // Load cached user on initial render
-    if (typeof window !== 'undefined') {
-      return getCachedUser();
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Load cached user after mount to avoid hydration mismatch
+  useEffect(() => {
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+    }
+  }, []);
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   const previousLevelRef = useRef<number | null>(null);
+  const lastCelebratedLevelRef = useRef<number>(0);
   const onLevelUpCallbackRef = useRef<((newLevel: number) => void) | undefined>(undefined);
 
   // Initialize Firebase on mount
@@ -100,9 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Include document ID in user data (snapshot.data() doesn't include it)
           const userData = { id: snapshot.id, ...snapshot.data() } as User;
 
-          // Check for level-up
-          if (previousLevelRef.current !== null && userData.level > previousLevelRef.current) {
-            // Level increased! Trigger celebration
+          // Check for level-up (deduplicated to prevent multiple celebrations)
+          if (
+            previousLevelRef.current !== null &&
+            userData.level > previousLevelRef.current &&
+            userData.level > lastCelebratedLevelRef.current
+          ) {
+            lastCelebratedLevelRef.current = userData.level;
             if (onLevelUpCallbackRef.current) {
               onLevelUpCallbackRef.current(userData.level);
             }

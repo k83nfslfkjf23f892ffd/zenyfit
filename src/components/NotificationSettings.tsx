@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -143,14 +143,14 @@ export function NotificationSettings() {
   if (!supported) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BellOff className="w-5 h-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="p-1.5 rounded-lg gradient-bg-subtle">
+              <BellOff className="h-4 w-4 text-primary" />
+            </div>
             Push Notifications
           </CardTitle>
-          <CardDescription>
-            Push notifications are not supported in your browser
-          </CardDescription>
+          <p className="text-xs text-foreground/40 mt-1">Not supported in your browser</p>
         </CardHeader>
       </Card>
     );
@@ -158,20 +158,19 @@ export function NotificationSettings() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="w-5 h-5" />
-          Push Notifications
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="p-1.5 rounded-lg gradient-bg-subtle">
+            <Bell className="h-4 w-4 text-primary" />
+          </div>
+          Notifications
         </CardTitle>
-        <CardDescription>
-          Get notified about level-ups, achievements, and challenge updates
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <Label htmlFor="push-notifications" className="flex flex-col gap-1">
             <span>Enable Push Notifications</span>
-            <span className="text-sm text-muted-foreground font-normal">
+            <span className="text-xs text-foreground/40 font-normal">
               Permission: {permission}
             </span>
           </Label>
@@ -200,7 +199,7 @@ export function NotificationSettings() {
           </Button>
         )}
 
-        <div className="text-xs text-muted-foreground space-y-1">
+        <div className="text-xs text-foreground/40 space-y-1">
           <p>You&apos;ll receive notifications for:</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>Level-up achievements</li>

@@ -68,22 +68,22 @@ function SortableWidgetItem({ widgetId, isHidden, onToggle, disabled }: Sortable
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 rounded-lg border bg-card ${isDragging ? 'shadow-lg z-50' : ''} ${disabled ? 'opacity-50' : ''}`}
+      className={`flex items-center gap-3 p-3 rounded-xl glass ${isDragging ? 'glow-sm z-50' : ''} ${disabled ? 'opacity-50' : ''}`}
     >
       {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
-        className="touch-none p-1 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+        className="touch-none p-1 rounded hover:bg-white/[0.08] cursor-grab active:cursor-grabbing"
         disabled={disabled}
       >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
+        <GripVertical className="h-5 w-5 text-foreground/30" />
       </button>
 
       {/* Widget info */}
       <div className="flex-1 min-w-0">
         <div className="font-medium text-sm">{widget.name}</div>
-        <div className="text-xs text-muted-foreground truncate">
+        <div className="text-xs text-foreground/40 truncate">
           {widget.description}
         </div>
       </div>
@@ -245,18 +245,18 @@ export function WidgetCustomizer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 touch-none"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm touch-none"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="bg-background border rounded-t-lg sm:rounded-lg w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-lg overscroll-none touch-auto"
+        className="glass-strong border-border/30 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col touch-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-border/20 shrink-0">
           <div>
             <h3 className="text-lg font-semibold">Customize Dashboard</h3>
-            {saving && <p className="text-xs text-muted-foreground">Saving...</p>}
+            {saving && <p className="text-xs text-foreground/40">Saving...</p>}
           </div>
           <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
             <X className="h-4 w-4" />
@@ -282,7 +282,7 @@ export function WidgetCustomizer({
               items={localConfig.order}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-2">
+              <div className="space-y-2 pb-16">
                 {localConfig.order.map((widgetId) => (
                   <SortableWidgetItem
                     key={widgetId}

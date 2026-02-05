@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -148,17 +147,32 @@ function SignupForm() {
   const isFormValid = usernameAvailable && inviteCodeValid && password.length >= 7;
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Join ZenyFit and start your fitness journey</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-background relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full opacity-[0.06] blur-3xl"
+          style={{ background: 'rgb(var(--gradient-from))' }}
+        />
+        <div
+          className="absolute bottom-1/4 right-1/3 w-80 h-80 rounded-full opacity-[0.06] blur-3xl"
+          style={{ background: 'rgb(var(--gradient-to))' }}
+        />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        {/* Logo / Branding */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold gradient-text">ZenyFit</h1>
+          <p className="text-sm text-foreground/50">Start your fitness journey</p>
+        </div>
+
+        {/* Signup Form */}
+        <div className="glass-strong rounded-2xl p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-sm text-foreground/70">Username</Label>
               <div className="relative">
                 <Input
                   id="username"
@@ -171,25 +185,26 @@ function SignupForm() {
                   maxLength={12}
                   pattern="[a-zA-Z0-9_]+"
                   disabled={loading}
+                  className="pr-10"
                 />
                 {usernameChecking && (
-                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-foreground/30" />
                 )}
                 {!usernameChecking && usernameAvailable === true && (
-                  <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                 )}
                 {!usernameChecking && usernameAvailable === false && (
-                  <XCircle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                  <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/40">
                 Letters, numbers, and underscores only. Cannot be changed later.
               </p>
             </div>
 
             {/* Password Input */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm text-foreground/70">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -205,63 +220,64 @@ function SignupForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                At least 7 characters
-              </p>
             </div>
 
             {/* Invite Code Input */}
             <div className="space-y-2">
-              <Label htmlFor="inviteCode">Invite Code</Label>
+              <Label htmlFor="inviteCode" className="text-sm text-foreground/70">Invite Code</Label>
               <div className="relative">
                 <Input
                   id="inviteCode"
                   type="text"
                   value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                   placeholder="Enter invite code"
                   required
                   disabled={loading}
+                  className="pr-10 font-mono tracking-wider"
                 />
                 {inviteCodeChecking && (
-                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-foreground/30" />
                 )}
                 {!inviteCodeChecking && inviteCodeValid === true && (
-                  <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                 )}
                 {!inviteCodeChecking && inviteCodeValid === false && (
-                  <XCircle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                  <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/40">
                 ZenyFit is invite-only
               </p>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-11"
               disabled={!isFormValid || loading}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
-            <p className="text-sm text-center text-muted-foreground">
-              Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
-                Log in
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </div>
+
+        {/* Footer links */}
+        <div className="text-center">
+          <p className="text-sm text-foreground/50">
+            Already have an account?{' '}
+            <Link href="/login" className="text-primary hover:underline">
+              Log in
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -269,13 +285,19 @@ function SignupForm() {
 export default function SignupPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Create Account</CardTitle>
-            <CardDescription>Loading...</CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center p-4 bg-background relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full opacity-[0.06] blur-3xl"
+            style={{ background: 'rgb(var(--gradient-from))' }}
+          />
+        </div>
+        <div className="relative z-10 w-full max-w-sm space-y-8">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold gradient-text">ZenyFit</h1>
+            <p className="text-sm text-foreground/50">Loading...</p>
+          </div>
+        </div>
       </div>
     }>
       <SignupForm />

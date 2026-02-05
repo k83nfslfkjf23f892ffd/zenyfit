@@ -66,6 +66,11 @@ export function rateLimitByIP(
   request: NextRequest,
   limit: { maxRequests: number; windowMs: number } = RATE_LIMITS.PUBLIC_MODERATE
 ): NextResponse | null {
+  // Skip rate limiting in emulator mode for easier testing
+  if (process.env.USE_FIREBASE_EMULATOR === 'true') {
+    return null;
+  }
+
   const ip = request.headers.get('x-forwarded-for') ||
              request.headers.get('x-real-ip') ||
              'unknown';

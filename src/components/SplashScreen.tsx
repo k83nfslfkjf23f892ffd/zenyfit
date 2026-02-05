@@ -45,15 +45,15 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
         }`}
       >
         {/* App Name with pulse animation */}
-        <h1 className="text-5xl font-black tracking-tight text-primary animate-pulse leading-normal pb-1">
+        <h1 className="text-5xl font-black tracking-tight gradient-text animate-pulse leading-normal pb-1">
           ZenyFit
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground font-medium animate-pulse">
+        <p className="mt-2 text-sm text-foreground/50 font-medium animate-pulse">
           Level up yourself
         </p>
 
         {/* Version at bottom */}
-        <div className="absolute bottom-8 text-xs text-muted-foreground">
+        <div className="absolute bottom-8 text-xs text-foreground/30">
           v{APP_VERSION}
         </div>
       </div>

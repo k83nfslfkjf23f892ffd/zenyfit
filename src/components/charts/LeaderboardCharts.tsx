@@ -87,8 +87,8 @@ function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-xs text-muted-foreground mb-1">
+    <div className="glass-strong rounded-lg px-3 py-2 shadow-lg border border-border/30">
+      <p className="text-xs text-foreground/40 mb-1">
         {formatter ? formatter(label || '') : label}
       </p>
       <p className="text-sm font-medium text-foreground">
@@ -243,7 +243,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     return (
       <Card>
         <CardContent className="py-8">
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
+          <div className="flex flex-col items-center justify-center text-foreground/40">
             <p className="text-sm">{error}</p>
             <button
               onClick={() => fetchStats(scope, range, true)}
@@ -261,12 +261,14 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Dumbbell className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="p-1.5 rounded-lg gradient-bg-subtle">
+              <Dumbbell className="h-4 w-4 text-primary" />
+            </div>
             Calisthenics
           </CardTitle>
           {loading && (
-            <span className="text-xs text-muted-foreground animate-pulse">
+            <span className="text-xs text-foreground/40 animate-pulse">
               Updating...
             </span>
           )}
@@ -300,19 +302,19 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         {/* Summary Stats */}
         {data && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-primary/10 p-3 text-center">
-              <div className="text-2xl font-bold text-primary">
+            <div className="rounded-xl glass p-3 text-center">
+              <div className="text-2xl font-bold gradient-text">
                 {data.summary.totalReps.toLocaleString()}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-foreground/40">
                 reps {data.summary.periodLabel}
               </div>
             </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="rounded-xl glass p-3 text-center">
               <div className="text-2xl font-bold">
                 {data.summary.totalWorkouts}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-foreground/40">
                 workouts {data.summary.periodLabel}
               </div>
             </div>
@@ -331,16 +333,16 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
                 <XAxis
                   dataKey="period"
-                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
                   tickFormatter={formatPeriod}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                   axisLine={false}
                   tickLine={false}
@@ -366,10 +368,10 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
             <h4 className="text-sm font-medium mb-2">By Exercise</h4>
             <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.length * 32)}>
               <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
                   tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                   axisLine={false}
                   tickLine={false}
@@ -377,7 +379,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fill: 'rgb(var(--muted-foreground))', fontSize: 10 }}
+                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   width={70}
@@ -403,7 +405,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
         {/* Empty state */}
         {data && data.exerciseTotals.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-8 text-foreground/40">
             <Dumbbell className="h-8 w-8 mb-2 opacity-50" />
             <p className="text-sm">No calisthenics logged {data.summary.periodLabel}</p>
             <p className="text-xs mt-1">

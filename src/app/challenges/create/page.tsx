@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISE_INFO, CALISTHENICS_BASE_TYPES } from '@shared/constants';
@@ -123,9 +123,11 @@ export default function CreateChallengePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+        </div>
+      </AppLayout>
     );
   }
 
@@ -139,28 +141,27 @@ export default function CreateChallengePage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/challenges">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-foreground/40" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create Challenge</h1>
-            <p className="text-muted-foreground">Set a goal and compete</p>
+            <h1 className="text-xl font-bold">Create Challenge</h1>
+            <p className="text-sm text-foreground/50">Set a goal and compete</p>
           </div>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Challenge Details</CardTitle>
-            <CardDescription>Define your challenge parameters</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Challenge Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title" className="text-sm text-foreground/70">Title</Label>
                 <Input
                   id="title"
                   value={title}
@@ -173,7 +174,7 @@ export default function CreateChallengePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
+                <Label htmlFor="description" className="text-sm text-foreground/70">Description (optional)</Label>
                 <Input
                   id="description"
                   value={description}
@@ -185,26 +186,29 @@ export default function CreateChallengePage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Exercise Type</Label>
+                <Label className="text-sm text-foreground/70">Exercise Type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {EXERCISE_CATEGORIES.map((category) => (
-                    <Button
+                    <button
                       key={category.id}
                       type="button"
-                      variant={baseType === category.id ? 'default' : 'outline'}
                       onClick={() => setBaseType(category.id)}
                       disabled={submitting}
-                      className="w-full"
+                      className={`p-3 rounded-xl text-sm font-medium transition-all ${
+                        baseType === category.id
+                          ? 'gradient-bg text-white glow-sm'
+                          : 'glass hover:bg-white/[0.08]'
+                      }`}
                     >
                       {category.name}
-                    </Button>
+                    </button>
                   ))}
                 </div>
 
                 {/* Variant selector for calisthenics */}
                 {hasVariants && variants.length > 1 && (
                   <div className="mt-3">
-                    <Label className="text-xs text-muted-foreground mb-2 block">Variation</Label>
+                    <Label className="text-xs text-foreground/40 mb-2 block">Variation</Label>
                     <div className="flex flex-wrap gap-1.5">
                       {variants.map((variant) => {
                         const variantInfo = EXERCISE_INFO[variant];
@@ -215,17 +219,19 @@ export default function CreateChallengePage() {
                           .replace(baseLabel, 'Standard') || variant;
 
                         return (
-                          <Button
+                          <button
                             key={variant}
                             type="button"
-                            variant={selectedVariant === variant ? 'default' : 'outline'}
-                            size="sm"
                             onClick={() => setSelectedVariant(variant)}
                             disabled={submitting}
-                            className="text-xs h-7"
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              selectedVariant === variant
+                                ? 'gradient-bg text-white'
+                                : 'glass hover:bg-white/[0.08]'
+                            }`}
                           >
                             {shortLabel}
-                          </Button>
+                          </button>
                         );
                       })}
                     </div>
@@ -234,14 +240,14 @@ export default function CreateChallengePage() {
 
                 {/* Show selected exercise info */}
                 {activeTypeInfo && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Selected: <span className="font-medium text-foreground">{activeTypeInfo.label}</span>
+                  <p className="text-xs text-foreground/40 mt-2">
+                    Selected: <span className="font-medium text-foreground/70">{activeTypeInfo.label}</span>
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="goal">
+                <Label htmlFor="goal" className="text-sm text-foreground/70">
                   Goal ({activeTypeInfo?.unit || selectedCategory?.unit || 'reps'})
                 </Label>
                 <Input
@@ -257,7 +263,7 @@ export default function CreateChallengePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration (days)</Label>
+                <Label htmlFor="duration" className="text-sm text-foreground/70">Duration (days)</Label>
                 <Input
                   id="duration"
                   type="number"
@@ -279,7 +285,7 @@ export default function CreateChallengePage() {
                   disabled={submitting}
                   className="h-4 w-4 rounded border-border"
                 />
-                <Label htmlFor="isPublic" className="font-normal">
+                <Label htmlFor="isPublic" className="font-normal text-foreground/70">
                   Make this challenge public (anyone can join)
                 </Label>
               </div>

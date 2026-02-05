@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Flame, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 
 interface ConsistencyData {
   consistencyScore: number;
@@ -48,27 +49,28 @@ export function ConsistencyWidget() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Flame className="h-5 w-5 text-orange-500" />
-          Consistency Score
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="p-1.5 rounded-lg bg-orange-500/15">
+            <Flame className="h-4 w-4 text-orange-400" />
+          </div>
+          Consistency
         </CardTitle>
-        <CardDescription>Based on workout frequency (last 30 days)</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
           </div>
         ) : data ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-4xl font-bold text-primary">{data.consistencyScore}%</span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-3xl font-bold gradient-text"><AnimatedNumber value={data.consistencyScore} />%</span>
+              <span className="text-xs text-foreground/50">
                 {data.workoutDaysLast30} days active
               </span>
             </div>
-            <Progress value={data.consistencyScore} className="h-2" />
-            <p className="text-xs text-muted-foreground">
+            <Progress value={data.consistencyScore} glow />
+            <p className="text-xs text-foreground/40">
               {data.consistencyScore >= 80
                 ? "You're on fire! Keep it up!"
                 : data.consistencyScore >= 50
@@ -79,7 +81,7 @@ export function ConsistencyWidget() {
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Unable to load consistency data</p>
+          <p className="text-sm text-foreground/40">Unable to load data</p>
         )}
       </CardContent>
     </Card>

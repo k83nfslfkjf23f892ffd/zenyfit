@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
 import { Loader2, Pencil } from 'lucide-react';
 import { DEFAULT_WIDGET_CONFIG, getVisibleWidgets } from '@/lib/widgets';
+import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
 import {
   UserHeaderWidget,
   StatsGridWidget,
@@ -31,70 +33,84 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  // Don't block render for auth loading
   if (!loading && !user) {
     return null;
   }
 
-  // Show minimal content while loading
   if (!user) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
         </div>
       </AppLayout>
     );
   }
 
-  // Get widget configuration from user or use defaults
   const widgetConfig = user.dashboardWidgets || DEFAULT_WIDGET_CONFIG;
   const visibleWidgets = getVisibleWidgets(widgetConfig);
 
-  // Render a widget by ID
   const renderWidget = (widgetId: string) => {
-    switch (widgetId) {
-      case 'user-header':
-        return <UserHeaderWidget key={widgetId} user={user} />;
-      case 'stats-grid':
-        return <StatsGridWidget key={widgetId} />;
-      case 'exercise-ratio':
-        return <ExerciseRatioWidget key={widgetId} totals={user.totals} />;
-      case 'weekly-activity':
-        return <WeeklyActivityWidget key={widgetId} />;
-      case 'consistency':
-        return <ConsistencyWidget key={widgetId} />;
-      case 'personal-bests':
-        return <PersonalBestsWidget key={widgetId} />;
-      case 'exercise-totals':
-        return <ExerciseTotalsWidget key={widgetId} totals={user.totals} />;
-      case 'xp-history':
-        return <XPHistoryWidget key={widgetId} />;
-      case 'active-challenges':
-        return <ActiveChallengesWidget key={widgetId} />;
-      default:
-        return null;
-    }
+    const widget = (() => {
+      switch (widgetId) {
+        case 'user-header':
+          return <UserHeaderWidget user={user} />;
+        case 'stats-grid':
+          return <StatsGridWidget />;
+        case 'exercise-ratio':
+          return <ExerciseRatioWidget totals={user.totals} />;
+        case 'weekly-activity':
+          return <WeeklyActivityWidget />;
+        case 'consistency':
+          return <ConsistencyWidget />;
+        case 'personal-bests':
+          return <PersonalBestsWidget />;
+        case 'exercise-totals':
+          return <ExerciseTotalsWidget totals={user.totals} />;
+        case 'xp-history':
+          return <XPHistoryWidget />;
+        case 'active-challenges':
+          return <ActiveChallengesWidget />;
+        default:
+          return null;
+      }
+    })();
+
+    if (!widget) return null;
+
+    return (
+      <WidgetErrorBoundary key={widgetId}>
+        {widget}
+      </WidgetErrorBoundary>
+    );
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <motion.div
+        className="space-y-5"
+        variants={listContainerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {/* Customize button */}
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
+        <motion.div className="flex justify-end" variants={listItemVariants}>
+          <button
+            type="button"
             onClick={() => setCustomizerOpen(true)}
-            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 flex items-center justify-center rounded-lg glass text-foreground/40 hover:text-foreground/60 transition-colors"
           >
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </div>
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </motion.div>
 
         {/* Render visible widgets in order */}
-        {visibleWidgets.map((widgetId) => renderWidget(widgetId))}
-      </div>
+        {visibleWidgets.map((widgetId) => (
+          <motion.div key={widgetId} variants={listItemVariants}>
+            {renderWidget(widgetId)}
+          </motion.div>
+        ))}
+      </motion.div>
 
       {/* Widget Customizer Modal */}
       <WidgetCustomizer

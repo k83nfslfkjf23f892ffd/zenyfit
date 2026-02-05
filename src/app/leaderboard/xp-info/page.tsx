@@ -135,14 +135,14 @@ function ExerciseRow({ type, xpRate, details, unit }: ExerciseRowProps) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between py-3 text-left hover:bg-muted/30 transition-colors px-1 -mx-1 rounded"
+        className="w-full flex items-center justify-between py-3 text-left hover:bg-white/[0.05] transition-colors px-1 -mx-1 rounded"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{label}</span>
           {expanded ? (
-            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronUp className="h-3.5 w-3.5 text-foreground/50" />
           ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 text-foreground/50" />
           )}
         </div>
         <span className="text-sm font-semibold text-primary">{xpRate} XP/{unit}</span>
@@ -150,7 +150,7 @@ function ExerciseRow({ type, xpRate, details, unit }: ExerciseRowProps) {
 
       {expanded && details && (
         <div className="pb-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-foreground/50 leading-relaxed">
             {details.reason}
           </p>
         </div>
@@ -176,7 +176,7 @@ export default function XPInfoPage() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 text-foreground/40" />
           </Button>
           <h1 className="text-xl font-bold">How XP Works</h1>
         </div>
@@ -190,13 +190,13 @@ export default function XPInfoPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/50">
               XP = Amount × Rate
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-foreground/50">
               XP rates are based on average biomechanics and may not reflect individual differences in strength, body proportions, or training background.
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-foreground/50">
               Tap any exercise below to see the detailed reasoning.
             </p>
           </CardContent>
@@ -206,7 +206,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Push-up Variations</CardTitle>
-            <p className="text-xs text-muted-foreground">Based on % body weight moved per rep</p>
+            <p className="text-xs text-foreground/50">Based on % body weight moved per rep</p>
           </CardHeader>
           <CardContent>
             {pushupVariations.map(type => (
@@ -225,7 +225,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Pull-up Variations</CardTitle>
-            <p className="text-xs text-muted-foreground">Based on % body weight and grip difficulty</p>
+            <p className="text-xs text-foreground/50">Based on % body weight and grip difficulty</p>
           </CardHeader>
           <CardContent>
             {pullupVariations.map(type => (
@@ -244,7 +244,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Dip Variations</CardTitle>
-            <p className="text-xs text-muted-foreground">Based on % body weight and stability</p>
+            <p className="text-xs text-foreground/50">Based on % body weight and stability</p>
           </CardHeader>
           <CardContent>
             {dipVariations.map(type => (
@@ -263,7 +263,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Advanced</CardTitle>
-            <p className="text-xs text-muted-foreground">Elite movements combining multiple exercises</p>
+            <p className="text-xs text-foreground/50">Elite movements combining multiple exercises</p>
           </CardHeader>
           <CardContent>
             {advanced.map(type => (
@@ -282,7 +282,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Cardio</CardTitle>
-            <p className="text-xs text-muted-foreground">Based on MET values and calories burned per km</p>
+            <p className="text-xs text-foreground/50">Based on MET values and calories burned per km</p>
           </CardHeader>
           <CardContent>
             {cardio.map(type => (
@@ -301,7 +301,7 @@ export default function XPInfoPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Team Sports</CardTitle>
-            <p className="text-xs text-muted-foreground">Based on average MET for game activity</p>
+            <p className="text-xs text-foreground/50">Based on average MET for game activity</p>
           </CardHeader>
           <CardContent>
             {teamSports.map(type => (
@@ -322,10 +322,10 @@ export default function XPInfoPage() {
             <CardTitle className="text-base">Leaderboard Rankings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/50">
               <strong>All:</strong> Ranked by total XP earned across all exercises.
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/50">
               <strong>Exercise tabs:</strong> Ranked by total reps/km for that specific exercise.
             </p>
           </CardContent>

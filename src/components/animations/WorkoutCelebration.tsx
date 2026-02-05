@@ -96,7 +96,7 @@ export function WorkoutCelebration({
           onClick={onClose}
         >
           <motion.div
-            className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-2xl max-w-sm mx-4 cursor-pointer"
+            className="gradient-bg rounded-2xl p-8 shadow-2xl max-w-sm mx-4 cursor-pointer glow"
             variants={springVariants}
             initial="initial"
             animate="animate"

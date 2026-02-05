@@ -4,20 +4,35 @@
 
 @layer base {
   :root {
-    /* Theme colors - dynamically set by ThemeProvider (default: Original Legacy) */
-    --background: 255 255 255;
-    --foreground: 0 0 0;
-    --primary: 59 130 246;
+    /* Theme colors - dynamically set by ThemeProvider (default: Midnight) */
+    --background: 13 13 28;
+    --foreground: 226 232 240;
+    --primary: 129 140 248;
     --primary-foreground: 255 255 255;
-    --secondary: 37 99 235;
-    --accent: 59 130 246;
-    --muted: 243 244 246;
-    --border: 229 231 235;
+    --secondary: 99 102 241;
+    --accent: 167 139 250;
+    --muted: 30 30 52;
+    --border: 45 45 80;
+
+    /* Premium tokens */
+    --gradient-from: 99 102 241;
+    --gradient-to: 168 85 247;
+    --glass: 255 255 255;
+    --glass-border: 255 255 255;
+    --glow: 129 140 248;
+    --surface: 22 22 45;
+
+    /* Chart palette */
+    --chart-1: 129 140 248;
+    --chart-2: 167 139 250;
+    --chart-3: 99 102 241;
+    --chart-4: 196 181 253;
+    --chart-5: 79 70 229;
 
     /* Derived colors for UI components */
-    --card: var(--background);
+    --card: var(--surface);
     --card-foreground: var(--foreground);
-    --popover: var(--muted);
+    --popover: var(--surface);
     --popover-foreground: var(--foreground);
     --secondary-foreground: var(--foreground);
     --muted-foreground: var(--foreground);
@@ -30,7 +45,7 @@
     --destructive-foreground: 255 255 255;
 
     /* Border radius */
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 }
 
@@ -42,6 +57,50 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
+  }
+}
+
+/* Utility classes for premium design system */
+@layer utilities {
+  .glass {
+    background: rgb(var(--glass) / 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgb(var(--glass-border) / 0.08);
+  }
+
+  .glass-strong {
+    background: rgb(var(--glass) / 0.1);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgb(var(--glass-border) / 0.12);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, rgb(var(--gradient-from)), rgb(var(--gradient-to)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, rgb(var(--gradient-from)), rgb(var(--gradient-to)));
+  }
+
+  .gradient-bg-subtle {
+    background: linear-gradient(135deg, rgb(var(--gradient-from) / 0.15), rgb(var(--gradient-to) / 0.15));
+  }
+
+  .glow {
+    box-shadow: 0 0 20px rgb(var(--glow) / 0.15), 0 0 40px rgb(var(--glow) / 0.05);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 10px rgb(var(--glow) / 0.1);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px rgb(var(--glow) / 0.3);
   }
 }
 

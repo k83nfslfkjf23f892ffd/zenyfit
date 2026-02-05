@@ -1,8 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 
 interface UserHeaderWidgetProps {
   user: {
@@ -18,30 +19,28 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
   const progressPercent = (xpInLevel / xpNeeded) * 100;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl">{user.username}</CardTitle>
-            <CardDescription>Level {user.level}</CardDescription>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">{user.xp.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">Total XP</div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Progress to Level {user.level + 1}</span>
-            <span className="text-muted-foreground">
-              {xpInLevel} / {xpNeeded} XP
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold gradient-text">
+            {user.username}
+          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="default">Lv. {user.level}</Badge>
+            <span className="text-sm text-foreground/50">
+              <AnimatedNumber value={user.xp} /> XP
             </span>
           </div>
-          <Progress value={progressPercent} />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-foreground/50">
+          <span>Level {user.level + 1}</span>
+          <span>{xpInLevel} / {xpNeeded} XP</span>
+        </div>
+        <Progress value={progressPercent} glow />
+      </div>
+    </div>
   );
 }

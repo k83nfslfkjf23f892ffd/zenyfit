@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useCelebration } from '@/lib/celebration-context';
@@ -17,19 +17,11 @@ import { EXERCISE_TYPES } from '@shared/schema';
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
 
-interface CustomExercise {
-  id: string;
-  name: string;
-  unit: string;
-  quickActions: number[];
-}
-
 interface LastWorkout {
   id: string;
   type: string;
   amount: number;
   xpEarned: number;
-  customExerciseName?: string;
 }
 
 interface RecentWorkout {
@@ -38,15 +30,12 @@ interface RecentWorkout {
   amount: number;
   xpEarned: number;
   timestamp: number;
-  customExerciseName?: string;
 }
 
 // Storage keys
 const STORAGE_KEYS = {
   lastExercise: 'zenyfit_lastExercise',
   lastVariation: 'zenyfit_lastVariation',
-  lastCustomExerciseId: 'zenyfit_lastCustomExerciseId',
-  customExercises: 'zenyfit_customExercises',
   recentWorkouts: 'zenyfit_recentWorkouts',
   sessionTotal: 'zenyfit_sessionTotal',
 };
@@ -122,28 +111,19 @@ export default function LogPage() {
     return 'pullups';
   });
 
-  const [selectedCustomExercise, setSelectedCustomExercise] = useState<CustomExercise | null>(null);
-
-  // Session total (resets on page reload or after inactivity)
+  // Session total per exercise type (persisted to sessionStorage)
   const [sessionTotal, setSessionTotal] = useState(0);
+
+  // Debounce ref for quick add buttons
+  const lastQuickAddRef = useRef<number>(0);
+  const DEBOUNCE_MS = 300;
+
+  // Helper to get session storage key for exercise type
+  const getSessionStorageKey = (exerciseType: string) => `${STORAGE_KEYS.sessionTotal}_${exerciseType}`;
 
   // Manual entry
   const [customAmount, setCustomAmount] = useState('');
   const [logging, setLogging] = useState(false);
-
-  // Custom exercises (with cache)
-  const [customExercises, setCustomExercises] = useState<CustomExercise[]>(() => {
-    if (typeof window !== 'undefined') {
-      return getCached<CustomExercise[]>(STORAGE_KEYS.customExercises) || [];
-    }
-    return [];
-  });
-  const [loadingCustomExercises, setLoadingCustomExercises] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !getCached<CustomExercise[]>(STORAGE_KEYS.customExercises);
-    }
-    return true;
-  });
 
   // Undo functionality
   const [lastWorkout, setLastWorkout] = useState<LastWorkout | null>(null);
@@ -174,13 +154,13 @@ export default function LogPage() {
   const [workoutToDelete, setWorkoutToDelete] = useState<RecentWorkout | null>(null);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if current selection is calisthenics
   const isCalisthenics = selectedBaseType in CALISTHENICS_BASE_TYPES;
 
   // Get the actual exercise type to log
   const getActiveExercise = (): ExerciseType => {
-    if (selectedBaseType === 'custom') return 'custom';
     if (isCalisthenics) return selectedVariation;
     return selectedBaseType as ExerciseType;
   };
@@ -206,29 +186,23 @@ export default function LogPage() {
     }
   }, [user, loading, router]);
 
+  // Load cached data on mount (client-side only to avoid hydration mismatch)
+  useEffect(() => {
+    // Load session total for current exercise
+    const key = getSessionStorageKey(selectedBaseType);
+    const saved = sessionStorage.getItem(key);
+    if (saved) {
+      setSessionTotal(parseInt(saved, 10));
+    }
+  }, []);
+
   // Save selections to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.lastExercise, selectedBaseType);
     localStorage.setItem(STORAGE_KEYS.lastVariation, selectedVariation);
-    if (selectedBaseType === 'custom' && selectedCustomExercise) {
-      localStorage.setItem(STORAGE_KEYS.lastCustomExerciseId, selectedCustomExercise.id);
-    }
-  }, [selectedBaseType, selectedVariation, selectedCustomExercise]);
+  }, [selectedBaseType, selectedVariation]);
 
-  // Restore custom exercise selection after loading
-  useEffect(() => {
-    if (!loadingCustomExercises && customExercises.length > 0 && selectedBaseType === 'custom') {
-      const lastId = localStorage.getItem(STORAGE_KEYS.lastCustomExerciseId);
-      if (lastId) {
-        const found = customExercises.find(e => e.id === lastId);
-        if (found) {
-          setSelectedCustomExercise(found);
-        }
-      }
-    }
-  }, [loadingCustomExercises, customExercises, selectedBaseType]);
-
-  // When base type changes, update variation to match
+  // When base type changes, update variation to match and restore session total
   useEffect(() => {
     if (isCalisthenics) {
       const baseConfig = CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType];
@@ -236,48 +210,31 @@ export default function LogPage() {
         setSelectedVariation(baseConfig.variations[0] as ExerciseType);
       }
     }
-    // Reset session total when changing exercise type
-    setSessionTotal(0);
+    // Restore session total for this exercise type from sessionStorage
+    const key = getSessionStorageKey(selectedBaseType);
+    const saved = sessionStorage.getItem(key);
+    setSessionTotal(saved ? parseInt(saved, 10) : 0);
   }, [selectedBaseType, isCalisthenics, selectedVariation]);
 
-  // Clear undo timeout on unmount
+  // Persist session total to sessionStorage when it changes
+  useEffect(() => {
+    const key = getSessionStorageKey(selectedBaseType);
+    sessionStorage.setItem(key, sessionTotal.toString());
+  }, [sessionTotal, selectedBaseType]);
+
+  // Clear timeouts on unmount
   useEffect(() => {
     return () => {
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
       }
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
     };
   }, []);
 
-  const fetchCustomExercises = useCallback(async () => {
-    try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) return;
-
-      const response = await fetch('/api/exercises/custom', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        const exercises = data.exercises || [];
-        setCustomExercises(exercises);
-        setCache(STORAGE_KEYS.customExercises, exercises);
-      }
-    } catch (error) {
-      console.error('Error fetching custom exercises:', error);
-    } finally {
-      setLoadingCustomExercises(false);
-    }
-  }, [firebaseUser]);
-
-  useEffect(() => {
-    if (user && firebaseUser) {
-      fetchCustomExercises();
-    }
-  }, [user, firebaseUser, fetchCustomExercises]);
-
-  // Fetch recent workouts (cache-first)
+  // Fetch recent workouts (cache-first) with 10s timeout for background updates
   const fetchRecentWorkouts = useCallback(async (skipCache = false) => {
     // Try cache first
     if (!skipCache) {
@@ -286,6 +243,9 @@ export default function LogPage() {
         setRecentWorkouts(cached);
         setLoadingRecent(false);
         setUpdatingRecent(true);
+        // Set timeout to clear updating state if fetch hangs
+        if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = setTimeout(() => setUpdatingRecent(false), 10000);
         fetchRecentWorkouts(true);
         return;
       }
@@ -310,6 +270,10 @@ export default function LogPage() {
     } finally {
       setLoadingRecent(false);
       setUpdatingRecent(false);
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
+      }
     }
   }, [firebaseUser]);
 
@@ -359,9 +323,6 @@ export default function LogPage() {
   // Get unit label
   const getUnitLabel = () => {
     const activeExercise = getActiveExercise();
-    if (activeExercise === 'custom' && selectedCustomExercise) {
-      return selectedCustomExercise.unit;
-    }
     return EXERCISE_INFO[activeExercise]?.unit || 'reps';
   };
 
@@ -373,10 +334,6 @@ export default function LogPage() {
     }
 
     const activeExercise = getActiveExercise();
-    if (activeExercise === 'custom' && !selectedCustomExercise) {
-      toast.error('Please select a custom exercise');
-      return;
-    }
 
     setLogging(true);
 
@@ -392,10 +349,6 @@ export default function LogPage() {
         amount: logAmount,
         sets: logSets,
       };
-
-      if (activeExercise === 'custom' && selectedCustomExercise) {
-        body.customExerciseId = selectedCustomExercise.id;
-      }
 
       const response = await fetch('/api/workouts', {
         method: 'POST',
@@ -418,9 +371,7 @@ export default function LogPage() {
       setSessionTotal(prev => prev + totalAmount);
 
       // Show celebration with total XP and sets info
-      const exerciseName = activeExercise === 'custom' && selectedCustomExercise
-        ? selectedCustomExercise.name
-        : EXERCISE_INFO[activeExercise]?.label || activeExercise;
+      const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
       showWorkoutComplete(data.xpEarned, exerciseName, totalAmount);
 
       // Set last workout for undo (only the last log)
@@ -429,7 +380,6 @@ export default function LogPage() {
         type: activeExercise,
         amount: logAmount,
         xpEarned: data.xpPerSet || data.xpEarned,
-        customExerciseName: selectedCustomExercise?.name,
       });
 
       // Clear previous timeout
@@ -464,8 +414,13 @@ export default function LogPage() {
     logWorkout(amountNum);
   };
 
-  // Quick add
+  // Quick add with debouncing to prevent duplicate API calls
   const handleQuickAdd = (preset: number) => {
+    const now = Date.now();
+    if (now - lastQuickAddRef.current < DEBOUNCE_MS) {
+      return; // Ignore rapid clicks
+    }
+    lastQuickAddRef.current = now;
     logWorkout(preset);
   };
 
@@ -548,15 +503,15 @@ export default function LogPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
         </div>
       </AppLayout>
     );
   }
 
   const activeExercise = getActiveExercise();
-  const activeXpRate = XP_RATES[activeExercise] || 0;
-  const exerciseLabel = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+  const activeXpRate = useMemo(() => XP_RATES[activeExercise] || 0, [activeExercise]);
+  const exerciseLabel = useMemo(() => EXERCISE_INFO[activeExercise]?.label || activeExercise, [activeExercise]);
 
   // Main exercise types for quick selection (icon only)
   const mainExercises = [
@@ -569,43 +524,40 @@ export default function LogPage() {
     <AppLayout>
       <div className="space-y-3">
         {/* Exercise Type Selector */}
-        <div className="space-y-2">
-          {/* Main calisthenics + running (icon only, full width) */}
-          <div className="flex gap-2">
-            {mainExercises.map((ex) => (
-              <Button
-                key={ex.key}
-                variant={selectedBaseType === ex.key ? 'default' : 'outline'}
-                onClick={() => {
-                  setSelectedBaseType(ex.key);
-                  setSelectedCustomExercise(null);
-                }}
-                className="h-12 flex-1"
-              >
-                {ex.icon}
-              </Button>
-            ))}
-            <Button
-              variant={selectedBaseType === 'running' ? 'default' : 'outline'}
-              onClick={() => {
-                setSelectedBaseType('running');
-                setSelectedCustomExercise(null);
-              }}
-              className="h-12 flex-1"
+        <div className="flex gap-2">
+          {mainExercises.map((ex) => (
+            <button
+              key={ex.key}
+              onClick={() => setSelectedBaseType(ex.key)}
+              className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
+                selectedBaseType === ex.key
+                  ? 'gradient-bg text-white glow-sm'
+                  : 'glass text-foreground/60'
+              }`}
             >
-              <span className="text-lg">🏃</span>
-            </Button>
-          </div>
+              {ex.icon}
+            </button>
+          ))}
+          <button
+            onClick={() => setSelectedBaseType('running')}
+            className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
+              selectedBaseType === 'running'
+                ? 'gradient-bg text-white glow-sm'
+                : 'glass text-foreground/60'
+            }`}
+          >
+            <span className="text-lg">🏃</span>
+          </button>
         </div>
 
         {/* Main Logging Card */}
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {/* Card Header */}
-            <div className="px-4 py-2 border-b bg-muted/30">
+            <div className="px-4 py-2 border-b border-border/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                  <div className="h-8 w-8 rounded-lg gradient-bg-subtle flex items-center justify-center text-primary">
                     {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-4 w-4" />}
                   </div>
                   {/* Exercise name with variant dropdown */}
@@ -613,7 +565,7 @@ export default function LogPage() {
                     <select
                       value={selectedVariation}
                       onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                      className="font-semibold bg-muted/50 hover:bg-muted border border-border rounded-md px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center]"
+                      className="font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
                     >
                       {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
                         <option key={variation} value={variation}>
@@ -631,7 +583,7 @@ export default function LogPage() {
                     size="icon"
                     onClick={handleUndo}
                     disabled={undoing}
-                    className="text-muted-foreground h-8 w-8"
+                    className="text-foreground/40 h-8 w-8"
                   >
                     {undoing ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -644,18 +596,30 @@ export default function LogPage() {
             </div>
 
             {/* Session Total Display */}
-            <div className="py-4 text-center">
-              <div className="text-5xl font-bold tracking-tight">
+            <div className="py-6 text-center">
+              <div className="text-5xl font-bold tracking-tight gradient-text">
                 {sessionTotal}
               </div>
-              <div className="text-base text-muted-foreground">
+              <div className="text-sm text-foreground/50 mt-1">
                 {getUnitLabel()}
                 {activeXpRate > 0 && (
-                  <span className="text-primary ml-2">
+                  <span className="text-primary ml-2 font-medium">
                     +{Math.round(sessionTotal * activeXpRate)} XP
                   </span>
                 )}
               </div>
+              {sessionTotal > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSessionTotal(0);
+                    toast.success('Session cleared');
+                  }}
+                  className="mt-1 text-xs text-foreground/30 hover:text-foreground/60 transition-colors"
+                >
+                  Clear session
+                </button>
+              )}
             </div>
 
             {/* Custom Input */}
@@ -683,7 +647,7 @@ export default function LogPage() {
             {/* Quick Add Section */}
             <div className="px-4 pb-4">
               <div className="flex items-center justify-center mb-2">
-                <span className="text-xs font-medium text-muted-foreground">Quick Add</span>
+                <span className="text-xs font-medium text-foreground/40">Quick Add</span>
               </div>
 
               {/* Calisthenics 3-row layout */}
@@ -695,7 +659,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
+                        className="h-12 text-base font-semibold rounded-xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -714,7 +678,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
+                        className="h-12 text-base font-semibold rounded-xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -733,7 +697,7 @@ export default function LogPage() {
                       <Button
                         key={preset}
                         type="button"
-                        className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
+                        className="h-12 text-base font-semibold rounded-xl"
                         onClick={() => handleQuickAdd(preset)}
                         onMouseDown={() => handleLongPressStart(preset)}
                         onMouseUp={handleLongPressEnd}
@@ -758,7 +722,7 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      className="h-12 text-base font-semibold bg-primary hover:bg-primary/90 rounded-2xl"
+                      className="h-12 text-base font-semibold rounded-xl"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
@@ -768,7 +732,7 @@ export default function LogPage() {
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground mt-2 text-center">
+              <p className="text-xs text-foreground/30 mt-2 text-center">
                 Tap to log • Long press for sets
               </p>
             </div>
@@ -782,7 +746,7 @@ export default function LogPage() {
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold">Recent Logs</h3>
                 {updatingRecent && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-3 w-3 animate-spin text-foreground/40" />
                 )}
               </div>
               {recentWorkouts.length > 0 && (
@@ -805,21 +769,21 @@ export default function LogPage() {
             </div>
             {loadingRecent ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
               </div>
             ) : recentWorkouts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
+              <p className="text-sm text-foreground/40 text-center py-6">
                 No recent workouts
               </p>
             ) : (
               <div className="space-y-2">
                 {deleteMode && (
-                  <p className="text-xs text-muted-foreground mb-2">
+                  <p className="text-xs text-foreground/40 mb-2">
                     Tap a workout to delete it
                   </p>
                 )}
                 {recentWorkouts.map((workout) => {
-                  const exerciseLabel = workout.customExerciseName || EXERCISE_INFO[workout.type]?.label || workout.type;
+                  const exerciseLabel = EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
                   const timeAgo = getTimeAgo(workout.timestamp);
 
@@ -827,18 +791,18 @@ export default function LogPage() {
                     <div
                       key={workout.id}
                       onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-lg border p-3 ${
-                        deleteMode ? 'cursor-pointer hover:border-destructive hover:bg-destructive/5' : ''
+                      className={`flex items-center justify-between rounded-xl glass p-3 transition-all duration-200 ${
+                        deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="font-medium">{exerciseLabel}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-sm font-medium">{exerciseLabel}</div>
+                        <div className="text-xs text-foreground/40">
                           {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
                         </div>
                       </div>
                       {deleteMode && (
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        <Trash2 className="h-4 w-4 text-foreground/30" />
                       )}
                     </div>
                   );
@@ -856,14 +820,14 @@ export default function LogPage() {
           onClick={() => setSetsRepsModal(null)}
         >
           <div
-            className="bg-background border rounded-lg p-6 mx-4 max-w-sm w-full shadow-lg"
+            className="glass-strong rounded-2xl p-6 mx-4 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">Log Sets</h3>
 
             <div className="flex items-center justify-center gap-3 mb-4">
               <div className="text-center">
-                <Label className="text-xs text-muted-foreground">Sets</Label>
+                <Label className="text-xs text-foreground/50">Sets</Label>
                 <Input
                   type="number"
                   value={sets}
@@ -872,9 +836,9 @@ export default function LogPage() {
                   min="1"
                 />
               </div>
-              <span className="text-2xl font-bold text-muted-foreground mt-5">×</span>
+              <span className="text-2xl font-bold text-foreground/30 mt-5">×</span>
               <div className="text-center">
-                <Label className="text-xs text-muted-foreground">{getUnitLabel()}</Label>
+                <Label className="text-xs text-foreground/50">{getUnitLabel()}</Label>
                 <Input
                   type="number"
                   value={reps}
@@ -883,10 +847,10 @@ export default function LogPage() {
                   min="1"
                 />
               </div>
-              <span className="text-2xl font-bold text-muted-foreground mt-5">=</span>
+              <span className="text-2xl font-bold text-foreground/40 mt-5">=</span>
               <div className="text-center">
-                <Label className="text-xs text-muted-foreground">Total</Label>
-                <div className="w-20 h-10 flex items-center justify-center text-xl font-bold text-primary">
+                <Label className="text-xs text-foreground/50">Total</Label>
+                <div className="w-20 h-10 flex items-center justify-center text-xl font-bold gradient-text">
                   {(parseInt(sets) || 0) * (parseFloat(reps) || 0)}
                 </div>
               </div>
@@ -920,19 +884,19 @@ export default function LogPage() {
           onClick={() => setWorkoutToDelete(null)}
         >
           <div
-            className="bg-background border rounded-lg p-5 max-w-sm w-full shadow-lg"
+            className="glass-strong rounded-2xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-foreground/50 mb-4">
               Are you sure you want to delete this workout?
             </p>
 
-            <div className="rounded-lg border p-3 mb-4 bg-muted/30">
+            <div className="rounded-xl glass p-3 mb-4">
               <div className="font-medium">
-                {workoutToDelete.customExerciseName || EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
+                {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-foreground/50">
                 {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'} • +{workoutToDelete.xpEarned} XP
               </div>
             </div>

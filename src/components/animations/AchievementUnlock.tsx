@@ -59,7 +59,7 @@ export function AchievementUnlock({
           exit="exit"
         >
           <motion.div
-            className="relative bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500 rounded-2xl p-6 shadow-2xl max-w-md w-full pointer-events-auto"
+            className="relative gradient-bg rounded-2xl p-6 shadow-2xl max-w-md w-full pointer-events-auto glow"
             variants={achievementVariants}
             initial="hidden"
             animate="visible"

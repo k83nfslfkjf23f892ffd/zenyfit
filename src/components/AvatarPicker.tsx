@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw, Copy } from 'lucide-react';
@@ -99,14 +99,13 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="w-5 h-5" />
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="p-1.5 rounded-lg gradient-bg-subtle">
+            <User className="h-4 w-4 text-primary" />
+          </div>
           Avatar
         </CardTitle>
-        <CardDescription>
-          Choose a generated avatar or use a custom image URL
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Preview */}
@@ -200,7 +199,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
             value={customUrl}
             onChange={(e) => setCustomUrl(e.target.value)}
             rows={2}
-            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            className="flex w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleCopyUrl} className="flex-1 gap-2">

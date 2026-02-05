@@ -7,8 +7,10 @@
   },
   "scripts": {
     "dev": "next dev -p 3001",
-    "dev:emulator": "USE_FIREBASE_EMULATOR=true NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true next dev -p 3001",
+    "dev:network": "next dev -p 3001 -H 0.0.0.0",
+    "dev:emulator": "USE_FIREBASE_EMULATOR=true NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true MASTER_INVITE_CODE=TEST123 next dev -p 3001 -H 0.0.0.0",
     "emulators": "firebase emulators:start",
+    "auth-proxy": "node scripts/auth-proxy.js",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data",
     "build": "next build",

@@ -19,45 +19,52 @@ let adminAuth: Auth | null = null;
  * Returns instances of app, db, and auth
  */
 export function getAdminInstances() {
-  if (!adminApp) {
-    // Check if already initialized by another instance
-    const existingApps = getApps();
-    if (existingApps.length > 0) {
-      adminApp = existingApps[0];
-    } else if (useEmulator) {
-      // For emulator, initialize without credentials
-      adminApp = initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'zenyfit',
-      });
-    } else {
-      // Parse service account key from environment variable
-      const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-      if (!serviceAccountKey) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set');
-      }
+  // Return cached instances if available
+  if (adminApp && adminDb && adminAuth) {
+    return {
+      app: adminApp,
+      db: adminDb,
+      auth: adminAuth,
+    };
+  }
 
-      let serviceAccount;
-      try {
-        serviceAccount = JSON.parse(serviceAccountKey);
-      } catch {
-        throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY as JSON');
-      }
-
-      // Initialize Firebase Admin
-      adminApp = initializeApp({
-        credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID,
-      });
-    }
-
-    // Initialize Firestore and Auth
+  // Check if already initialized by another instance
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    adminApp = existingApps[0];
     adminDb = getFirestore(adminApp);
     adminAuth = getAuth(adminApp);
-
-    // Configure Firestore settings
-    adminDb.settings({
-      ignoreUndefinedProperties: true,
+    // Don't call settings() - already configured
+  } else if (useEmulator) {
+    // For emulator, initialize without credentials
+    adminApp = initializeApp({
+      projectId: process.env.FIREBASE_PROJECT_ID || 'zenyfit',
     });
+    adminDb = getFirestore(adminApp);
+    adminAuth = getAuth(adminApp);
+    adminDb.settings({ ignoreUndefinedProperties: true });
+  } else {
+    // Parse service account key from environment variable
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set');
+    }
+
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(serviceAccountKey);
+    } catch {
+      throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY as JSON');
+    }
+
+    // Initialize Firebase Admin
+    adminApp = initializeApp({
+      credential: cert(serviceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID,
+    });
+    adminDb = getFirestore(adminApp);
+    adminAuth = getAuth(adminApp);
+    adminDb.settings({ ignoreUndefinedProperties: true });
   }
 
   return {

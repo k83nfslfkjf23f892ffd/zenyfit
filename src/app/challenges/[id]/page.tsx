@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Trophy } from 'lucide-react';
+import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
@@ -173,13 +174,13 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (containerRef.current?.scrollTop === 0) {
+    if (containerRef.current && containerRef.current.scrollTop <= 5) {
       touchStartY.current = e.touches[0].clientY;
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (containerRef.current?.scrollTop === 0 && !refreshing) {
+    if (containerRef.current && containerRef.current.scrollTop <= 5 && !refreshing) {
       const touchY = e.touches[0].clientY;
       const distance = Math.max(0, Math.min(80, touchY - touchStartY.current));
       setPullDistance(distance);
@@ -203,7 +204,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
         </div>
       </AppLayout>
     );
@@ -221,7 +222,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     <AppLayout>
       <div
         ref={containerRef}
-        className="space-y-6"
+        className="space-y-5"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -236,7 +237,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
               className={`rounded-full border-2 p-1 transition-colors ${
                 pullDistance >= 60 || refreshing
                   ? 'border-primary text-primary'
-                  : 'border-muted-foreground/30 text-muted-foreground/50'
+                  : 'border-foreground/10 text-foreground/30'
               }`}
             >
               <Loader2
@@ -250,8 +251,9 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        <Button variant="ghost" onClick={() => router.back()}>
-          ← Back
+        {/* Back button */}
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-5 w-5 text-foreground/40" />
         </Button>
 
         {/* Challenge Header */}
@@ -259,40 +261,38 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-2xl flex items-center gap-2">
+                <CardTitle className="text-xl flex items-center gap-2">
                   {challenge.title}
                   {updating && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-4 w-4 animate-spin text-foreground/30" />
                   )}
                 </CardTitle>
                 {challenge.description && (
-                  <CardDescription className="mt-2">{challenge.description}</CardDescription>
+                  <p className="text-sm text-foreground/50 mt-1">{challenge.description}</p>
                 )}
               </div>
               {challenge.isPublic && (
-                <span className="text-xs rounded-full bg-primary/10 px-3 py-1 text-primary">
-                  Public
-                </span>
+                <Badge variant="secondary">Public</Badge>
               )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold">{EXERCISE_INFO[challenge.type]?.label || challenge.type}</div>
-                <div className="text-xs text-muted-foreground">Exercise</div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center glass rounded-xl p-3">
+                <div className="text-sm font-bold gradient-text">{EXERCISE_INFO[challenge.type]?.label || challenge.type}</div>
+                <div className="text-xs text-foreground/40 mt-0.5">Exercise</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold">
+              <div className="text-center glass rounded-xl p-3">
+                <div className="text-sm font-bold">
                   {challenge.goal} {EXERCISE_INFO[challenge.type]?.unit || 'reps'}
                 </div>
-                <div className="text-xs text-muted-foreground">Goal</div>
+                <div className="text-xs text-foreground/40 mt-0.5">Goal</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold">
+              <div className="text-center glass rounded-xl p-3">
+                <div className="text-sm font-bold">
                   {daysRemaining > 0 ? `${daysRemaining}d` : 'Ended'}
                 </div>
-                <div className="text-xs text-muted-foreground">Remaining</div>
+                <div className="text-xs text-foreground/40 mt-0.5">Remaining</div>
               </div>
             </div>
 
@@ -307,44 +307,63 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Participants Leaderboard */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-amber-500/15">
+                <Trophy className="h-4 w-4 text-amber-400" />
+              </div>
               Participants
+              <span className="text-xs text-foreground/40 font-normal ml-auto">
+                {challenge.participants.length} competing
+              </span>
             </CardTitle>
-            <CardDescription>{challenge.participants.length} competing</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {sortedParticipants.map((participant) => {
+          <CardContent className="space-y-2">
+            {sortedParticipants.map((participant, index) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
               const isCurrentUser = user ? participant.userId === user.id : false;
+              const rank = index + 1;
 
               return (
                 <div
                   key={participant.userId}
-                  className={`rounded-lg border p-3 ${
-                    isCurrentUser ? 'border-primary bg-primary/5' : ''
+                  className={`rounded-xl p-3 ${
+                    isCurrentUser
+                      ? 'glass-strong glow-sm'
+                      : 'glass'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 overflow-hidden rounded-full bg-muted flex-shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={getAvatarDisplayUrl(participant.avatar, participant.username)}
-                          alt={participant.username}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <span className="font-medium">
-                        {participant.username}
-                      </span>
+                  <div className="flex items-center gap-3 mb-2">
+                    {/* Rank */}
+                    {rank <= 3 ? (
+                      <Badge variant={rank === 1 ? 'gold' : rank === 2 ? 'silver' : 'bronze'}>
+                        {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>
+                    )}
+
+                    {/* Avatar */}
+                    <div className={`h-8 w-8 overflow-hidden rounded-full flex-shrink-0 ${rank <= 3 ? 'ring-2 ring-primary/30' : ''}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getAvatarDisplayUrl(participant.avatar, participant.username)}
+                        alt={participant.username}
+                        className="h-full w-full object-cover"
+                      />
                     </div>
-                    <span className="font-bold text-primary">
+
+                    {/* Name */}
+                    <span className="font-medium text-sm flex-1 truncate">
+                      {participant.username}
+                    </span>
+
+                    {/* Score */}
+                    <span className={`font-bold text-sm ${rank <= 3 ? 'gradient-text' : ''}`}>
                       {Math.floor(participant.progress)} / {challenge.goal}
                     </span>
                   </div>
-                  <Progress value={progressPercent} />
+                  <Progress value={progressPercent} glow={isCurrentUser} />
                 </div>
               );
             })}

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
@@ -21,7 +20,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [loginComplete, setLoginComplete] = useState(false);
 
-  // Redirect to dashboard once login is complete and user is authenticated
   useEffect(() => {
     if (loginComplete && user) {
       router.replace('/dashboard');
@@ -49,8 +47,6 @@ export default function LoginPage() {
       setLoginComplete(true);
     } catch (error: unknown) {
       console.error('Login error:', error);
-
-      // Handle specific Firebase errors
       const firebaseError = error as { code?: string };
       if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password') {
         toast.error('Invalid username or password');
@@ -65,17 +61,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Log in to your ZenyFit account</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {/* Username Input */}
+    <div className="flex min-h-screen items-center justify-center p-4 bg-background relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full opacity-[0.06] blur-3xl"
+          style={{ background: 'rgb(var(--gradient-from))' }}
+        />
+        <div
+          className="absolute bottom-1/4 right-1/3 w-80 h-80 rounded-full opacity-[0.06] blur-3xl"
+          style={{ background: 'rgb(var(--gradient-to))' }}
+        />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        {/* Logo / Branding */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold gradient-text">ZenyFit</h1>
+          <p className="text-sm text-foreground/50">Welcome back</p>
+        </div>
+
+        {/* Login Form */}
+        <div className="glass-strong rounded-2xl p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-sm text-foreground/70">Username</Label>
               <Input
                 id="username"
                 type="text"
@@ -88,9 +98,8 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password Input */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm text-foreground/70">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -106,37 +115,38 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-11"
               disabled={loading}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Logging in...' : 'Log In'}
             </Button>
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Don&apos;t have an account?{' '}
-                <Link href="/signup" className="text-primary hover:underline">
-                  Sign up
-                </Link>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                ZenyFit is invite-only
-              </p>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </div>
+
+        {/* Footer links */}
+        <div className="text-center space-y-2">
+          <p className="text-sm text-foreground/50">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
+          <p className="text-xs text-foreground/30">
+            ZenyFit is invite-only
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -8,12 +8,12 @@
 // Check if push notifications are supported
 export function isPushSupported(): boolean {
   if (typeof window === 'undefined') return false;
-  return 'serviceWorker' in navigator && 'PushManager' in window;
+  return 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined';
 }
 
 // Check current notification permission
 export function getNotificationPermission(): NotificationPermission {
-  if (typeof window === 'undefined') return 'default';
+  if (typeof window === 'undefined' || typeof Notification === 'undefined') return 'default';
   return Notification.permission;
 }
 

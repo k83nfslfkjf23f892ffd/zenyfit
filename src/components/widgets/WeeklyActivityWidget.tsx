@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -9,9 +9,8 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
+  Tooltip,
 } from 'recharts';
 
 interface DayData {
@@ -57,12 +56,11 @@ export function WeeklyActivityWidget() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Weekly Activity</CardTitle>
-          <CardDescription>Your workout activity this week</CardDescription>
+          <CardTitle className="text-base">Weekly Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-48">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
           </div>
         </CardContent>
       </Card>
@@ -73,11 +71,10 @@ export function WeeklyActivityWidget() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Weekly Activity</CardTitle>
-          <CardDescription>Your workout activity this week</CardDescription>
+          <CardTitle className="text-base">Weekly Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-48 text-muted-foreground">
+          <div className="flex items-center justify-center h-48 text-foreground/40 text-sm">
             No activity data for this week
           </div>
         </CardContent>
@@ -88,23 +85,39 @@ export function WeeklyActivityWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Weekly Activity</CardTitle>
-        <CardDescription>Your workout activity this week</CardDescription>
+        <CardTitle className="text-base">Weekly Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="day" className="text-xs" />
-            <YAxis className="text-xs" />
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={data} barCategoryGap="25%">
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: 'rgb(var(--foreground) / 0.4)' }}
+            />
+            <YAxis hide />
             <Tooltip
+              cursor={{ fill: 'rgb(var(--glass) / 0.05)' }}
               contentStyle={{
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
+                backgroundColor: 'rgb(var(--surface))',
+                border: '1px solid rgb(var(--border))',
+                borderRadius: '12px',
+                fontSize: '12px',
+                color: 'rgb(var(--foreground))',
               }}
             />
-            <Bar dataKey="workouts" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgb(var(--gradient-from))" />
+                <stop offset="100%" stopColor="rgb(var(--gradient-to))" />
+              </linearGradient>
+            </defs>
+            <Bar
+              dataKey="workouts"
+              fill="url(#barGradient)"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
@@ -56,12 +55,11 @@ export function XPHistoryWidget() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>XP History</CardTitle>
-          <CardDescription>Your XP progress over time</CardDescription>
+          <CardTitle className="text-base">XP History</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-48">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
           </div>
         </CardContent>
       </Card>
@@ -72,11 +70,10 @@ export function XPHistoryWidget() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>XP History</CardTitle>
-          <CardDescription>Your XP progress over time</CardDescription>
+          <CardTitle className="text-base">XP History</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-48 text-muted-foreground">
+          <div className="flex items-center justify-center h-48 text-foreground/40 text-sm">
             No XP history data yet
           </div>
         </CardContent>
@@ -87,30 +84,42 @@ export function XPHistoryWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>XP History</CardTitle>
-        <CardDescription>Your XP progress over time</CardDescription>
+        <CardTitle className="text-base">XP History</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey="date" className="text-xs" />
-            <YAxis className="text-xs" />
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgb(var(--gradient-from))" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="rgb(var(--gradient-to))" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: 'rgb(var(--foreground) / 0.4)' }}
+            />
+            <YAxis hide />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
+                backgroundColor: 'rgb(var(--surface))',
+                border: '1px solid rgb(var(--border))',
+                borderRadius: '12px',
+                fontSize: '12px',
+                color: 'rgb(var(--foreground))',
               }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="xp"
-              stroke="hsl(var(--primary))"
+              stroke="rgb(var(--primary))"
               strokeWidth={2}
+              fill="url(#xpGradient)"
               dot={false}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

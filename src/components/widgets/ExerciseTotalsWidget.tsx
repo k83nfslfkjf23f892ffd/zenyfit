@@ -1,35 +1,32 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatedNumber } from '@/components/AnimatedNumber';
 
 interface ExerciseTotalsWidgetProps {
   totals: Record<string, number>;
 }
 
+const exercises = [
+  { key: 'pullups', label: 'Pull-ups', unit: '' },
+  { key: 'pushups', label: 'Push-ups', unit: '' },
+  { key: 'dips', label: 'Dips', unit: '' },
+  { key: 'running', label: 'Running', unit: ' km' },
+];
+
 export function ExerciseTotalsWidget({ totals }: ExerciseTotalsWidgetProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Exercise Totals</CardTitle>
-        <CardDescription>Lifetime statistics</CardDescription>
+        <CardTitle className="text-base">Exercise Totals</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <span className="font-medium">Pull-ups</span>
-          <span className="text-lg font-bold">{totals.pullups || 0}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <span className="font-medium">Push-ups</span>
-          <span className="text-lg font-bold">{totals.pushups || 0}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <span className="font-medium">Dips</span>
-          <span className="text-lg font-bold">{totals.dips || 0}</span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <span className="font-medium">Running</span>
-          <span className="text-lg font-bold">{totals.running || 0} km</span>
-        </div>
+      <CardContent className="space-y-2">
+        {exercises.map(({ key, label, unit }) => (
+          <div key={key} className="flex items-center justify-between rounded-lg glass p-3">
+            <span className="text-sm text-foreground/70">{label}</span>
+            <span className="text-sm font-bold"><AnimatedNumber value={totals[key] || 0} />{unit}</span>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

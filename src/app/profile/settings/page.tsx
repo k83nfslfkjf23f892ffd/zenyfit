@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { LIMITS, APP_URL } from '@shared/constants';
@@ -163,9 +164,11 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+        </div>
+      </AppLayout>
     );
   }
 
@@ -175,24 +178,27 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <Button variant="ghost" onClick={() => router.back()}>
-          ← Back
-        </Button>
-
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your account and preferences</p>
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5 text-foreground/40" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">Settings</h1>
+            <p className="text-sm text-foreground/50">Manage your account</p>
+          </div>
         </div>
 
         {/* Theme Selector */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                <Palette className="h-4 w-4 text-primary" />
+              </div>
               Theme
             </CardTitle>
-            <CardDescription>Choose your visual style (24 themes available)</CardDescription>
           </CardHeader>
           <CardContent>
             <ThemeSelector />
@@ -211,25 +217,24 @@ export default function SettingsPage() {
 
         {/* Invite Codes */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
               Invite Codes
             </CardTitle>
-            <CardDescription>
-              Share ZenyFit with friends
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {/* Status summary */}
-            <div className="flex items-center justify-between text-sm p-3 rounded-lg bg-muted/50">
-              <span className="text-muted-foreground">Codes generated</span>
+            <div className="flex items-center justify-between text-sm p-3 rounded-xl glass">
+              <span className="text-foreground/50">Codes generated</span>
               <span className="font-semibold">{inviteCodes.length} / {LIMITS.inviteCodes}</span>
             </div>
 
             {loadingCodes ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
               </div>
             ) : (
               <>
@@ -238,20 +243,20 @@ export default function SettingsPage() {
                     {inviteCodes.map((invite) => (
                       <div
                         key={invite.code}
-                        className={`rounded-lg border p-3 ${invite.used ? 'bg-muted/30' : ''}`}
+                        className={`rounded-xl glass p-3 ${invite.used ? 'opacity-60' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="font-mono font-semibold text-sm">{invite.code}</div>
                           {invite.used ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                              <Check className="h-3 w-3" />
+                            <Badge variant="muted">
+                              <Check className="h-3 w-3 mr-1" />
                               Used
-                            </span>
+                            </Badge>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
-                              <Clock className="h-3 w-3" />
+                            <Badge variant="default">
+                              <Clock className="h-3 w-3 mr-1" />
                               Available
-                            </span>
+                            </Badge>
                           )}
                         </div>
 
@@ -267,9 +272,9 @@ export default function SettingsPage() {
                         )}
 
                         <div className="mt-2 flex items-center justify-between">
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-foreground/40">
                             {invite.used && invite.usedBy ? (
-                              <>Used by <span className="font-medium">{invite.usedBy}</span></>
+                              <>Used by <span className="font-medium text-foreground/60">{invite.usedBy}</span></>
                             ) : (
                               <>Created {new Date(invite.createdAt).toLocaleDateString()}</>
                             )}
@@ -277,7 +282,7 @@ export default function SettingsPage() {
                           {!invite.used && (
                             <div className="flex gap-1">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setShowQrCode(showQrCode === invite.code ? null : invite.code)}
                                 className="h-7 text-xs"
@@ -286,7 +291,7 @@ export default function SettingsPage() {
                                 QR
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => copyInviteUrl(invite.code)}
                                 className="h-7 text-xs"
@@ -295,7 +300,7 @@ export default function SettingsPage() {
                                 Copy
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => shareInvite(invite.code)}
                                 className="h-7 text-xs"
@@ -312,7 +317,7 @@ export default function SettingsPage() {
                 )}
 
                 {inviteCodes.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
+                  <p className="text-sm text-foreground/40 text-center py-4">
                     No invite codes yet. Generate one to invite friends!
                   </p>
                 )}
@@ -338,7 +343,7 @@ export default function SettingsPage() {
           <CardContent className="pt-6">
             {showLogoutConfirm ? (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-foreground/50">
                   Are you sure you want to log out?
                 </p>
                 <div className="flex gap-2">
