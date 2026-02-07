@@ -39,14 +39,14 @@ export default function ChallengesPage() {
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
   const [challenges, setChallenges] = useState<Challenge[]>(() => {
     if (typeof window !== 'undefined') {
-      const cached = getNestedCache<Challenge[]>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
-      return cached?.data || [];
+      const cached = getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+      return cached?.data?.challenges || [];
     }
     return [];
   });
   const [loadingChallenges, setLoadingChallenges] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getNestedCache<Challenge[]>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
+      return !getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, 'my', CACHE_TTL);
     }
     return true;
   });
@@ -80,9 +80,9 @@ export default function ChallengesPage() {
   const fetchChallenges = useCallback(async (filter: 'my' | 'public', skipCache = false) => {
     // Try cache first
     if (!skipCache) {
-      const cached = getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL);
+      const cached = getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, filter, CACHE_TTL);
       if (cached) {
-        setChallenges(cached.data);
+        setChallenges(cached.data?.challenges || []);
         setLoadingChallenges(false);
         if (cached.isStale) {
           setUpdating(true);
@@ -110,15 +110,15 @@ export default function ChallengesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const newChallenges = data.challenges || [];
-        setChallenges(newChallenges);
-        setNestedCache(CACHE_KEYS.challenges, filter, newChallenges);
-      } else if (!getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
+        const responseData = data as { challenges: Challenge[] };
+        setChallenges(responseData.challenges || []);
+        setNestedCache(CACHE_KEYS.challenges, filter, responseData);
+      } else if (!getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
         toast.error('Failed to load challenges');
       }
     } catch (error) {
       console.error('Error fetching challenges:', error);
-      if (!getNestedCache<Challenge[]>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
+      if (!getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
         toast.error('An error occurred');
       }
     } finally {

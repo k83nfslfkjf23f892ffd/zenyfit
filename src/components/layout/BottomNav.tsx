@@ -34,7 +34,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] transition-all duration-200',
+                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-all duration-200',
                 isActive
                   ? 'text-primary'
                   : 'text-foreground/40 hover:text-foreground/60'
@@ -42,7 +42,7 @@ export function BottomNav() {
               onContextMenu={preventContextMenu}
               style={{ WebkitTouchCallout: 'none' }}
             >
-              <Icon className={cn('h-6 w-6 transition-all duration-200', isActive && 'drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
+              <Icon className={cn('h-7 w-7 transition-all duration-200', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
               {isActive && (
                 <div className="h-1 w-1 rounded-full gradient-bg" />
               )}
