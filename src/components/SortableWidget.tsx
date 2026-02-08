@@ -45,10 +45,12 @@ export function SortableWidget({
       className={`relative rounded-xl ring-2 ring-primary/30 ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
     >
       {/* Entire toolbar is the drag handle for reliable touch */}
+      {/* touch-action:none as inline style to guarantee browser doesn't scroll */}
       <div
         {...attributes}
         {...listeners}
-        className="touch-none flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 cursor-grab active:cursor-grabbing select-none"
       >
         {/* Hide/Show toggle — stops propagation so it doesn't trigger drag */}
         <button

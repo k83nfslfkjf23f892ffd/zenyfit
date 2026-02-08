@@ -8,7 +8,6 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
-  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -77,10 +76,10 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // dnd-kit sensors — no delay needed since we use a dedicated drag handle
+  // PointerSensor handles both mouse and touch via pointer events.
+  // touch-action:none on the drag handle prevents browser scroll interference.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
