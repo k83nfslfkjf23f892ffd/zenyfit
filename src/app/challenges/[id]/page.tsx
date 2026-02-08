@@ -319,11 +319,9 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {sortedParticipants.map((participant, index) => {
+            {sortedParticipants.map((participant) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
               const isCurrentUser = user ? participant.userId === user.id : false;
-              const rank = index + 1;
-
               return (
                 <div
                   key={participant.userId}
@@ -334,17 +332,8 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    {/* Rank */}
-                    {rank <= 3 ? (
-                      <Badge variant={rank === 1 ? 'gold' : rank === 2 ? 'silver' : 'bronze'}>
-                        {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
-                      </Badge>
-                    ) : (
-                      <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>
-                    )}
-
                     {/* Avatar */}
-                    <div className={`h-8 w-8 overflow-hidden rounded-full flex-shrink-0 ${rank <= 3 ? 'ring-2 ring-primary/30' : ''}`}>
+                    <div className="h-8 w-8 overflow-hidden rounded-full flex-shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={getAvatarDisplayUrl(participant.avatar, participant.username)}
@@ -359,7 +348,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                     </span>
 
                     {/* Score */}
-                    <span className={`font-bold text-sm ${rank <= 3 ? 'gradient-text' : ''}`}>
+                    <span className="font-bold text-sm">
                       {Math.floor(participant.progress)} / {challenge.goal}
                     </span>
                   </div>

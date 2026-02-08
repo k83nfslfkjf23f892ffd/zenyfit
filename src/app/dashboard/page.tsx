@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
 import { DEFAULT_WIDGET_CONFIG, getVisibleWidgets } from '@/lib/widgets';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
@@ -54,7 +54,7 @@ export default function DashboardPage() {
     const widget = (() => {
       switch (widgetId) {
         case 'user-header':
-          return <UserHeaderWidget user={user} onCustomize={() => setCustomizerOpen(true)} />;
+          return <UserHeaderWidget user={user} />;
         case 'stats-grid':
           return <StatsGridWidget />;
         case 'exercise-ratio':
@@ -67,7 +67,7 @@ export default function DashboardPage() {
           return <PersonalBestsWidget />;
         case 'exercise-totals':
           return <ExerciseTotalsWidget totals={user.totals} />;
-        case 'xp-history':
+        case 'reps-history':
           return <XPHistoryWidget />;
         case 'active-challenges':
           return <ActiveChallengesWidget />;
@@ -99,6 +99,17 @@ export default function DashboardPage() {
             {renderWidget(widgetId)}
           </motion.div>
         ))}
+
+        {/* Customize button - always at bottom */}
+        <motion.div className="flex justify-center" variants={listItemVariants}>
+          <button
+            type="button"
+            onClick={() => setCustomizerOpen(true)}
+            className="h-8 w-8 flex items-center justify-center rounded-lg glass text-foreground/40 hover:text-foreground/60 transition-colors"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </motion.div>
       </motion.div>
 
       {/* Widget Customizer Modal */}

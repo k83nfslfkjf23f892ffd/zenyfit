@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Settings, Pencil } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
@@ -17,10 +16,9 @@ interface UserHeaderWidgetProps {
     xp: number;
     avatar?: string;
   };
-  onCustomize?: () => void;
 }
 
-export function UserHeaderWidget({ user, onCustomize }: UserHeaderWidgetProps) {
+export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
   const xpNeeded = getXPNeededForNextLevel(user.level);
   const progressPercent = (xpInLevel / xpNeeded) * 100;
@@ -50,18 +48,12 @@ export function UserHeaderWidget({ user, onCustomize }: UserHeaderWidgetProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {onCustomize && (
-            <Button variant="ghost" size="icon" onClick={onCustomize}>
-              <Pencil className="h-4 w-4 text-foreground/40" />
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/profile/settings">
-              <Settings className="h-5 w-5 text-foreground/40" />
-            </Link>
-          </Button>
-        </div>
+        <Link
+            href="/profile/settings"
+            className="h-10 w-10 flex items-center justify-center rounded-lg active:bg-foreground/10 transition-colors"
+          >
+            <Settings className="h-5 w-5 text-foreground/40" />
+          </Link>
       </div>
 
       <div className="space-y-2">

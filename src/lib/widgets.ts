@@ -44,9 +44,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Lifetime totals per exercise',
   },
   {
-    id: 'xp-history',
-    name: 'XP History',
-    description: 'XP progress over time',
+    id: 'reps-history',
+    name: 'Reps This Week',
+    description: 'Daily rep count chart',
   },
   {
     id: 'active-challenges',
@@ -65,7 +65,7 @@ export const DEFAULT_WIDGET_CONFIG = {
     'consistency',
     'personal-bests',
     'exercise-totals',
-    'xp-history',
+    'reps-history',
     'active-challenges',
   ],
   hidden: [], // All widgets visible by default
@@ -81,5 +81,6 @@ export function getVisibleWidgets(
   config: { order: string[]; hidden: string[] } | undefined
 ): string[] {
   const effectiveConfig = config || DEFAULT_WIDGET_CONFIG;
-  return effectiveConfig.order.filter((id) => !effectiveConfig.hidden.includes(id));
+  const validIds = WIDGET_DEFINITIONS.map((w) => w.id);
+  return effectiveConfig.order.filter((id) => validIds.includes(id) && !effectiveConfig.hidden.includes(id));
 }

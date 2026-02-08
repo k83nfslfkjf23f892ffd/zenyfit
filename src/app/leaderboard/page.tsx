@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,12 +36,6 @@ interface Ranking {
 
 const CACHE_TTL = 5 * 60 * 1000;
 
-const rankBadge = (rank: number) => {
-  if (rank === 1) return <Badge variant="gold">1st</Badge>;
-  if (rank === 2) return <Badge variant="silver">2nd</Badge>;
-  if (rank === 3) return <Badge variant="bronze">3rd</Badge>;
-  return <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>;
-};
 
 export default function LeaderboardPage() {
   const router = useRouter();
@@ -208,7 +201,6 @@ export default function LeaderboardPage() {
                 {rankings.map((ranking) => {
                   const isCurrentUser = user ? ranking.id === user.id : false;
                   const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
-                  const isTop3 = ranking.rank <= 3;
                   return (
                     <motion.div
                       key={ranking.id}
@@ -219,9 +211,7 @@ export default function LeaderboardPage() {
                           : 'glass'
                       }`}
                     >
-                      {rankBadge(ranking.rank)}
-
-                      <div className={`h-10 w-10 overflow-hidden rounded-full ${isTop3 ? 'ring-2 ring-primary/30' : ''}`}>
+                      <div className="h-10 w-10 overflow-hidden rounded-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={avatarUrl}
@@ -240,7 +230,7 @@ export default function LeaderboardPage() {
                       </div>
 
                       <div className="text-right">
-                        <div className={`font-bold text-sm ${isTop3 ? 'gradient-text' : ''}`}>
+                        <div className="font-bold text-sm">
                           {Math.floor(ranking.score).toLocaleString()}
                         </div>
                         <div className="text-xs text-foreground/40">
