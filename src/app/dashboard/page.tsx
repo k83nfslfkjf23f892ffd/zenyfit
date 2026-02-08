@@ -206,13 +206,13 @@ export default function DashboardPage() {
         <SortableContext items={localConfig.order} strategy={verticalListSortingStrategy}>
           <motion.div
             className="space-y-5"
-            variants={editMode ? undefined : listContainerVariants}
-            initial={editMode ? undefined : 'hidden'}
-            animate={editMode ? undefined : 'visible'}
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="visible"
           >
             {/* Visible widgets */}
             {visibleWidgets.map((widgetId) => (
-              <motion.div key={widgetId} variants={editMode ? undefined : listItemVariants}>
+              <motion.div key={widgetId} variants={listItemVariants}>
                 <SortableWidget
                   widgetId={widgetId}
                   isEditMode={editMode}
@@ -231,15 +231,16 @@ export default function DashboardPage() {
                   Hidden
                 </div>
                 {hiddenWidgets.map((widgetId) => (
-                  <SortableWidget
-                    key={widgetId}
-                    widgetId={widgetId}
-                    isEditMode={true}
-                    isHidden={true}
-                    onToggleVisibility={toggleWidget}
-                  >
-                    {renderWidget(widgetId)}
-                  </SortableWidget>
+                  <motion.div key={widgetId} variants={listItemVariants}>
+                    <SortableWidget
+                      widgetId={widgetId}
+                      isEditMode={true}
+                      isHidden={true}
+                      onToggleVisibility={toggleWidget}
+                    >
+                      {renderWidget(widgetId)}
+                    </SortableWidget>
+                  </motion.div>
                 ))}
               </>
             )}
