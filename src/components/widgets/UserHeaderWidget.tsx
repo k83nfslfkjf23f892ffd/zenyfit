@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Settings } from 'lucide-react';
+import { Settings, Pencil } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,10 @@ interface UserHeaderWidgetProps {
     xp: number;
     avatar?: string;
   };
+  onCustomize?: () => void;
 }
 
-export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
+export function UserHeaderWidget({ user, onCustomize }: UserHeaderWidgetProps) {
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
   const xpNeeded = getXPNeededForNextLevel(user.level);
   const progressPercent = (xpInLevel / xpNeeded) * 100;
@@ -49,11 +50,18 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/profile/settings">
-            <Settings className="h-5 w-5 text-foreground/40" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-1">
+          {onCustomize && (
+            <Button variant="ghost" size="icon" onClick={onCustomize}>
+              <Pencil className="h-4 w-4 text-foreground/40" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/profile/settings">
+              <Settings className="h-5 w-5 text-foreground/40" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">

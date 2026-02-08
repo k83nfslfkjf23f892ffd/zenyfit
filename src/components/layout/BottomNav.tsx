@@ -46,7 +46,7 @@ export function BottomNav() {
                 'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-all duration-200',
                 isActive
                   ? 'text-primary'
-                  : 'text-foreground/40 hover:text-foreground/60'
+                  : 'text-foreground/60 hover:text-foreground/80'
               )}
               onContextMenu={preventContextMenu}
               style={{ WebkitTouchCallout: 'none' }}
