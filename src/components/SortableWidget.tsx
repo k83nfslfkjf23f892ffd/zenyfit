@@ -44,12 +44,18 @@ export function SortableWidget({
       style={style}
       className={`relative rounded-xl ring-2 ring-primary/30 ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
     >
-      {/* Edit mode toolbar */}
-      <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20">
-        {/* Hide/Show toggle */}
+      {/* Entire toolbar is the drag handle for reliable touch */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="touch-none flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 cursor-grab active:cursor-grabbing"
+      >
+        {/* Hide/Show toggle — stops propagation so it doesn't trigger drag */}
         <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={() => onToggleVisibility(widgetId)}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10"
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 active:bg-primary/20"
         >
           {isHidden ? (
             <>
@@ -64,15 +70,11 @@ export function SortableWidget({
           )}
         </button>
 
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="touch-none flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-primary/10 cursor-grab active:cursor-grabbing"
-        >
+        {/* Drag indicator */}
+        <div className="flex items-center gap-1.5">
           <GripVertical className="h-5 w-5 text-foreground/50" />
           <span className="text-xs font-medium text-foreground/50">Drag</span>
-        </button>
+        </div>
       </div>
 
       {/* Widget content */}
