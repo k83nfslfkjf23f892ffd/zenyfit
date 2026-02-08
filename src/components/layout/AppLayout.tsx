@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div
         className="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] z-40 transition-all duration-300"
         style={{
-          background: isScrolled ? 'rgb(var(--glass) / 0.1)' : 'rgb(var(--background))',
+          background: isScrolled ? 'rgb(var(--glass) / 0.05)' : 'transparent',
           backdropFilter: isScrolled ? 'blur(24px)' : 'none',
           WebkitBackdropFilter: isScrolled ? 'blur(24px)' : 'none',
           borderBottom: isScrolled ? '1px solid rgb(var(--glass-border) / 0.12)' : '1px solid transparent',
