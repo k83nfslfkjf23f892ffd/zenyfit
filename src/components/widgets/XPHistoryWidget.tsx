@@ -34,13 +34,14 @@ export function XPHistoryWidget() {
     if (typeof window !== 'undefined') {
       const cached = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
       if (cached?.data.xpHistory) return cached.data.xpHistory;
+      if (cached?.data.trend) return cached.data.trend.map(d => ({ date: d.date, xp: d.xp }));
     }
     return [];
   });
   const [loading, setLoading] = useState(() => {
     if (typeof window !== 'undefined') {
       const cached = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-      return !cached?.data.xpHistory;
+      return !cached?.data.xpHistory && !cached?.data.trend;
     }
     return true;
   });
@@ -51,6 +52,8 @@ export function XPHistoryWidget() {
       if (cached) {
         if (cached.data.xpHistory) {
           setData(cached.data.xpHistory);
+        } else if (cached.data.trend) {
+          setData(cached.data.trend.map(d => ({ date: d.date, xp: d.xp })));
         }
         setLoading(false);
         if (cached.isStale) {
@@ -70,10 +73,12 @@ export function XPHistoryWidget() {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.xpHistory) {
-          setData(result.xpHistory);
-        }
-        setLocalCache(CACHE_KEYS.trend, result);
+        const xpHistory = result.trend?.map((d: { date: string; xp: number }) => ({
+          date: d.date,
+          xp: d.xp,
+        })) || [];
+        setData(xpHistory);
+        setLocalCache(CACHE_KEYS.trend, { ...result, xpHistory });
       }
     } catch (error) {
       console.error('Error fetching XP history:', error);

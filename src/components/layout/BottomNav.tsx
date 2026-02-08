@@ -2,19 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, Target, User, Dumbbell } from 'lucide-react';
+import { Home, Trophy, Target, Users, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/log', label: 'Log', icon: Dumbbell },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/challenges', label: 'Challenges', icon: Target },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/social', label: 'Social', icon: Users },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { isAtBottom } = useScrollPosition();
 
   const preventContextMenu = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -22,8 +24,15 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 glass-strong rounded-t-2xl select-none"
-      style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none' }}
+      className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl select-none transition-all duration-300"
+      style={{
+        background: isAtBottom ? 'rgb(var(--background))' : 'rgb(var(--glass) / 0.1)',
+        backdropFilter: isAtBottom ? 'none' : 'blur(24px)',
+        WebkitBackdropFilter: isAtBottom ? 'none' : 'blur(24px)',
+        borderTop: isAtBottom ? '1px solid transparent' : '1px solid rgb(var(--glass-border) / 0.12)',
+        touchAction: 'manipulation',
+        WebkitTouchCallout: 'none',
+      }}
       onContextMenu={preventContextMenu}
     >
       <div className="flex items-center pt-2">
