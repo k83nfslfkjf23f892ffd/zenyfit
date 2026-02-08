@@ -46,16 +46,6 @@ export function SortableWidget({
     >
       {/* Edit mode toolbar */}
       <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20">
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="touch-none flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 cursor-grab active:cursor-grabbing"
-        >
-          <GripVertical className="h-5 w-5 text-foreground/50" />
-          <span className="text-xs font-medium text-foreground/50">Drag</span>
-        </button>
-
         {/* Hide/Show toggle */}
         <button
           onClick={() => onToggleVisibility(widgetId)}
@@ -72,6 +62,16 @@ export function SortableWidget({
               <span className="text-xs font-medium text-foreground/50">Hide</span>
             </>
           )}
+        </button>
+
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="touch-none flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="h-5 w-5 text-foreground/50" />
+          <span className="text-xs font-medium text-foreground/50">Drag</span>
         </button>
       </div>
 

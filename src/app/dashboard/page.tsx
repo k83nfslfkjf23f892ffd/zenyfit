@@ -23,7 +23,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { DEFAULT_WIDGET_CONFIG, getVisibleWidgets, getHiddenWidgets } from '@/lib/widgets';
+import { DEFAULT_WIDGET_CONFIG, getVisibleWidgets } from '@/lib/widgets';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
 import { SortableWidget } from '@/components/SortableWidget';
@@ -155,7 +155,6 @@ export default function DashboardPage() {
   }
 
   const visibleWidgets = getVisibleWidgets(localConfig);
-  const hiddenWidgets = editMode ? getHiddenWidgets(localConfig) : [];
 
   const renderWidget = (widgetId: string) => {
     const widget = (() => {
@@ -210,40 +209,18 @@ export default function DashboardPage() {
             initial="hidden"
             animate="visible"
           >
-            {/* Visible widgets */}
-            {visibleWidgets.map((widgetId) => (
+            {(editMode ? localConfig.order : visibleWidgets).map((widgetId) => (
               <motion.div key={widgetId} variants={listItemVariants}>
                 <SortableWidget
                   widgetId={widgetId}
                   isEditMode={editMode}
-                  isHidden={false}
+                  isHidden={localConfig.hidden.includes(widgetId)}
                   onToggleVisibility={toggleWidget}
                 >
                   {renderWidget(widgetId)}
                 </SortableWidget>
               </motion.div>
             ))}
-
-            {/* Hidden widgets (edit mode only) */}
-            {editMode && hiddenWidgets.length > 0 && (
-              <>
-                <div className="text-xs text-foreground/30 uppercase tracking-wider pt-2">
-                  Hidden
-                </div>
-                {hiddenWidgets.map((widgetId) => (
-                  <motion.div key={widgetId} variants={listItemVariants}>
-                    <SortableWidget
-                      widgetId={widgetId}
-                      isEditMode={true}
-                      isHidden={true}
-                      onToggleVisibility={toggleWidget}
-                    >
-                      {renderWidget(widgetId)}
-                    </SortableWidget>
-                  </motion.div>
-                ))}
-              </>
-            )}
           </motion.div>
         </SortableContext>
       </DndContext>
