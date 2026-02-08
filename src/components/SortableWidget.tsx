@@ -68,7 +68,7 @@ export function SortableWidget({
         <button
           {...attributes}
           {...listeners}
-          className="touch-none flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 cursor-grab active:cursor-grabbing"
+          className="touch-none flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-primary/10 cursor-grab active:cursor-grabbing"
         >
           <GripVertical className="h-5 w-5 text-foreground/50" />
           <span className="text-xs font-medium text-foreground/50">Drag</span>

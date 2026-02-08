@@ -77,10 +77,10 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // dnd-kit sensors (same config as previous WidgetCustomizer)
+  // dnd-kit sensors — no delay needed since we use a dedicated drag handle
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -229,7 +229,7 @@ export default function DashboardPage() {
       <button
         type="button"
         onClick={() => setEditMode(!editMode)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 h-9 w-9 flex items-center justify-center rounded-full glass text-foreground/40 hover:text-foreground/60 transition-colors"
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 h-9 w-9 flex items-center justify-center rounded-full bg-surface/50 border border-border/50 text-foreground/40 hover:text-foreground/60 transition-colors"
       >
         {editMode ? <Check className="h-4 w-4" /> : <Pencil className="h-3.5 w-3.5" />}
       </button>
