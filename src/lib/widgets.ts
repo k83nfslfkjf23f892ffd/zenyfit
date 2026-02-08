@@ -84,3 +84,12 @@ export function getVisibleWidgets(
   const validIds = WIDGET_DEFINITIONS.map((w) => w.id);
   return effectiveConfig.order.filter((id) => validIds.includes(id) && !effectiveConfig.hidden.includes(id));
 }
+
+// Get hidden widgets in order
+export function getHiddenWidgets(
+  config: { order: string[]; hidden: string[] } | undefined
+): string[] {
+  const effectiveConfig = config || DEFAULT_WIDGET_CONFIG;
+  const validIds = WIDGET_DEFINITIONS.map((w) => w.id);
+  return effectiveConfig.order.filter((id) => validIds.includes(id) && effectiveConfig.hidden.includes(id));
+}
