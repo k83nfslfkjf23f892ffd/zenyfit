@@ -100,17 +100,16 @@ export default function DashboardPage() {
           </motion.div>
         ))}
 
-        {/* Customize button - always at bottom */}
-        <motion.div className="flex justify-center" variants={listItemVariants}>
-          <button
-            type="button"
-            onClick={() => setCustomizerOpen(true)}
-            className="h-8 w-8 flex items-center justify-center rounded-lg glass text-foreground/40 hover:text-foreground/60 transition-colors"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </motion.div>
       </motion.div>
+
+      {/* Customize button - fixed at bottom above nav */}
+      <button
+        type="button"
+        onClick={() => setCustomizerOpen(true)}
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 h-9 w-9 flex items-center justify-center rounded-full glass text-foreground/40 hover:text-foreground/60 transition-colors"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
 
       {/* Widget Customizer Modal */}
       <WidgetCustomizer

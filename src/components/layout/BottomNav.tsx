@@ -52,9 +52,6 @@ export function BottomNav() {
               style={{ WebkitTouchCallout: 'none' }}
             >
               <Icon className={cn('h-7 w-7 transition-all duration-200', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
-              {isActive && (
-                <div className="h-1 w-1 rounded-full gradient-bg" />
-              )}
             </Link>
           );
         })}

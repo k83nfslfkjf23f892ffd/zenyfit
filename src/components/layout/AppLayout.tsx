@@ -3,12 +3,15 @@
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { BottomNav } from './BottomNav';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { isScrolled } = useScrollPosition();
+
   return (
     <div className="min-h-screen bg-background relative">
       {/* Gradient mesh background */}
@@ -23,8 +26,16 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       </div>
 
-      {/* Transparent status bar with blur */}
-      <div className="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] glass-strong z-40" />
+      {/* Status bar - blends with page at top, frosted when scrolled */}
+      <div
+        className="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] z-40 transition-all duration-300"
+        style={{
+          background: isScrolled ? 'rgb(var(--glass) / 0.1)' : 'rgb(var(--background))',
+          backdropFilter: isScrolled ? 'blur(24px)' : 'none',
+          WebkitBackdropFilter: isScrolled ? 'blur(24px)' : 'none',
+          borderBottom: isScrolled ? '1px solid rgb(var(--glass-border) / 0.12)' : '1px solid transparent',
+        }}
+      />
 
       <main className="relative z-10 container mx-auto max-w-2xl px-4 py-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <motion.div
