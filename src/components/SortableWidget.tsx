@@ -33,7 +33,6 @@ export function SortableWidget({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    ...(isEditMode ? { touchAction: 'none' } : {}),
   };
 
   if (!isEditMode) {
@@ -45,15 +44,12 @@ export function SortableWidget({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className={`relative rounded-xl ring-2 ring-primary/30 cursor-grab active:cursor-grabbing ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
+      className={`relative rounded-xl ring-2 ring-primary/30 ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
     >
-      {/* Toolbar */}
+      {/* Toolbar — drag handle is only on the grip icon */}
       <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 select-none">
-        {/* Hide/Show toggle — stops propagation so it doesn't trigger drag */}
+        {/* Hide/Show toggle */}
         <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
           onClick={() => onToggleVisibility(widgetId)}
           className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 active:bg-primary/20"
         >
@@ -70,8 +66,12 @@ export function SortableWidget({
           )}
         </button>
 
-        {/* Drag indicator */}
-        <div className="flex items-center gap-1.5">
+        {/* Drag handle — only this area initiates drag */}
+        <div
+          {...listeners}
+          className="flex items-center gap-1.5 p-2 -m-2 cursor-grab active:cursor-grabbing"
+          style={{ touchAction: 'none' }}
+        >
           <GripVertical className="h-5 w-5 text-foreground/50" />
         </div>
       </div>
