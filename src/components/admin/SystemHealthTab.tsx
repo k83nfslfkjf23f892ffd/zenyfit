@@ -27,13 +27,6 @@ interface MetricsData {
   routes: RouteMetric[];
 }
 
-function formatUptime(ms: number): string {
-  const hours = Math.floor(ms / 3600000);
-  const minutes = Math.floor((ms % 3600000) / 60000);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
 export function SystemHealthTab() {
   const { firebaseUser } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
@@ -213,8 +206,7 @@ export function SystemHealthTab() {
                 Firestore Metrics
               </CardTitle>
               <CardDescription>
-                Reads, writes, and cache hits since last deploy
-                {metrics && ` (uptime: ${formatUptime(metrics.uptimeMs)})`}
+                Reads, writes, and cache hits since last reset
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -287,7 +279,7 @@ export function SystemHealthTab() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Metrics are in-memory and reset on each deploy. Sorted by reads (heaviest first).
+                Metrics are persisted in Firestore. Use the reset button to start fresh. Sorted by reads (heaviest first).
               </p>
             </div>
           )}
