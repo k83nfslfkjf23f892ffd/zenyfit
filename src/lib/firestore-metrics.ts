@@ -20,10 +20,16 @@ export function trackReads(route: string, count: number) {
   try {
     const { db } = getAdminInstances();
     db.doc(METRICS_DOC).set({
-      [`routes.${key}.reads`]: FieldValue.increment(count),
-      [`routes.${key}.calls`]: FieldValue.increment(1),
-      ['totals.reads']: FieldValue.increment(count),
-      ['totals.calls']: FieldValue.increment(1),
+      routes: {
+        [key]: {
+          reads: FieldValue.increment(count),
+          calls: FieldValue.increment(1),
+        },
+      },
+      totals: {
+        reads: FieldValue.increment(count),
+        calls: FieldValue.increment(1),
+      },
     }, { merge: true }).catch(() => {});
   } catch {
     // Ignore - metrics should never break the app
@@ -36,8 +42,14 @@ export function trackWrites(route: string, count: number) {
   try {
     const { db } = getAdminInstances();
     db.doc(METRICS_DOC).set({
-      [`routes.${key}.writes`]: FieldValue.increment(count),
-      ['totals.writes']: FieldValue.increment(count),
+      routes: {
+        [key]: {
+          writes: FieldValue.increment(count),
+        },
+      },
+      totals: {
+        writes: FieldValue.increment(count),
+      },
     }, { merge: true }).catch(() => {});
   } catch {
     // Ignore
@@ -50,10 +62,16 @@ export function trackCacheHit(route: string) {
   try {
     const { db } = getAdminInstances();
     db.doc(METRICS_DOC).set({
-      [`routes.${key}.cacheHits`]: FieldValue.increment(1),
-      [`routes.${key}.calls`]: FieldValue.increment(1),
-      ['totals.cacheHits']: FieldValue.increment(1),
-      ['totals.calls']: FieldValue.increment(1),
+      routes: {
+        [key]: {
+          cacheHits: FieldValue.increment(1),
+          calls: FieldValue.increment(1),
+        },
+      },
+      totals: {
+        cacheHits: FieldValue.increment(1),
+        calls: FieldValue.increment(1),
+      },
     }, { merge: true }).catch(() => {});
   } catch {
     // Ignore
