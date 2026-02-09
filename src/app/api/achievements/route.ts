@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
     const challengesSnapshot = await db
       .collection('challenges')
       .where('participantIds', 'array-contains', userId)
+      .limit(50)
       .get();
     trackReads('achievements', challengesSnapshot.docs.length);
 

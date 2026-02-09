@@ -20,6 +20,17 @@ export const CACHE_KEYS = {
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
 
+/** Per-key TTLs — longer for data that changes infrequently */
+export const CACHE_TTLS = {
+  profileStats: 10 * 60 * 1000,  // 10 min — only changes on workout log
+  trend: 10 * 60 * 1000,         // 10 min — 7-day data, slow-moving
+  statsGrid: 15 * 60 * 1000,     // 15 min — achievements rarely change
+  achievements: 15 * 60 * 1000,  // 15 min — same as statsGrid
+  rankings: 10 * 60 * 1000,      // 10 min — moderate churn
+  chartData: 10 * 60 * 1000,     // 10 min — leaderboard charts
+  challenges: 5 * 60 * 1000,     // 5 min  — keep fresh for timers
+} as const;
+
 interface CacheWrapper<T> {
   data: T;
   timestamp: number;
@@ -102,6 +113,22 @@ export function setNestedCache<T>(key: string, subKey: string, data: T): void {
     const outer = raw ? JSON.parse(raw) : {};
     outer[subKey] = { data, timestamp: Date.now() };
     localStorage.setItem(key, JSON.stringify(outer));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Invalidate workout-affected caches so the next dashboard visit fetches fresh data.
+ * Call this after logging, undoing, or deleting a workout.
+ */
+export function invalidateWorkoutCaches(): void {
+  try {
+    localStorage.removeItem(CACHE_KEYS.profileStats);
+    localStorage.removeItem(CACHE_KEYS.trend);
+    localStorage.removeItem(CACHE_KEYS.statsGrid);
+    localStorage.removeItem(CACHE_KEYS.rankings);
+    localStorage.removeItem(CACHE_KEYS.chartData);
   } catch {
     // Ignore storage errors
   }

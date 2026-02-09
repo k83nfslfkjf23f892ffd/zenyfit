@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Target, Loader2, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Challenge {
   id: string;
@@ -27,7 +27,7 @@ interface ChallengesResponse {
   }>;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.challenges;
 
 export function ActiveChallengesWidget() {
   const { user, firebaseUser } = useAuth();

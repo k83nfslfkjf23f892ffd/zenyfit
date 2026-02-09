@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
+import { invalidateWorkoutCaches } from '@/lib/client-cache';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -312,6 +313,7 @@ export default function LogPage() {
 
       // Remove from list
       setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+      invalidateWorkoutCaches();
       toast.success(`Deleted (-${data.xpDeducted} XP)`);
       setWorkoutToDelete(null);
       setDeleteMode(false);
@@ -396,6 +398,9 @@ export default function LogPage() {
       }, 10000);
 
       setCustomAmount('');
+
+      // Invalidate dashboard caches so next visit fetches fresh data
+      invalidateWorkoutCaches();
 
       // Refresh recent workouts
       fetchRecentWorkouts();
@@ -484,6 +489,7 @@ export default function LogPage() {
       setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
 
       toast.success(`Undone (-${data.xpDeducted} XP)`);
+      invalidateWorkoutCaches();
       setLastWorkout(null);
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);

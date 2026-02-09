@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
 
     query = query
       .where('timestamp', '>', sevenDaysAgo)
-      .orderBy('timestamp', 'asc');
+      .orderBy('timestamp', 'asc')
+      .limit(500);
 
     const snapshot = await query.get();
     trackReads('leaderboard/trend', snapshot.docs.length);

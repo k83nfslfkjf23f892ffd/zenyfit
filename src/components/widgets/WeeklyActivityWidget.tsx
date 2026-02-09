@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 import {
   BarChart,
   Bar,
@@ -27,7 +27,7 @@ interface ProfileStatsData {
   weeklyActivity?: DayData[];
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function WeeklyActivityWidget() {
   const { firebaseUser } = useAuth();

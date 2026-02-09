@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Activity, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Stats {
   totalWorkouts: number;
@@ -23,11 +23,9 @@ interface AchievementsData {
   unlockedAchievements: string[];
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
-
 function buildStatsFromCache(): Stats | null {
-  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
   if (!trend && !achievements) return null;
 
@@ -68,8 +66,8 @@ export function StatsGridWidget() {
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
       if (trendCache || achievementsCache) {
         const cached = buildStatsFromCache();

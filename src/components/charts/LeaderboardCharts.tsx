@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
-import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -49,7 +49,7 @@ interface LeaderboardChartsProps {
   firebaseUser: { getIdToken: () => Promise<string> } | null;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.chartData;
 
 function getSavedFilters(): { scope: 'personal' | 'community'; range: 'daily' | 'weekly' | 'monthly' } {
   try {

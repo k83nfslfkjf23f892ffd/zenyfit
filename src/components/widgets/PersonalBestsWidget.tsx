@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { EXERCISE_INFO } from '@shared/constants';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface ProfileStatsData {
   personalBests: Record<string, number>;
@@ -13,7 +13,7 @@ interface ProfileStatsData {
   workoutDaysLast30: number;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function PersonalBestsWidget() {
   const { firebaseUser } = useAuth();

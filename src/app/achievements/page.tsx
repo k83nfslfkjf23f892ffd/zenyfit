@@ -8,11 +8,11 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Lock } from 'lucide-react';
 import { ACHIEVEMENTS, type Achievement } from '@shared/achievements';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 type Category = 'workout' | 'progress' | 'challenge' | 'social';
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.achievements;
 
 export default function AchievementsPage() {
   const router = useRouter();

@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId)
       .where('timestamp', '>=', thirtyDaysAgo)
       .orderBy('timestamp', 'desc')
+      .limit(500)
       .get();
     trackReads('profile/stats', recentLogsSnapshot.docs.length);
 

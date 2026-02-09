@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { getCache, setLocalCache } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_TTLS } from '@/lib/client-cache';
 import {
   AreaChart,
   Area,
@@ -25,7 +25,7 @@ interface StatsData {
 }
 
 const CACHE_KEY = 'zenyfit_reps_history';
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.chartData;
 
 export function XPHistoryWidget() {
   const { user, firebaseUser } = useAuth();

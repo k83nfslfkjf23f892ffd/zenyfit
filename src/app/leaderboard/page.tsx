@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
-import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 const LeaderboardCharts = dynamic(
   () =>
@@ -34,7 +34,7 @@ interface Ranking {
   score: number;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.rankings;
 
 
 export default function LeaderboardPage() {

@@ -29,7 +29,7 @@ interface Challenge {
 
 // Cache helpers
 const CACHE_KEY_PREFIX = 'zenyfit_challenge_';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 min — challenges need freshness for timers
 
 function getCachedChallenge(id: string): Challenge | null {
   try {

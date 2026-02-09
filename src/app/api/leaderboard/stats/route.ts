@@ -276,7 +276,8 @@ export async function GET(request: NextRequest) {
       const newLogsQuery = db.collection('exercise_logs')
         .where('userId', '==', userId)
         .where('timestamp', '>', cached.lastTimestamp)
-        .orderBy('timestamp', 'asc');
+        .orderBy('timestamp', 'asc')
+        .limit(500);
 
       const newSnapshot = await newLogsQuery.get();
 
@@ -299,6 +300,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId)
       .where('timestamp', '>', startTime)
       .orderBy('timestamp', 'asc')
+      .limit(2000)
       .get();
     trackReads('leaderboard/stats', logsSnapshot.docs.length);
 

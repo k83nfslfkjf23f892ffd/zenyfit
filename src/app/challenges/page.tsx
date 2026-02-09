@@ -15,7 +15,7 @@ import { Target, Plus, Clock, Users, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISE_INFO } from '@shared/constants';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
-import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Challenge {
   id: string;
@@ -30,7 +30,7 @@ interface Challenge {
   participantIds: string[];
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.challenges;
 
 export default function ChallengesPage() {
   const router = useRouter();
@@ -239,9 +239,9 @@ export default function ChallengesPage() {
                         <div className="bg-surface border border-border rounded-xl p-4 space-y-3 transition-all active:scale-[0.98]">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm truncate">{challenge.title}</h3>
+                              <h3 className="font-semibold text-base truncate">{challenge.title}</h3>
                               {challenge.description && (
-                                <p className="text-xs text-foreground/40 mt-0.5 truncate">
+                                <p className="text-sm text-foreground/40 mt-0.5 truncate">
                                   {challenge.description}
                                 </p>
                               )}
@@ -252,14 +252,14 @@ export default function ChallengesPage() {
                           </div>
 
                           {/* Challenge Info */}
-                          <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-1.5 text-foreground/60">
-                              <Target className="h-3.5 w-3.5" />
+                              <Target className="h-4 w-4" />
                               <span>{EXERCISE_INFO[challenge.type]?.label || challenge.type}</span>
                             </div>
-                            <div className="flex items-center gap-1 text-foreground/40">
-                              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="font-mono text-xs">
+                            <div className="flex items-center gap-1.5 text-foreground/40">
+                              <Clock className="h-4 w-4 flex-shrink-0" />
+                              <span className="font-mono text-sm">
                                 {timeRemaining}
                               </span>
                             </div>
@@ -268,7 +268,7 @@ export default function ChallengesPage() {
                           {/* Progress (if participant) */}
                           {isParticipant && (
                             <div className="space-y-1.5">
-                              <div className="flex justify-between text-xs">
+                              <div className="flex justify-between text-sm">
                                 <span className="text-foreground/50">Progress</span>
                                 <span className="font-medium gradient-text">
                                   {Math.floor(userProgress)} / {challenge.goal}
@@ -279,8 +279,8 @@ export default function ChallengesPage() {
                           )}
 
                           {/* Participants */}
-                          <div className="flex items-center gap-1.5 text-xs text-foreground/40">
-                            <Users className="h-3.5 w-3.5" />
+                          <div className="flex items-center gap-1.5 text-sm text-foreground/40">
+                            <Users className="h-4 w-4" />
                             <span>{challenge.participants.length} participants</span>
                           </div>
                         </div>

@@ -2,12 +2,16 @@
  * Firestore-persisted usage metrics tracking.
  * Tracks reads/writes per API route using atomic increments.
  * Works across serverless invocations (Vercel).
+ *
+ * Tracking is OFF by default to save Firestore writes.
+ * Set ENABLE_FIRESTORE_METRICS=true in env to enable.
  */
 
 import { getAdminInstances } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
 const METRICS_DOC = '_system/metrics';
+const METRICS_ENABLED = process.env.ENABLE_FIRESTORE_METRICS === 'true';
 
 // Sanitize route name for use as Firestore field path segment
 function sanitizeRoute(route: string): string {
@@ -34,6 +38,7 @@ async function ensureDoc() {
 
 /** Track Firestore document reads for a route (fire-and-forget) */
 export function trackReads(route: string, count: number) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   try {
     getRef().update({
@@ -61,6 +66,7 @@ export function trackReads(route: string, count: number) {
 
 /** Track Firestore document writes for a route (fire-and-forget) */
 export function trackWrites(route: string, count: number) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   try {
     getRef().update({
@@ -83,6 +89,7 @@ export function trackWrites(route: string, count: number) {
 
 /** Track a cache hit (fire-and-forget) */
 export function trackCacheHit(route: string) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   try {
     getRef().update({
@@ -117,6 +124,7 @@ export async function getMetrics() {
       totals: { reads: 0, writes: 0, calls: 0, cacheHits: 0 },
       routes: [],
       startedAt: null,
+      metricsEnabled: METRICS_ENABLED,
     };
   }
 
@@ -141,6 +149,7 @@ export async function getMetrics() {
     totals,
     routes,
     startedAt: data.startedAt || null,
+    metricsEnabled: METRICS_ENABLED,
   };
 }
 

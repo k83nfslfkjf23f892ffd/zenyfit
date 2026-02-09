@@ -15,9 +15,7 @@ import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame
 import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel, formatSecondsAsMinutes } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
-
-const CACHE_TTL = 5 * 60 * 1000;
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Stats {
   totalWorkouts: number;
@@ -43,8 +41,8 @@ interface ProfileStats {
 }
 
 function buildStatsFromCache(): Stats | null {
-  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
   if (!trend && !achievements) return null;
   return {
     totalWorkouts: trend?.data.totalWorkouts || 0,
@@ -81,14 +79,14 @@ export default function ProfilePage() {
   const [updating, setUpdating] = useState(false);
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(() => {
     if (typeof window !== 'undefined') {
-      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
       if (cached) return cached.data;
     }
     return null;
   });
   const [loadingProfileStats, setLoadingProfileStats] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      return !getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
     }
     return true;
   });
@@ -99,8 +97,8 @@ export default function ProfilePage() {
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
       if (trendCache || achievementsCache) {
         const cached = buildStatsFromCache();
@@ -166,7 +164,7 @@ export default function ProfilePage() {
 
   const fetchProfileStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
       if (cached) {
         setProfileStats(cached.data);
         setLoadingProfileStats(false);
