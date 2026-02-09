@@ -44,12 +44,15 @@ export function SortableWidget({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`relative rounded-xl ring-2 ring-primary/30 ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
+      {...listeners}
+      className={`relative rounded-xl ring-2 ring-primary/30 cursor-grab active:cursor-grabbing ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
     >
-      {/* Toolbar — drag handle is only on the grip icon */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 select-none">
-        {/* Hide/Show toggle */}
+        {/* Hide/Show toggle — stops propagation so it doesn't trigger drag */}
         <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={() => onToggleVisibility(widgetId)}
           className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-primary/10 active:bg-primary/20"
         >
@@ -66,12 +69,8 @@ export function SortableWidget({
           )}
         </button>
 
-        {/* Drag handle — only this area initiates drag */}
-        <div
-          {...listeners}
-          className="flex items-center gap-1.5 p-2 -m-2 cursor-grab active:cursor-grabbing"
-          style={{ touchAction: 'none' }}
-        >
+        {/* Drag indicator */}
+        <div className="flex items-center gap-1.5">
           <GripVertical className="h-5 w-5 text-foreground/50" />
         </div>
       </div>
