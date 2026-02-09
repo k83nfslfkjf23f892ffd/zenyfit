@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { getCached, setCache } from '@/lib/api-cache';
+import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
 /**
  * GET /api/leaderboard/trend
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
     const cacheParams = `userId=${userId || 'global'}`;
     const cached = getCached('/api/leaderboard/trend', decodedToken.uid, cacheParams);
     if (cached) {
+      trackCacheHit('leaderboard/trend');
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
       .orderBy('timestamp', 'asc');
 
     const snapshot = await query.get();
+    trackReads('leaderboard/trend', snapshot.docs.length);
 
     // Group by day
     const dailyData: Record<string, { workouts: number; xp: number }> = {};

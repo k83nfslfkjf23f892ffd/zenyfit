@@ -207,8 +207,8 @@ export default function LeaderboardPage() {
                       variants={listItemVariants}
                       className={`flex items-center gap-3 rounded-xl p-3 transition-all duration-200 ${
                         isCurrentUser
-                          ? 'glass-strong glow-sm'
-                          : 'glass'
+                          ? 'bg-surface/80 border border-border glow-sm'
+                          : 'bg-surface/50 border border-border/50'
                       }`}
                     >
                       <div className="h-10 w-10 overflow-hidden rounded-full">

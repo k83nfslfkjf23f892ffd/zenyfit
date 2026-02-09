@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { getCached, setCache } from '@/lib/api-cache';
+import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
 /**
  * GET /api/leaderboard
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
     const cacheParams = `type=${type || 'xp'}&limit=${limit}&offset=${offset}`;
     const cached = getCached('/api/leaderboard', userId, cacheParams);
     if (cached) {
+      trackCacheHit('leaderboard');
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await query.get();
+    trackReads('leaderboard', snapshot.docs.length);
 
     // Format results with rank
     const rankings = snapshot.docs.map((doc, index) => {

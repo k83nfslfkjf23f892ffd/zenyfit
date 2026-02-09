@@ -18,6 +18,7 @@ const EXERCISE_CATEGORIES = [
   { id: 'pullups', name: 'Pull-ups', unit: 'reps', hasVariants: true },
   { id: 'pushups', name: 'Push-ups', unit: 'reps', hasVariants: true },
   { id: 'dips', name: 'Dips', unit: 'reps', hasVariants: true },
+  { id: 'hangs', name: 'Hangs', unit: 'sec', hasVariants: true },
   { id: 'running', name: 'Running', unit: 'km', hasVariants: false },
 ];
 
@@ -197,7 +198,7 @@ export default function CreateChallengePage() {
                       className={`p-3 rounded-xl text-sm font-medium transition-all ${
                         baseType === category.id
                           ? 'gradient-bg text-white glow-sm'
-                          : 'glass hover:bg-white/[0.08]'
+                          : 'bg-surface/50 border border-border/50 hover:bg-surface/80'
                       }`}
                     >
                       {category.name}
@@ -227,7 +228,7 @@ export default function CreateChallengePage() {
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                               selectedVariant === variant
                                 ? 'gradient-bg text-white'
-                                : 'glass hover:bg-white/[0.08]'
+                                : 'bg-surface/50 border border-border/50 hover:bg-surface/80'
                             }`}
                           >
                             {shortLabel}

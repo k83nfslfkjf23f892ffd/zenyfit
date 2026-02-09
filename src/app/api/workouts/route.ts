@@ -3,6 +3,7 @@ import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { exerciseLogSchema } from '@shared/schema';
 import { XP_RATES, calculateLevel } from '@shared/constants';
+import { trackReads, trackWrites } from '@/lib/firestore-metrics';
 
 /**
  * POST /api/workouts
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
         .collection('custom_exercises')
         .doc(customExerciseId)
         .get();
+      trackReads('workouts', 1);
 
       if (!customExerciseDoc.exists) {
         return NextResponse.json(
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
     // Get current user data
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
+    trackReads('workouts', 1);
 
     if (!userDoc.exists) {
       return NextResponse.json(
@@ -157,6 +160,7 @@ export async function POST(request: NextRequest) {
     });
 
     await batch.commit();
+    trackWrites('workouts', sets + 1); // sets exercise_log docs + 1 user update
 
     // Check for active challenges that match this exercise type (non-blocking)
     // If this fails, workout is still logged successfully
@@ -167,6 +171,7 @@ export async function POST(request: NextRequest) {
         .where('participantIds', 'array-contains', userId)
         .where('endDate', '>', now)
         .get();
+      trackReads('workouts', challengesSnapshot.docs.length);
 
       // Update matching challenges
       const challengeUpdates: Promise<unknown>[] = [];
@@ -197,6 +202,9 @@ export async function POST(request: NextRequest) {
 
       // Wait for all challenge updates to complete
       await Promise.all(challengeUpdates);
+      if (challengeUpdates.length > 0) {
+        trackWrites('workouts', challengeUpdates.length);
+      }
     } catch (challengeError) {
       // Log but don't fail the workout
       console.error('Error updating challenges (workout still logged):', challengeError);
@@ -273,6 +281,7 @@ export async function GET(request: NextRequest) {
 
     // Apply pagination
     const snapshot = await query.limit(limit).offset(offset).get();
+    trackReads('workouts', snapshot.docs.length);
 
     // Get total count for pagination info
     const countQuery = db
@@ -280,6 +289,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId);
 
     const countSnapshot = await countQuery.count().get();
+    trackReads('workouts', 1); // count aggregation = 1 read
     const total = countSnapshot.data().count;
 
     // Format results

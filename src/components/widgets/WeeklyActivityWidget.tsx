@@ -135,7 +135,7 @@ export function WeeklyActivityWidget() {
             />
             <YAxis hide />
             <Tooltip
-              cursor={{ fill: 'rgb(var(--glass) / 0.05)' }}
+              cursor={{ fill: 'rgb(var(--surface) / 0.3)' }}
               contentStyle={{
                 backgroundColor: 'rgb(var(--surface))',
                 border: '1px solid rgb(var(--border))',

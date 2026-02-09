@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProgressRing } from '@/components/ui/progress';
 import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame } from 'lucide-react';
-import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
+import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel, formatSecondsAsMinutes } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
@@ -340,13 +340,13 @@ export default function ProfilePage() {
               </div>
             ) : profileStats && Object.keys(profileStats.personalBests).length > 0 ? (
               Object.entries(profileStats.personalBests)
-                .filter(([type]) => ['pullups', 'pushups', 'dips', 'running'].includes(type))
+                .filter(([type]) => ['pullups', 'pushups', 'dips', 'running', 'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'].includes(type))
                 .map(([type, amount]) => {
                   const exerciseInfo = EXERCISE_INFO[type];
                   const label = exerciseInfo?.label || type;
                   const unit = exerciseInfo?.unit || 'reps';
                   return (
-                    <div key={type} className="flex items-center justify-between rounded-xl glass p-3">
+                    <div key={type} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
                       <span className="text-sm font-medium">{label}</span>
                       <span className="text-sm font-bold gradient-text">{amount} {unit}</span>
                     </div>
@@ -372,9 +372,10 @@ export default function ProfilePage() {
               { label: 'Pull-ups', value: user.totals.pullups, unit: '' },
               { label: 'Push-ups', value: user.totals.pushups, unit: '' },
               { label: 'Dips', value: user.totals.dips, unit: '' },
+              { label: 'Hangs', value: formatSecondsAsMinutes((user.totals.passive_dead_hang || 0) + (user.totals.active_dead_hang || 0) + (user.totals.flexed_arm_hang || 0)), unit: '' },
               { label: 'Running', value: user.totals.running, unit: ' km' },
             ].map(({ label, value, unit }) => (
-              <div key={label} className="flex items-center justify-between rounded-xl glass p-3">
+              <div key={label} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
                 <span className="text-sm text-foreground/70">{label}</span>
                 <span className="text-sm font-bold">{value}{unit}</span>
               </div>

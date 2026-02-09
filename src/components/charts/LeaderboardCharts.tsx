@@ -24,6 +24,9 @@ const EXERCISE_COLORS: Record<string, string> = {
   dips: 'rgb(var(--accent))',
   muscleups: 'rgb(var(--primary) / 0.7)',
   chinups: 'rgb(var(--secondary) / 0.7)',
+  passive_dead_hang: 'rgb(var(--accent) / 0.7)',
+  active_dead_hang: 'rgb(var(--primary) / 0.5)',
+  flexed_arm_hang: 'rgb(var(--secondary) / 0.5)',
 };
 
 const DEFAULT_COLOR = 'rgb(var(--primary))';
@@ -84,7 +87,7 @@ function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div className="glass-strong rounded-lg px-3 py-2 shadow-lg border border-border/30">
+    <div className="bg-surface rounded-lg px-3 py-2 shadow-lg border border-border">
       <p className="text-xs text-foreground/40 mb-1">
         {formatter ? formatter(label || '') : label}
       </p>
@@ -274,7 +277,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         {/* Summary Stats */}
         {data && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl glass p-3 text-center">
+            <div className="rounded-xl bg-surface border border-border p-3 text-center">
               <div className="text-2xl font-bold gradient-text">
                 {data.summary.totalReps.toLocaleString()}
               </div>
@@ -282,7 +285,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 reps {data.summary.periodLabel}
               </div>
             </div>
-            <div className="rounded-xl glass p-3 text-center">
+            <div className="rounded-xl bg-surface border border-border p-3 text-center">
               <div className="text-2xl font-bold">
                 {data.summary.totalWorkouts}
               </div>

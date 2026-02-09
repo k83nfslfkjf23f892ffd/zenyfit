@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, EyeOff, Plus } from 'lucide-react';
+import { getWidgetDefinition } from '@/lib/widgets';
 
 interface SortableWidgetProps {
   widgetId: string;
@@ -29,9 +30,10 @@ export function SortableWidget({
     isDragging,
   } = useSortable({ id: widgetId, disabled: !isEditMode });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...(isEditMode ? { touchAction: 'none' } : {}),
   };
 
   if (!isEditMode) {
@@ -42,16 +44,12 @@ export function SortableWidget({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative rounded-xl ring-2 ring-primary/30 ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
+      {...attributes}
+      {...listeners}
+      className={`relative rounded-xl ring-2 ring-primary/30 cursor-grab active:cursor-grabbing ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
     >
-      {/* Entire toolbar is the drag handle for reliable touch */}
-      {/* touch-action:none as inline style to guarantee browser doesn't scroll */}
-      <div
-        {...attributes}
-        {...listeners}
-        style={{ touchAction: 'none' }}
-        className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 cursor-grab active:cursor-grabbing select-none"
-      >
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 select-none">
         {/* Hide/Show toggle — stops propagation so it doesn't trigger drag */}
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -75,14 +73,17 @@ export function SortableWidget({
         {/* Drag indicator */}
         <div className="flex items-center gap-1.5">
           <GripVertical className="h-5 w-5 text-foreground/50" />
-          <span className="text-xs font-medium text-foreground/50">Drag</span>
         </div>
       </div>
 
-      {/* Widget content */}
-      <div className={isHidden ? 'opacity-30 pointer-events-none' : ''}>
-        {children}
-      </div>
+      {/* Widget content — hidden widgets show only their name */}
+      {isHidden ? (
+        <div className="px-3 py-2 text-sm text-foreground/40">
+          {getWidgetDefinition(widgetId)?.name || widgetId}
+        </div>
+      ) : (
+        <div className="pointer-events-none">{children}</div>
+      )}
     </div>
   );
 }

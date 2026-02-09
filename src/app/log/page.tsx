@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
-import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
+import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
@@ -84,6 +84,7 @@ const EXERCISE_ICONS: Record<string, React.ReactNode> = {
   pushups: <Minus className="h-5 w-5 rotate-90" />,
   dips: <Circle className="h-5 w-5" />,
   muscleups: <ArrowUp className="h-5 w-5" />,
+  hangs: <span className="text-lg">🤲</span>,
   running: <span className="text-lg">🏃</span>,
 };
 
@@ -158,6 +159,7 @@ export default function LogPage() {
 
   // Check if current selection is calisthenics
   const isCalisthenics = selectedBaseType in CALISTHENICS_BASE_TYPES;
+  const isHangType = selectedBaseType === 'hangs';
 
   // Get the actual exercise type to log
   const getActiveExercise = (): ExerciseType => {
@@ -519,6 +521,7 @@ export default function LogPage() {
     { key: 'pullups', icon: <ArrowUp className="h-5 w-5" /> },
     { key: 'pushups', icon: <Minus className="h-5 w-5" /> },
     { key: 'dips', icon: <Circle className="h-5 w-5" /> },
+    { key: 'hangs', icon: <span className="text-lg">🤲</span> },
   ];
 
   return (
@@ -533,7 +536,7 @@ export default function LogPage() {
               className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
                 selectedBaseType === ex.key
                   ? 'gradient-bg text-white glow-sm'
-                  : 'glass text-foreground/60'
+                  : 'bg-surface border border-border text-foreground/60'
               }`}
             >
               {ex.icon}
@@ -544,7 +547,7 @@ export default function LogPage() {
             className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
               selectedBaseType === 'running'
                 ? 'gradient-bg text-white glow-sm'
-                : 'glass text-foreground/60'
+                : 'bg-surface border border-border text-foreground/60'
             }`}
           >
             <span className="text-lg">🏃</span>
@@ -603,6 +606,9 @@ export default function LogPage() {
               </div>
               <div className="text-sm text-foreground/50 mt-1">
                 {getUnitLabel()}
+                {isHangType && sessionTotal >= 60 && (
+                  <span className="text-foreground/30 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
+                )}
                 {activeXpRate > 0 && (
                   <span className="text-primary ml-2 font-medium">
                     +{Math.round(sessionTotal * activeXpRate)} XP
@@ -654,63 +660,70 @@ export default function LogPage() {
               {/* Calisthenics 3-row layout */}
               {isCalisthenics ? (
                 <div className="space-y-2.5">
-                  {/* Row 1: 1, 3, 5, 7 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row1.map((preset) => (
+                  {(() => {
+                    const presets = isHangType ? HANG_PRESETS : CALISTHENICS_PRESETS;
+                    return (
+                      <>
+                        {/* Row 1 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row1.map((preset) => (
+                            <Button
+                              key={preset}
+                              type="button"
+                              className="h-12 text-base font-semibold rounded-xl"
+                              onClick={() => handleQuickAdd(preset)}
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchEnd={handleLongPressEnd}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                        {/* Row 2 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row2.map((preset) => (
+                            <Button
+                              key={preset}
+                              type="button"
+                              className="h-12 text-base font-semibold rounded-xl"
+                              onClick={() => handleQuickAdd(preset)}
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchEnd={handleLongPressEnd}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                        {/* Row 3 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row3.map((preset) => (
                       <Button
                         key={preset}
                         type="button"
                         className="h-12 text-base font-semibold rounded-xl"
                         onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
-                  {/* Row 2: 10, 15, 20, 25 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row2.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
-                  {/* Row 3: 30, 50, 70, 100 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row3.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchEnd={handleLongPressEnd}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Non-calisthenics: cardio/team sports presets */
@@ -792,7 +805,7 @@ export default function LogPage() {
                     <div
                       key={workout.id}
                       onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-xl glass p-3 transition-all duration-200 ${
+                      className={`flex items-center justify-between rounded-xl bg-surface border border-border p-3 transition-all duration-200 ${
                         deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
@@ -821,7 +834,7 @@ export default function LogPage() {
           onClick={() => setSetsRepsModal(null)}
         >
           <div
-            className="glass-strong rounded-2xl p-6 mx-4 max-w-sm w-full"
+            className="bg-surface border border-border rounded-2xl p-6 mx-4 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">Log Sets</h3>
@@ -885,7 +898,7 @@ export default function LogPage() {
           onClick={() => setWorkoutToDelete(null)}
         >
           <div
-            className="glass-strong rounded-2xl p-5 max-w-sm w-full"
+            className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
@@ -893,7 +906,7 @@ export default function LogPage() {
               Are you sure you want to delete this workout?
             </p>
 
-            <div className="rounded-xl glass p-3 mb-4">
+            <div className="rounded-xl bg-surface/50 border border-border/50 p-3 mb-4">
               <div className="font-medium">
                 {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>

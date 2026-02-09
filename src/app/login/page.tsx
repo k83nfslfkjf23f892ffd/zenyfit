@@ -82,7 +82,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <div className="glass-strong rounded-2xl p-6 space-y-5">
+        <div className="bg-surface border border-border rounded-2xl p-6 space-y-5">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm text-foreground/70">Username</Label>

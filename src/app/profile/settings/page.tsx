@@ -227,7 +227,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Status summary */}
-            <div className="flex items-center justify-between text-sm p-3 rounded-xl glass">
+            <div className="flex items-center justify-between text-sm p-3 rounded-xl bg-surface border border-border">
               <span className="text-foreground/50">Codes generated</span>
               <span className="font-semibold">{inviteCodes.length} / {LIMITS.inviteCodes}</span>
             </div>
@@ -243,7 +243,7 @@ export default function SettingsPage() {
                     {inviteCodes.map((invite) => (
                       <div
                         key={invite.code}
-                        className={`rounded-xl glass p-3 ${invite.used ? 'opacity-60' : ''}`}
+                        className={`rounded-xl bg-surface border border-border p-3 ${invite.used ? 'opacity-60' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="font-mono font-semibold text-sm">{invite.code}</div>

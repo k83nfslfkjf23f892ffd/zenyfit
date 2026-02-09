@@ -127,7 +127,7 @@ export function ActiveChallengesWidget() {
               <Link
                 key={challenge.id}
                 href={`/challenges/${challenge.id}`}
-                className="block rounded-xl glass p-3 transition-all duration-200 active:scale-[0.98]"
+                className="block rounded-xl bg-surface border border-border p-3 transition-all duration-200 active:scale-[0.98]"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-sm">{challenge.title}</span>

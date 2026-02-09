@@ -39,6 +39,8 @@ export const EXERCISE_TYPES = [
   'archer_pushups', 'onearm_pushups', 'pullups', 'assisted_pullups', 'chinups',
   'wide_pullups', 'lsit_pullups', 'australian_pullups', 'dips', 'bench_dips',
   'ring_dips', 'muscleups',
+  // Bar Hangs
+  'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang',
   // Cardio
   'running', 'walking', 'swimming', 'sprinting',
   // Team Sports

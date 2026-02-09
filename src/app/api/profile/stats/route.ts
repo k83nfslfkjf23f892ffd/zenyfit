@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { getCached, setCache } from '@/lib/api-cache';
+import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
 /**
  * GET /api/profile/stats
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
     // Check server cache
     const cached = getCached('/api/profile/stats', userId);
     if (cached) {
+      trackCacheHit('profile/stats');
       return NextResponse.json(cached);
     }
 
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId)
       .orderBy('timestamp', 'desc')
       .get();
+    trackReads('profile/stats', logsSnapshot.docs.length);
 
     // Calculate personal bests (max amount in single workout per type)
     const personalBests: Record<string, number> = {};

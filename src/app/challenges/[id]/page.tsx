@@ -278,17 +278,17 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold gradient-text">{EXERCISE_INFO[challenge.type]?.label || challenge.type}</div>
                 <div className="text-xs text-foreground/40 mt-0.5">Exercise</div>
               </div>
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold">
                   {challenge.goal} {EXERCISE_INFO[challenge.type]?.unit || 'reps'}
                 </div>
                 <div className="text-xs text-foreground/40 mt-0.5">Goal</div>
               </div>
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold">
                   {daysRemaining > 0 ? `${daysRemaining}d` : 'Ended'}
                 </div>
@@ -327,8 +327,8 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                   key={participant.userId}
                   className={`rounded-xl p-3 ${
                     isCurrentUser
-                      ? 'glass-strong glow-sm'
-                      : 'glass'
+                      ? 'bg-surface/80 border border-border glow-sm'
+                      : 'bg-surface/50 border border-border/50'
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">

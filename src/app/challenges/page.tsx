@@ -236,7 +236,7 @@ export default function ChallengesPage() {
                   return (
                     <motion.div key={challenge.id} variants={listItemVariants}>
                       <Link href={`/challenges/${challenge.id}`}>
-                        <div className="glass rounded-xl p-4 space-y-3 transition-all active:scale-[0.98]">
+                        <div className="bg-surface border border-border rounded-xl p-4 space-y-3 transition-all active:scale-[0.98]">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-sm truncate">{challenge.title}</h3>

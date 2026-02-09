@@ -70,7 +70,7 @@ export function PersonalBestsWidget() {
     }
   }, [firebaseUser, fetchData]);
 
-  const displayExercises = ['pullups', 'pushups', 'dips', 'running'];
+  const displayExercises = ['pullups', 'pushups', 'dips', 'running', 'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'];
 
   return (
     <Card>
@@ -95,7 +95,7 @@ export function PersonalBestsWidget() {
               const label = exerciseInfo?.label || type;
               const unit = exerciseInfo?.unit || 'reps';
               return (
-                <div key={type} className="flex items-center justify-between rounded-lg glass p-3">
+                <div key={type} className="flex items-center justify-between rounded-lg bg-surface border border-border p-3">
                   <span className="text-sm font-medium">{label}</span>
                   <span className="text-sm font-bold gradient-text">
                     {amount} {unit}

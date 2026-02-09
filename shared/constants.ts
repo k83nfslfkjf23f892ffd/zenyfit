@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.2.0';
+export const APP_VERSION = '2.3.0';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -17,7 +17,8 @@ export const EXERCISE_CATEGORIES = {
     exercises: ['pushups', 'pullups', 'dips', 'muscleups', 'australian_pullups',
                 'knee_pushups', 'incline_pushups', 'decline_pushups', 'diamond_pushups',
                 'archer_pushups', 'onearm_pushups', 'assisted_pullups', 'chinups',
-                'wide_pullups', 'lsit_pullups', 'bench_dips', 'ring_dips'],
+                'wide_pullups', 'lsit_pullups', 'bench_dips', 'ring_dips',
+                'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'],
   },
   cardio: {
     label: 'Cardio',
@@ -56,6 +57,11 @@ export const XP_RATES: Record<string, number> = {
   bench_dips: 2,        // Feet on ground, much easier (~40-50%)
   ring_dips: 7,         // Added instability
 
+  // Bar Hangs (per second)
+  passive_dead_hang: 1, // Grip endurance only, minimal muscular demand
+  active_dead_hang: 2,  // Scapular engagement, moderate difficulty
+  flexed_arm_hang: 3,   // Sustained bicep/lat/upper back contraction, highest difficulty
+
   // Advanced
   muscleups: 11,        // Pull-up + transition + partial dip
 
@@ -93,6 +99,11 @@ export const EXERCISE_INFO: Record<string, { label: string; category: string; un
   lsit_pullups: { label: 'L-sit Pull-ups', category: 'calisthenics', unit: 'reps' },
   australian_pullups: { label: 'Australian Pull-ups', category: 'calisthenics', unit: 'reps' },
 
+  // Bar Hangs
+  passive_dead_hang: { label: 'Passive Dead Hang', category: 'calisthenics', unit: 'sec' },
+  active_dead_hang: { label: 'Active Dead Hang', category: 'calisthenics', unit: 'sec' },
+  flexed_arm_hang: { label: 'Flexed-arm Hang', category: 'calisthenics', unit: 'sec' },
+
   // Dip variations
   dips: { label: 'Dips', category: 'calisthenics', unit: 'reps' },
   bench_dips: { label: 'Bench Dips', category: 'calisthenics', unit: 'reps' },
@@ -120,6 +131,13 @@ export const CALISTHENICS_PRESETS = {
   row3: [30, 50, 70, 100],  // 4 items
 } as const;
 
+// Bar Hang preset layout (3 rows, seconds)
+export const HANG_PRESETS = {
+  row1: [5, 10, 15, 20],       // short holds
+  row2: [30, 45, 60, 90],      // medium holds
+  row3: [120, 150, 180, 240],  // long holds
+} as const;
+
 // Base calisthenics exercise types with their variations
 export const CALISTHENICS_BASE_TYPES = {
   pushups: {
@@ -137,6 +155,10 @@ export const CALISTHENICS_BASE_TYPES = {
   muscleups: {
     label: 'Muscle-ups',
     variations: ['muscleups'],
+  },
+  hangs: {
+    label: 'Hangs',
+    variations: ['passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'],
   },
 } as const;
 
@@ -159,6 +181,10 @@ export const DEFAULT_QUICK_ADD_PRESETS: Record<string, number[]> = {
   bench_dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
   ring_dips: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
   muscleups: [1, 3, 5, 10, 15, 20, 25, 30, 50, 70, 100],
+  // Bar Hangs (seconds)
+  passive_dead_hang: [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180],
+  active_dead_hang: [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180],
+  flexed_arm_hang: [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180],
   // Cardio (km)
   running: [1, 3, 5, 10, 15],
   walking: [1, 2, 3, 5, 10],
@@ -242,6 +268,21 @@ export function getXPNeededForNextLevel(currentLevel: number): number {
   }
 
   return XP_PER_LEVEL_AFTER_10;
+}
+
+// ============================================================================
+// Display Helpers
+// ============================================================================
+
+/**
+ * Format seconds as minutes for display in totals/stats
+ */
+export function formatSecondsAsMinutes(seconds: number): string {
+  const minutes = seconds / 60;
+  if (minutes === Math.floor(minutes)) {
+    return `${minutes} min`;
+  }
+  return `${parseFloat(minutes.toFixed(1))} min`;
 }
 
 // ============================================================================

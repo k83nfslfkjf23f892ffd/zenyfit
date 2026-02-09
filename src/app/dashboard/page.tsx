@@ -22,8 +22,9 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { DEFAULT_WIDGET_CONFIG, getVisibleWidgets } from '@/lib/widgets';
-import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { DEFAULT_WIDGET_CONFIG, WIDGET_DEFINITIONS, getVisibleWidgets } from '@/lib/widgets';
+// listContainerVariants/listItemVariants removed — stagger variants caused
+// invisible widgets when the visible list changed mid-animation.
 import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
 import { SortableWidget } from '@/components/SortableWidget';
 import {
@@ -52,12 +53,17 @@ export default function DashboardPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync localConfig from user data (skip while editing to avoid overwrite)
+  // Reconcile: ensure all valid widget IDs are in the order array
   useEffect(() => {
     if (editMode) return;
     const config = user?.dashboardWidgets || DEFAULT_WIDGET_CONFIG;
+    const savedOrder = config.order ?? DEFAULT_WIDGET_CONFIG.order;
+    const savedHidden = config.hidden ?? [];
+    const allValidIds = WIDGET_DEFINITIONS.map(w => w.id);
+    const missingIds = allValidIds.filter(id => !savedOrder.includes(id));
     setLocalConfig({
-      order: config.order ?? DEFAULT_WIDGET_CONFIG.order,
-      hidden: config.hidden ?? [],
+      order: [...savedOrder, ...missingIds],
+      hidden: savedHidden.filter(id => allValidIds.includes(id)),
     });
   }, [user?.dashboardWidgets, editMode]);
 
@@ -76,10 +82,9 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // PointerSensor handles both mouse and touch via pointer events.
-  // touch-action:none on the drag handle prevents browser scroll interference.
+  // Delay-based activation: hold 200ms to start drag, allowing normal scrolling.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -132,10 +137,18 @@ export default function DashboardPage() {
   const toggleWidget = (widgetId: string) => {
     setLocalConfig(prev => {
       const isHidden = prev.hidden.includes(widgetId);
-      const newHidden = isHidden
-        ? prev.hidden.filter(id => id !== widgetId)
-        : [...prev.hidden, widgetId];
-      const newConfig = { ...prev, hidden: newHidden };
+      let newHidden: string[];
+      let newOrder: string[];
+      if (isHidden) {
+        // Unhiding: remove from hidden, keep position
+        newHidden = prev.hidden.filter(id => id !== widgetId);
+        newOrder = prev.order;
+      } else {
+        // Hiding: add to hidden, move to end of order
+        newHidden = [...prev.hidden, widgetId];
+        newOrder = [...prev.order.filter(id => id !== widgetId), widgetId];
+      }
+      const newConfig = { order: newOrder, hidden: newHidden };
       debouncedSave(newConfig);
       return newConfig;
     });
@@ -156,38 +169,28 @@ export default function DashboardPage() {
   const visibleWidgets = getVisibleWidgets(localConfig);
 
   const renderWidget = (widgetId: string) => {
-    const widget = (() => {
-      switch (widgetId) {
-        case 'user-header':
-          return <UserHeaderWidget user={user} />;
-        case 'stats-grid':
-          return <StatsGridWidget />;
-        case 'exercise-ratio':
-          return <ExerciseRatioWidget totals={user.totals} />;
-        case 'weekly-activity':
-          return <WeeklyActivityWidget />;
-        case 'consistency':
-          return <ConsistencyWidget />;
-        case 'personal-bests':
-          return <PersonalBestsWidget />;
-        case 'exercise-totals':
-          return <ExerciseTotalsWidget totals={user.totals} />;
-        case 'reps-history':
-          return <XPHistoryWidget />;
-        case 'active-challenges':
-          return <ActiveChallengesWidget />;
-        default:
-          return null;
-      }
-    })();
-
-    if (!widget) return null;
-
-    return (
-      <WidgetErrorBoundary key={widgetId}>
-        {widget}
-      </WidgetErrorBoundary>
-    );
+    switch (widgetId) {
+      case 'user-header':
+        return <UserHeaderWidget user={user} />;
+      case 'stats-grid':
+        return <StatsGridWidget />;
+      case 'exercise-ratio':
+        return <ExerciseRatioWidget totals={user.totals} />;
+      case 'weekly-activity':
+        return <WeeklyActivityWidget />;
+      case 'consistency':
+        return <ConsistencyWidget />;
+      case 'personal-bests':
+        return <PersonalBestsWidget />;
+      case 'exercise-totals':
+        return <ExerciseTotalsWidget totals={user.totals} />;
+      case 'reps-history':
+        return <XPHistoryWidget />;
+      case 'active-challenges':
+        return <ActiveChallengesWidget />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -196,33 +199,59 @@ export default function DashboardPage() {
         <div className="text-center text-xs text-foreground/40 mb-2 animate-pulse">Saving...</div>
       )}
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={localConfig.order} strategy={verticalListSortingStrategy}>
-          <motion.div
-            className="space-y-5"
-            variants={listContainerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {(editMode ? localConfig.order : visibleWidgets).map((widgetId) => (
-              <motion.div key={widgetId} variants={listItemVariants}>
-                <SortableWidget
-                  widgetId={widgetId}
-                  isEditMode={editMode}
-                  isHidden={localConfig.hidden.includes(widgetId)}
-                  onToggleVisibility={toggleWidget}
-                >
-                  {renderWidget(widgetId)}
-                </SortableWidget>
-              </motion.div>
-            ))}
-          </motion.div>
-        </SortableContext>
-      </DndContext>
+      {editMode ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={localConfig.order} strategy={verticalListSortingStrategy}>
+            <div className="space-y-5">
+              {localConfig.order.map((widgetId, index) => {
+                const isHidden = localConfig.hidden.includes(widgetId);
+                const prevId = index > 0 ? localConfig.order[index - 1] : null;
+                const showSeparator = isHidden && (prevId === null || !localConfig.hidden.includes(prevId));
+                return (
+                  <div key={widgetId}>
+                    {showSeparator && (
+                      <div className="flex items-center gap-3 py-1 mb-5">
+                        <div className="h-px flex-1 bg-border/50" />
+                        <span className="text-xs text-foreground/30 font-medium">Hidden</span>
+                        <div className="h-px flex-1 bg-border/50" />
+                      </div>
+                    )}
+                    <SortableWidget
+                      widgetId={widgetId}
+                      isEditMode={true}
+                      isHidden={isHidden}
+                      onToggleVisibility={toggleWidget}
+                    >
+                      <WidgetErrorBoundary>
+                        {renderWidget(widgetId)}
+                      </WidgetErrorBoundary>
+                    </SortableWidget>
+                  </div>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className="space-y-5">
+          {visibleWidgets.map((widgetId) => (
+            <motion.div
+              key={widgetId}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
+              <WidgetErrorBoundary>
+                {renderWidget(widgetId)}
+              </WidgetErrorBoundary>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* FAB: Pencil (enter edit) / Check (exit edit) */}
       <button
