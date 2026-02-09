@@ -45,7 +45,7 @@ export function SortableWidget({
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative rounded-xl ring-2 ring-primary/30 cursor-grab active:cursor-grabbing ${isDragging ? 'z-50 scale-[1.02] ring-primary/60' : ''}`}
+      className={`relative rounded-xl ring-2 ring-primary/30 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
     >
       {/* Toolbar */}
       <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 select-none">

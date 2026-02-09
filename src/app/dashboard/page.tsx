@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
+  DragStartEvent,
   DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -21,9 +23,9 @@ import {
 } from '@dnd-kit/sortable';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Loader2, Pencil, Check } from 'lucide-react';
+import { Loader2, Pencil, Check, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
-import { DEFAULT_WIDGET_CONFIG, WIDGET_DEFINITIONS, getVisibleWidgets } from '@/lib/widgets';
+import { DEFAULT_WIDGET_CONFIG, WIDGET_DEFINITIONS, getVisibleWidgets, getWidgetDefinition } from '@/lib/widgets';
 // listContainerVariants/listItemVariants removed — stagger variants caused
 // invisible widgets when the visible list changed mid-animation.
 import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
@@ -124,7 +126,14 @@ export default function DashboardPage() {
     saveTimeoutRef.current = setTimeout(() => saveConfig(newConfig), 500);
   };
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = localConfig.order.indexOf(active.id as string);
@@ -205,6 +214,7 @@ export default function DashboardPage() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={localConfig.order} strategy={verticalListSortingStrategy}>
@@ -237,6 +247,29 @@ export default function DashboardPage() {
               })}
             </div>
           </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {activeId ? (
+              <div className="rounded-xl ring-2 ring-primary/60 shadow-lg bg-background">
+                <div className="flex items-center justify-between px-2 py-2 rounded-t-xl bg-primary/10 border-b border-primary/20 select-none">
+                  <span className="text-xs font-medium text-foreground/50 px-2">
+                    {getWidgetDefinition(activeId)?.name || activeId}
+                  </span>
+                  <GripVertical className="h-5 w-5 text-foreground/50" />
+                </div>
+                {!localConfig.hidden.includes(activeId) ? (
+                  <div className="pointer-events-none">
+                    <WidgetErrorBoundary>
+                      {renderWidget(activeId)}
+                    </WidgetErrorBoundary>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 text-sm text-foreground/40">
+                    {getWidgetDefinition(activeId)?.name || activeId}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       ) : (
         <div className="space-y-5">
@@ -255,14 +288,26 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* FAB: Pencil (enter edit) / Check (exit edit) */}
-      <button
-        type="button"
-        onClick={() => setEditMode(!editMode)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 h-9 w-9 flex items-center justify-center rounded-full bg-surface/50 border border-border/50 text-foreground/40 hover:text-foreground/60 transition-colors"
-      >
-        {editMode ? <Check className="h-4 w-4" /> : <Pencil className="h-3.5 w-3.5" />}
-      </button>
+      {editMode ? (
+        /* Fixed button when in edit mode so user can always tap Done */
+        <button
+          type="button"
+          onClick={() => setEditMode(false)}
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 h-9 w-9 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
+        >
+          <Check className="h-4 w-4" />
+        </button>
+      ) : (
+        /* Inline button at bottom of page to enter edit mode */
+        <button
+          type="button"
+          onClick={() => setEditMode(true)}
+          className="flex items-center justify-center gap-1.5 mx-auto mt-6 px-4 py-2 rounded-full text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+        >
+          <Pencil className="h-3 w-3" />
+          <span>Edit dashboard</span>
+        </button>
+      )}
     </AppLayout>
   );
 }
