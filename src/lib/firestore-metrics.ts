@@ -9,30 +9,53 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 const METRICS_DOC = '_system/metrics';
 
-// Sanitize route name for use as Firestore field (no dots or slashes)
+// Sanitize route name for use as Firestore field path segment
 function sanitizeRoute(route: string): string {
   return route.replace(/\//g, '_');
+}
+
+function getRef() {
+  const { db } = getAdminInstances();
+  return db.doc(METRICS_DOC);
+}
+
+/** Ensure the metrics document exists */
+async function ensureDoc() {
+  const ref = getRef();
+  const doc = await ref.get();
+  if (!doc.exists) {
+    await ref.set({
+      totals: { reads: 0, writes: 0, calls: 0, cacheHits: 0 },
+      routes: {},
+      startedAt: Date.now(),
+    });
+  }
 }
 
 /** Track Firestore document reads for a route (fire-and-forget) */
 export function trackReads(route: string, count: number) {
   const key = sanitizeRoute(route);
   try {
-    const { db } = getAdminInstances();
-    db.doc(METRICS_DOC).set({
-      routes: {
-        [key]: {
-          reads: FieldValue.increment(count),
-          calls: FieldValue.increment(1),
-        },
-      },
-      totals: {
-        reads: FieldValue.increment(count),
-        calls: FieldValue.increment(1),
-      },
-    }, { merge: true }).catch(() => {});
+    getRef().update({
+      [`routes.${key}.reads`]: FieldValue.increment(count),
+      [`routes.${key}.calls`]: FieldValue.increment(1),
+      'totals.reads': FieldValue.increment(count),
+      'totals.calls': FieldValue.increment(1),
+    }).catch((err) => {
+      // Document might not exist yet — create it and retry
+      if (err.code === 5) {
+        ensureDoc().then(() => {
+          getRef().update({
+            [`routes.${key}.reads`]: FieldValue.increment(count),
+            [`routes.${key}.calls`]: FieldValue.increment(1),
+            'totals.reads': FieldValue.increment(count),
+            'totals.calls': FieldValue.increment(1),
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    });
   } catch {
-    // Ignore - metrics should never break the app
+    // Ignore
   }
 }
 
@@ -40,17 +63,19 @@ export function trackReads(route: string, count: number) {
 export function trackWrites(route: string, count: number) {
   const key = sanitizeRoute(route);
   try {
-    const { db } = getAdminInstances();
-    db.doc(METRICS_DOC).set({
-      routes: {
-        [key]: {
-          writes: FieldValue.increment(count),
-        },
-      },
-      totals: {
-        writes: FieldValue.increment(count),
-      },
-    }, { merge: true }).catch(() => {});
+    getRef().update({
+      [`routes.${key}.writes`]: FieldValue.increment(count),
+      'totals.writes': FieldValue.increment(count),
+    }).catch((err) => {
+      if (err.code === 5) {
+        ensureDoc().then(() => {
+          getRef().update({
+            [`routes.${key}.writes`]: FieldValue.increment(count),
+            'totals.writes': FieldValue.increment(count),
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    });
   } catch {
     // Ignore
   }
@@ -60,19 +85,23 @@ export function trackWrites(route: string, count: number) {
 export function trackCacheHit(route: string) {
   const key = sanitizeRoute(route);
   try {
-    const { db } = getAdminInstances();
-    db.doc(METRICS_DOC).set({
-      routes: {
-        [key]: {
-          cacheHits: FieldValue.increment(1),
-          calls: FieldValue.increment(1),
-        },
-      },
-      totals: {
-        cacheHits: FieldValue.increment(1),
-        calls: FieldValue.increment(1),
-      },
-    }, { merge: true }).catch(() => {});
+    getRef().update({
+      [`routes.${key}.cacheHits`]: FieldValue.increment(1),
+      [`routes.${key}.calls`]: FieldValue.increment(1),
+      'totals.cacheHits': FieldValue.increment(1),
+      'totals.calls': FieldValue.increment(1),
+    }).catch((err) => {
+      if (err.code === 5) {
+        ensureDoc().then(() => {
+          getRef().update({
+            [`routes.${key}.cacheHits`]: FieldValue.increment(1),
+            [`routes.${key}.calls`]: FieldValue.increment(1),
+            'totals.cacheHits': FieldValue.increment(1),
+            'totals.calls': FieldValue.increment(1),
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+    });
   } catch {
     // Ignore
   }
