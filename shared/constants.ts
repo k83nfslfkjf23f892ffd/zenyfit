@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.3.0';
+export const APP_VERSION = '2.3.1';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -58,7 +58,7 @@ export const XP_RATES: Record<string, number> = {
   ring_dips: 7,         // Added instability
 
   // Bar Hangs (per second)
-  passive_dead_hang: 1, // Grip endurance only, minimal muscular demand
+  passive_dead_hang: 0.5, // Grip endurance only, minimal muscular demand
   active_dead_hang: 2,  // Scapular engagement, moderate difficulty
   flexed_arm_hang: 3,   // Sustained bicep/lat/upper back contraction, highest difficulty
 

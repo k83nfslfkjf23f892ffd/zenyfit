@@ -84,7 +84,7 @@ const EXERCISE_ICONS: Record<string, React.ReactNode> = {
   pushups: <Minus className="h-5 w-5 rotate-90" />,
   dips: <Circle className="h-5 w-5" />,
   muscleups: <ArrowUp className="h-5 w-5" />,
-  hangs: <span className="text-lg">🤲</span>,
+  hangs: <span className="text-lg">✊</span>,
   running: <span className="text-lg">🏃</span>,
 };
 
@@ -521,7 +521,7 @@ export default function LogPage() {
     { key: 'pullups', icon: <ArrowUp className="h-5 w-5" /> },
     { key: 'pushups', icon: <Minus className="h-5 w-5" /> },
     { key: 'dips', icon: <Circle className="h-5 w-5" /> },
-    { key: 'hangs', icon: <span className="text-lg">🤲</span> },
+    { key: 'hangs', icon: <span className="text-lg">✊</span> },
   ];
 
   return (

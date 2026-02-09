@@ -68,7 +68,7 @@ const EXERCISE_DETAILS: Record<string, { reason: string; example: { amount: numb
 
   // Bar Hangs
   passive_dead_hang: {
-    reason: 'Pure grip endurance with relaxed shoulders. Minimal active muscular demand beyond forearm flexors.',
+    reason: 'Pure grip endurance with relaxed shoulders. Minimal active muscular demand beyond forearm flexors. Lowest difficulty of all bar exercises.',
     example: { amount: 60, unit: 'sec' },
   },
   active_dead_hang: {

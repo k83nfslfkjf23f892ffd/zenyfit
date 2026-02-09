@@ -116,6 +116,12 @@ export async function POST(request: NextRequest) {
     const newXp = userData.xp + totalXpEarned;
     const newLevel = calculateLevel(newXp);
 
+    // Update personal bests if this set amount is a new record
+    const personalBests = userData.personalBests || {};
+    const newPersonalBests = type !== 'custom' && amount > (personalBests[type] || 0)
+      ? { ...personalBests, [type]: amount }
+      : personalBests;
+
     // Create exercise logs - one per set with slightly different timestamps
     const baseTimestamp = Date.now();
     const logRefs: FirebaseFirestore.DocumentReference[] = [];
@@ -157,6 +163,7 @@ export async function POST(request: NextRequest) {
       totals: newTotals,
       xp: newXp,
       level: newLevel,
+      personalBests: newPersonalBests,
     });
 
     await batch.commit();

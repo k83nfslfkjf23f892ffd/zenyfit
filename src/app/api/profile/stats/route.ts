@@ -7,6 +7,10 @@ import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 /**
  * GET /api/profile/stats
  * Get personal bests and consistency score
+ *
+ * Personal bests are stored on the user document (maintained by POST /api/workouts).
+ * If not yet populated (legacy users), a one-time migration scans all logs and stores
+ * the result. After that, only last-30-day logs are fetched for consistency.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -30,52 +34,64 @@ export async function GET(request: NextRequest) {
     }
 
     const { db } = getAdminInstances();
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    trackReads('profile/stats', 1);
 
-    // Fetch all exercise logs for the user
-    const logsSnapshot = await db
-      .collection('exercise_logs')
-      .where('userId', '==', userId)
-      .orderBy('timestamp', 'desc')
-      .get();
-    trackReads('profile/stats', logsSnapshot.docs.length);
-
-    // Calculate personal bests (max amount in single workout per type)
-    const personalBests: Record<string, number> = {};
-    const workoutDates = new Set<string>();
-    const now = Date.now();
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-    let recentWorkoutDays = 0;
-
-    for (const doc of logsSnapshot.docs) {
-      const log = doc.data();
-      const type = log.type;
-      const amount = log.amount || 0;
-
-      // Track personal best for non-custom exercises
-      if (type !== 'custom') {
-        if (!personalBests[type] || amount > personalBests[type]) {
-          personalBests[type] = amount;
-        }
-      }
-
-      // Track workout dates for consistency
-      const date = new Date(log.timestamp).toISOString().split('T')[0];
-      workoutDates.add(date);
-
-      // Count recent workout days (last 30 days)
-      if (log.timestamp >= thirtyDaysAgo) {
-        const recentDate = new Date(log.timestamp).toISOString().split('T')[0];
-        if (!workoutDates.has(`recent_${recentDate}`)) {
-          workoutDates.add(`recent_${recentDate}`);
-          recentWorkoutDays++;
-        }
-      }
+    if (!userDoc.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Calculate consistency score (0-100)
-    // Based on: workout days in last 30 days
-    // Perfect score = working out at least 4 days per week (16-17 days per month)
-    // Score formula: min(100, (recentWorkoutDays / 16) * 100)
+    const userData = userDoc.data()!;
+    const personalBests: Record<string, number> = userData.personalBests || {};
+
+    // One-time migration: if user has no personalBests stored, calculate from all logs
+    if (!userData.personalBests) {
+      const allLogsSnapshot = await db
+        .collection('exercise_logs')
+        .where('userId', '==', userId)
+        .orderBy('timestamp', 'desc')
+        .get();
+      trackReads('profile/stats', allLogsSnapshot.docs.length);
+
+      for (const doc of allLogsSnapshot.docs) {
+        const log = doc.data();
+        const type = log.type;
+        const amount = log.amount || 0;
+
+        if (type !== 'custom') {
+          if (!personalBests[type] || amount > personalBests[type]) {
+            personalBests[type] = amount;
+          }
+        }
+      }
+
+      // Store on user doc so this never happens again
+      await userRef.update({ personalBests });
+    }
+
+    // Fetch only last 30 days of logs for consistency
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    const recentLogsSnapshot = await db
+      .collection('exercise_logs')
+      .where('userId', '==', userId)
+      .where('timestamp', '>=', thirtyDaysAgo)
+      .orderBy('timestamp', 'desc')
+      .get();
+    trackReads('profile/stats', recentLogsSnapshot.docs.length);
+
+    // Count unique workout days in last 30 days
+    const recentDates = new Set<string>();
+    for (const doc of recentLogsSnapshot.docs) {
+      const log = doc.data();
+      const date = new Date(log.timestamp).toISOString().split('T')[0];
+      recentDates.add(date);
+    }
+    const recentWorkoutDays = recentDates.size;
+
+    // Consistency score: perfect = 16+ days per month (4+ per week)
     const consistencyScore = Math.min(100, Math.round((recentWorkoutDays / 16) * 100));
 
     const responseData = {
