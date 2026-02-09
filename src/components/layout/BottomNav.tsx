@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Home, Trophy, Target, Users, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -16,22 +17,13 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { isAtBottom } = useScrollPosition();
   const [activeHref, setActiveHref] = useState(pathname);
-  const latestClickRef = useRef<string | null>(null);
 
-  // Sync activeHref when the route finishes changing
+  // Sync highlight when route finishes changing
   useEffect(() => {
     setActiveHref(pathname);
-    latestClickRef.current = null;
   }, [pathname]);
-
-  const handleNav = useCallback((href: string) => {
-    setActiveHref(href);
-    latestClickRef.current = href;
-    router.push(href);
-  }, [router]);
 
   const preventContextMenu = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -54,10 +46,12 @@ export function BottomNav() {
         {navItems.map(({ href, icon: Icon }) => {
           const isActive = activeHref === href;
           return (
-            <button
+            <Link
               key={href}
-              type="button"
-              onClick={() => handleNav(href)}
+              href={href}
+              prefetch={true}
+              onTouchStart={() => setActiveHref(href)}
+              onMouseDown={() => setActiveHref(href)}
               className={cn(
                 'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-all duration-200',
                 isActive
@@ -68,7 +62,7 @@ export function BottomNav() {
               style={{ WebkitTouchCallout: 'none' }}
             >
               <Icon className={cn('h-7 w-7 transition-all duration-200', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
-            </button>
+            </Link>
           );
         })}
       </div>
