@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Trophy, Target, Users, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
@@ -17,51 +15,38 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { isAtBottom } = useScrollPosition();
-  const [activeHref, setActiveHref] = useState(pathname);
-
-  // Sync highlight when route finishes changing
-  useEffect(() => {
-    setActiveHref(pathname);
-  }, [pathname]);
-
-  const preventContextMenu = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-  };
 
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl select-none"
       style={{
-        background: isAtBottom ? 'rgb(var(--background))' : 'rgb(var(--glass) / 0.1)',
-        backdropFilter: isAtBottom ? 'none' : 'blur(24px)',
-        WebkitBackdropFilter: isAtBottom ? 'none' : 'blur(24px)',
-        borderTop: isAtBottom ? '1px solid transparent' : '1px solid rgb(var(--glass-border) / 0.12)',
+        background: 'rgb(var(--glass) / 0.1)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderTop: '1px solid rgb(var(--glass-border) / 0.12)',
         touchAction: 'manipulation',
         WebkitTouchCallout: 'none',
       }}
-      onContextMenu={preventContextMenu}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <div className="flex items-center pt-2">
         {navItems.map(({ href, icon: Icon }) => {
-          const isActive = activeHref === href;
+          const isActive = pathname === href;
           return (
             <Link
               key={href}
               href={href}
               prefetch={true}
-              onTouchStart={() => setActiveHref(href)}
-              onMouseDown={() => setActiveHref(href)}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] transition-all duration-200',
+                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
                 isActive
                   ? 'text-primary'
-                  : 'text-foreground/60 hover:text-foreground/80'
+                  : 'text-foreground/60 active:text-foreground/80'
               )}
-              onContextMenu={preventContextMenu}
-              style={{ WebkitTouchCallout: 'none' }}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent' }}
             >
-              <Icon className={cn('h-7 w-7 transition-all duration-200', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
+              <Icon className={cn('h-7 w-7', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />
             </Link>
           );
         })}

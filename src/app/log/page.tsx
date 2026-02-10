@@ -311,8 +311,9 @@ export default function LogPage() {
         return;
       }
 
-      // Remove from list
+      // Remove from list and update session total
       setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+      setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
       invalidateWorkoutCaches();
       toast.success(`Deleted (-${data.xpDeducted} XP)`);
       setWorkoutToDelete(null);
@@ -565,35 +566,30 @@ export default function LogPage() {
           <CardContent className="p-0">
             {/* Card Header */}
             <div className="px-4 py-2 border-b border-border/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg gradient-bg-subtle flex items-center justify-center text-primary">
-                    {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-4 w-4" />}
-                  </div>
-                  {/* Exercise name with variant dropdown */}
-                  {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
-                    <select
-                      value={selectedVariation}
-                      onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                      className="font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
-                    >
-                      {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                        <option key={variation} value={variation}>
-                          {EXERCISE_INFO[variation]?.label || variation}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="font-semibold">{exerciseLabel}</div>
-                  )}
-                </div>
+              <div className="flex items-center justify-between gap-2">
+                {/* Exercise name with variant dropdown */}
+                {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
+                  <select
+                    value={selectedVariation}
+                    onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
+                    className="flex-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
+                  >
+                    {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                      <option key={variation} value={variation}>
+                        {EXERCISE_INFO[variation]?.label || variation}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex-1 font-semibold">{exerciseLabel}</div>
+                )}
                 {lastWorkout && (
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleUndo}
                     disabled={undoing}
-                    className="text-foreground/40 h-8 w-8"
+                    className="text-foreground/40 h-8 w-8 shrink-0"
                   >
                     {undoing ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
