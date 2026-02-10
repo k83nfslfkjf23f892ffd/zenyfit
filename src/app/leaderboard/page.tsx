@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +10,6 @@ import { Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
-import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 const LeaderboardCharts = dynamic(
@@ -191,21 +189,14 @@ export default function LeaderboardPage() {
                 No rankings yet
               </p>
             ) : (
-              <motion.div
-                className="space-y-2"
-                variants={listContainerVariants}
-                initial="hidden"
-                animate="visible"
-                key={activeTab}
-              >
+              <div className="space-y-2">
                 {rankings.map((ranking) => {
                   const isCurrentUser = user ? ranking.id === user.id : false;
                   const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
                   return (
-                    <motion.div
+                    <div
                       key={ranking.id}
-                      variants={listItemVariants}
-                      className={`flex items-center gap-3 rounded-xl p-3 transition-all duration-200 ${
+                      className={`flex items-center gap-3 rounded-xl p-3 ${
                         isCurrentUser
                           ? 'bg-surface/80 border border-border glow-sm'
                           : 'bg-surface/50 border border-border/50'
@@ -237,10 +228,10 @@ export default function LeaderboardPage() {
                           {getScoreLabel(activeTab)}
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </motion.div>
+              </div>
             )}
           </TabsContent>
         </Tabs>
