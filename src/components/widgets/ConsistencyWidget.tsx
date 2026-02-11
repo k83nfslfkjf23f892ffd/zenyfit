@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Loader2 } from 'lucide-react';
+import { CalendarDays, Info, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
@@ -77,6 +77,7 @@ function extractHeatmapData(stats: ProfileStatsData): HeatmapData {
 
 export function ConsistencyWidget() {
   const { firebaseUser } = useAuth();
+  const [showInfo, setShowInfo] = useState(false);
   const [data, setData] = useState<HeatmapData | null>(() => {
     if (typeof window !== 'undefined') {
       const cached = getCache<ProfileStatsData>(CACHE_KEYS.profileStats, CACHE_TTL);
@@ -149,12 +150,35 @@ export function ConsistencyWidget() {
               <CalendarDays className="h-4 w-4 text-primary" />
             </div>
             Activity
+            <button
+              onClick={() => setShowInfo(v => !v)}
+              className="p-0.5 -ml-0.5 rounded-full text-foreground/30 hover:text-foreground/60 transition-colors"
+              aria-label="How is this calculated?"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </button>
           </div>
           <span className="text-xs font-normal text-foreground/50">
             {grid.monthName} {grid.year}
           </span>
         </CardTitle>
       </CardHeader>
+      {showInfo && (
+        <div className="mx-4 mb-2 p-3 rounded-lg bg-foreground/[0.04] border border-border text-[11px] text-foreground/60 space-y-1.5">
+          <p className="font-medium text-foreground/70">How we calculate this</p>
+          <p>
+            <strong>Heatmap colors</strong> show workout volume per day relative to your busiest day this month.
+          </p>
+          <p>
+            <strong>Exercise time</strong> is a rough estimate based on the type and amount of exercises you logged.
+            For example, each push-up ≈ 3s, each pull-up ≈ 4s, running ≈ 6 min/km. This is time under tension only — rest between sets is not included.
+          </p>
+          <p>
+            <strong>The percentage</strong> shows how much of the month so far was spent exercising.
+            For example, if 11 days have passed and you exercised ~1 hour total, that&apos;s about 0.4% of elapsed time.
+          </p>
+        </div>
+      )}
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-4">
