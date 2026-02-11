@@ -71,6 +71,12 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [320, 375, 425, 768, 1024, 1280],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+      },
+    ],
   },
 
   // Firebase client config inlined at build time (eliminates /api/config fetch on startup)

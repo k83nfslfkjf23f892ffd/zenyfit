@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Settings } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -36,14 +37,14 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {currentSrc ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
+            <Image
               src={currentSrc}
               alt={user.username}
               width={44}
               height={44}
               className="h-11 w-11 rounded-full bg-border/20 object-cover"
               onError={() => setErrorStage(prev => prev + 1)}
+              unoptimized={!currentSrc.includes('dicebear.com')}
             />
           ) : (
             <div className="h-11 w-11 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">

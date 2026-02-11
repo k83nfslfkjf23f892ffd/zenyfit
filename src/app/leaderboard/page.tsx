@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import Image from 'next/image';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
@@ -202,12 +203,14 @@ export default function LeaderboardPage() {
                           : 'bg-surface/50 border border-border/50'
                       }`}
                     >
-                      <div className="h-10 w-10 overflow-hidden rounded-full">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                      <div className="h-10 w-10 overflow-hidden rounded-full bg-border/20">
+                        <Image
                           src={avatarUrl}
                           alt={ranking.username}
+                          width={40}
+                          height={40}
                           className="h-full w-full object-cover"
+                          unoptimized={!avatarUrl.includes('dicebear.com')}
                         />
                       </div>
 
