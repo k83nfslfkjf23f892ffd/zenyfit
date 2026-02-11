@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SplashScreen } from '@/components/SplashScreen';
 import { Toaster } from 'sonner';
 import { initSyncEngine } from '@/lib/offline-sync';
+import '@/lib/offline-fetch';
 
 function SyncEngineInitializer() {
   const { firebaseUser } = useAuth();
