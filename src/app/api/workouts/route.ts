@@ -34,10 +34,17 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json();
+
+    // Allow offline-synced workouts to provide their original timestamp
+    const now = Date.now();
+    const loggedAt = typeof body.loggedAt === 'number' && body.loggedAt > 0 && body.loggedAt <= now
+      ? body.loggedAt
+      : now;
+
     const validation = exerciseLogSchema.safeParse({
       ...body,
       userId,
-      timestamp: Date.now(),
+      timestamp: loggedAt,
     });
 
     if (!validation.success) {
@@ -123,7 +130,7 @@ export async function POST(request: NextRequest) {
       : personalBests;
 
     // Create exercise logs - one per set with slightly different timestamps
-    const baseTimestamp = Date.now();
+    const baseTimestamp = loggedAt;
     const logRefs: FirebaseFirestore.DocumentReference[] = [];
     const logDataList: Record<string, unknown>[] = [];
 
@@ -159,19 +166,19 @@ export async function POST(request: NextRequest) {
       batch.set(logRefs[i], logDataList[i]);
     }
 
-    // Calculate streak update
-    const todayDate = new Date().toISOString().split('T')[0];
+    // Calculate streak update — use the workout's actual date (may differ for offline syncs)
+    const workoutDate = new Date(loggedAt).toISOString().split('T')[0];
     const lastWorkoutDate: string | undefined = userData.lastWorkoutDate;
     let currentStreak: number = userData.currentStreak || 0;
     let longestStreak: number = userData.longestStreak || 0;
 
-    if (lastWorkoutDate !== todayDate) {
-      // Check if yesterday
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDate = yesterday.toISOString().split('T')[0];
+    if (lastWorkoutDate !== workoutDate) {
+      // Check if the day before the workout date
+      const dayBefore = new Date(loggedAt);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayBeforeDate = dayBefore.toISOString().split('T')[0];
 
-      if (lastWorkoutDate === yesterdayDate) {
+      if (lastWorkoutDate === dayBeforeDate) {
         currentStreak += 1;
       } else {
         currentStreak = 1;
@@ -188,7 +195,7 @@ export async function POST(request: NextRequest) {
       personalBests: newPersonalBests,
       currentStreak,
       longestStreak,
-      lastWorkoutDate: todayDate,
+      lastWorkoutDate: workoutDate,
     });
 
     await batch.commit();

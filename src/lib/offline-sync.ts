@@ -58,6 +58,7 @@ async function syncPendingWorkouts() {
             type: workout.type,
             amount: workout.amount,
             sets: workout.sets,
+            loggedAt: workout.queuedAt,
           }),
         });
 
