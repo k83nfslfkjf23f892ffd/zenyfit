@@ -3,37 +3,10 @@ import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { EXERCISE_INFO, EXERCISE_CATEGORIES } from '@shared/constants';
 import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
+import { communityCache, personalCache } from '@/lib/stats-cache';
 
 // Get calisthenics exercise types
 const CALISTHENICS_TYPES = EXERCISE_CATEGORIES.calisthenics.exercises;
-
-// In-memory cache for community stats (shared across all users)
-interface CommunityCache {
-  data: Record<string, unknown>;
-  expiry: number;
-  lastTimestamp: number; // most recent log timestamp we've seen
-  aggregation: {
-    repsByExercise: Record<string, number>;
-    activityByPeriod: Record<string, { reps: number; workouts: number }>;
-    repsByPeriod: Record<string, Record<string, number>>;
-    totalWorkouts: number;
-  };
-}
-const communityCache = new Map<string, CommunityCache>();
-
-// Personal scope cache (per-user, incremental)
-interface PersonalCache {
-  data: Record<string, unknown>;
-  expiry: number;
-  lastTimestamp: number;
-  aggregation: {
-    repsByExercise: Record<string, number>;
-    activityByPeriod: Record<string, { reps: number; workouts: number }>;
-    repsByPeriod: Record<string, Record<string, number>>;
-    totalWorkouts: number;
-  };
-}
-const personalCache = new Map<string, PersonalCache>();
 
 const COMMUNITY_TTL = 10 * 60 * 1000; // 10 minutes
 const PERSONAL_TTL = 5 * 60 * 1000;   // 5 minutes
