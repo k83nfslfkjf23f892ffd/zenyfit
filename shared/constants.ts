@@ -2,8 +2,39 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.3.2';
+export const APP_VERSION = '2.3.3';
 export const APP_URL = 'https://zenyfit.vercel.app';
+
+// ============================================================================
+// Changelog — newest first, max ~5 entries shown
+// ============================================================================
+
+export const CHANGELOG = [
+  {
+    version: '2.3.3',
+    title: 'Offline Workout Logging',
+    items: [
+      'Log workouts without internet — they sync automatically when you reconnect',
+      'Offline banner shows connection status',
+    ],
+  },
+  {
+    version: '2.3.2',
+    title: 'Session Fixes & Nav Polish',
+    items: [
+      'Fixed session total when deleting workouts',
+      'Instant active state on bottom nav tabs',
+    ],
+  },
+  {
+    version: '2.3.0',
+    title: 'Dashboard Customization',
+    items: [
+      'Drag-and-drop to reorder dashboard widgets',
+      'Edit button to enter/exit reorder mode',
+    ],
+  },
+] as const;
 
 // ============================================================================
 // XP System Constants

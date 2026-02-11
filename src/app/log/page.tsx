@@ -7,13 +7,13 @@ import { useCelebration } from '@/lib/celebration-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
+import { queueWorkout } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -406,8 +406,22 @@ export default function LogPage() {
       // Refresh recent workouts
       fetchRecentWorkouts();
     } catch (error) {
-      console.error('Error logging workout:', error);
-      toast.error('An error occurred');
+      // Detect network errors — queue for offline sync
+      if (!navigator.onLine || (error instanceof TypeError && error.message.includes('fetch'))) {
+        try {
+          await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
+          const totalAmount = logAmount * logSets;
+          setSessionTotal(prev => prev + totalAmount);
+          setCustomAmount('');
+          toast.info('Saved offline — will sync when connected');
+        } catch (queueError) {
+          console.error('Failed to queue offline workout:', queueError);
+          toast.error('Failed to save workout');
+        }
+      } else {
+        console.error('Error logging workout:', error);
+        toast.error('An error occurred');
+      }
     } finally {
       setLogging(false);
     }
@@ -438,7 +452,7 @@ export default function LogPage() {
     longPressTimerRef.current = setTimeout(() => {
       setReps(preset.toString());
       setSetsRepsModal({ preset, open: true });
-    }, 500);
+    }, 800);
   };
 
   const handleLongPressEnd = () => {
@@ -640,15 +654,14 @@ export default function LogPage() {
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="Custom"
-                  className="flex-1 h-10 text-base"
+                  className="flex-1 h-12 text-lg"
                 />
                 <Button
                   onClick={handleCustomSubmit}
                   disabled={logging || !customAmount}
-                  size="icon"
-                  className="h-10 w-10"
+                  className="h-12 px-5"
                 >
-                  {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log'}
                 </Button>
               </div>
             </div>
@@ -672,6 +685,7 @@ export default function LogPage() {
                             <Button
                               key={preset}
                               type="button"
+                              variant="secondary"
                               className="h-12 text-base font-semibold rounded-xl"
                               onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
@@ -679,6 +693,7 @@ export default function LogPage() {
                               onMouseLeave={handleLongPressEnd}
                               onTouchStart={() => handleLongPressStart(preset)}
                               onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}
@@ -691,6 +706,7 @@ export default function LogPage() {
                             <Button
                               key={preset}
                               type="button"
+                              variant="secondary"
                               className="h-12 text-base font-semibold rounded-xl"
                               onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
@@ -698,6 +714,7 @@ export default function LogPage() {
                               onMouseLeave={handleLongPressEnd}
                               onTouchStart={() => handleLongPressStart(preset)}
                               onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}
@@ -707,16 +724,18 @@ export default function LogPage() {
                         {/* Row 3 */}
                         <div className="grid grid-cols-4 gap-2.5">
                           {presets.row3.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
+                            <Button
+                              key={preset}
+                              type="button"
+                              variant="secondary"
+                              className="h-12 text-base font-semibold rounded-xl"
+                              onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
                               onMouseLeave={handleLongPressEnd}
                               onTouchStart={() => handleLongPressStart(preset)}
                               onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressEnd}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}
@@ -738,6 +757,7 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
+                      variant="secondary"
                       className="h-12 text-base font-semibold rounded-xl"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
@@ -829,7 +849,7 @@ export default function LogPage() {
         </Card>
       </div>
 
-      {/* Sets x Reps Modal */}
+      {/* Sets Modal */}
       {setsRepsModal?.open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -839,37 +859,31 @@ export default function LogPage() {
             className="bg-surface border border-border rounded-2xl p-6 mx-4 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold mb-4">Log Sets</h3>
+            <h3 className="text-lg font-semibold">Log Sets</h3>
+            <p className="text-sm text-foreground/50 mb-5">
+              {reps} {getUnitLabel()} per set
+            </p>
 
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">Sets</Label>
-                <Input
-                  type="number"
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  className="w-20 text-center text-xl font-bold"
-                  min="1"
-                />
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-xl text-lg"
+                onClick={() => setSets(String(Math.max(1, (parseInt(sets) || 1) - 1)))}
+              >
+                <Minus className="h-5 w-5" />
+              </Button>
+              <div className="text-4xl font-bold w-16 text-center gradient-text">
+                {parseInt(sets) || 1}
               </div>
-              <span className="text-2xl font-bold text-foreground/30 mt-5">×</span>
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">{getUnitLabel()}</Label>
-                <Input
-                  type="number"
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  className="w-20 text-center text-xl font-bold"
-                  min="1"
-                />
-              </div>
-              <span className="text-2xl font-bold text-foreground/40 mt-5">=</span>
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">Total</Label>
-                <div className="w-20 h-10 flex items-center justify-center text-xl font-bold gradient-text">
-                  {(parseInt(sets) || 0) * (parseFloat(reps) || 0)}
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-xl text-lg"
+                onClick={() => setSets(String((parseInt(sets) || 1) + 1))}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
             </div>
 
             <div className="flex gap-3">
@@ -886,7 +900,7 @@ export default function LogPage() {
                 disabled={logging}
               >
                 {logging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Log {(parseInt(sets) || 0) * (parseFloat(reps) || 0)} {getUnitLabel()}
+                Log {parseInt(sets) || 1} × {reps} {getUnitLabel()}
               </Button>
             </div>
           </div>

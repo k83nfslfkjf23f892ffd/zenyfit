@@ -19,8 +19,15 @@ const nextConfig = {
     deviceSizes: [320, 375, 425, 768, 1024, 1280],
   },
 
-  // Environment variables exposed to client (none - use API endpoint)
-  env: {},
+  // Firebase client config inlined at build time (eliminates /api/config fetch on startup)
+  env: {
+    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
+  },
 
   // Headers for security
   async headers() {

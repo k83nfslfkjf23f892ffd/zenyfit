@@ -15,15 +15,15 @@ export function SplashScreen({ children, loading }: SplashScreenProps) {
   useEffect(() => {
     // When loading completes, start fade out animation
     if (!loading && showSplash) {
-      // Small delay to ensure smooth transition
+      // Start fade immediately
       const fadeTimer = setTimeout(() => {
         setFadeOut(true);
-      }, 300);
+      }, 50);
 
       // Remove splash after fade animation
       const removeTimer = setTimeout(() => {
         setShowSplash(false);
-      }, 600);
+      }, 300);
 
       return () => {
         clearTimeout(fadeTimer);

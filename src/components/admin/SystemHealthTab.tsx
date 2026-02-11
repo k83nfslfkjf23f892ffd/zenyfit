@@ -15,6 +15,14 @@ interface RouteMetric {
   cacheHits: number;
 }
 
+interface UserMetric {
+  userId: string;
+  reads: number;
+  writes: number;
+  calls: number;
+  cacheHits: number;
+}
+
 interface MetricsData {
   startedAt: number;
   uptimeMs: number;
@@ -25,6 +33,7 @@ interface MetricsData {
     cacheHits: number;
   };
   routes: RouteMetric[];
+  users: UserMetric[];
 }
 
 export function SystemHealthTab() {
@@ -275,6 +284,39 @@ export function SystemHealthTab() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Per-user breakdown */}
+              {metrics.users && metrics.users.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Per User</p>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 text-left">
+                          <th className="px-3 py-2 font-medium">User ID</th>
+                          <th className="px-3 py-2 font-medium text-right">Reads</th>
+                          <th className="px-3 py-2 font-medium text-right">Writes</th>
+                          <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Calls</th>
+                          <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Cache</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.users.map((u) => (
+                          <tr key={u.userId} className="border-t border-muted/30">
+                            <td className="px-3 py-2 font-mono text-xs" title={u.userId}>
+                              {u.userId.length > 12 ? `${u.userId.slice(0, 6)}...${u.userId.slice(-4)}` : u.userId}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{u.reads.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{u.writes.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{u.calls.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{u.cacheHits.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 

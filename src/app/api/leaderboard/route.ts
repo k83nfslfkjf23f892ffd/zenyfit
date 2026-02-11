@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const cacheParams = `type=${type || 'xp'}&limit=${limit}&offset=${offset}`;
     const cached = getCached('/api/leaderboard', userId, cacheParams);
     if (cached) {
-      trackCacheHit('leaderboard');
+      trackCacheHit('leaderboard', userId);
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await query.get();
-    trackReads('leaderboard', snapshot.docs.length);
+    trackReads('leaderboard', snapshot.docs.length, userId);
 
     // Format results with rank
     const rankings = snapshot.docs.map((doc, index) => {

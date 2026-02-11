@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { BottomNav } from './BottomNav';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 interface AppLayoutProps {
@@ -36,6 +37,10 @@ export function AppLayout({ children }: AppLayoutProps) {
           borderBottom: isScrolled ? '1px solid rgb(var(--glass-border) / 0.12)' : '1px solid transparent',
         }}
       />
+
+      <div className="relative z-20 pt-[env(safe-area-inset-top)]">
+        <OfflineBanner />
+      </div>
 
       <main className="relative z-10 container mx-auto max-w-2xl px-4 py-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
         <motion.div

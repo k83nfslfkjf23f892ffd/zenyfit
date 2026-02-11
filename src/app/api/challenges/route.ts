@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Get user data for participant info
     const userDoc = await db.collection('users').doc(userId).get();
-    trackReads('challenges', 1);
+    trackReads('challenges', 1, userId);
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     };
 
     await challengeRef.set(challengeData);
-    trackWrites('challenges', 1);
+    trackWrites('challenges', 1, userId);
 
     // Invalidate challenges cache for creator
     invalidateCache('/api/challenges', userId);
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       }
 
       await inviteBatch.commit();
-      trackWrites('challenges', inviteUserIds.filter(id => id !== userId).length);
+      trackWrites('challenges', inviteUserIds.filter(id => id !== userId).length, userId);
     }
 
     return NextResponse.json(
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
     // Check server cache
     const cached = getCached('/api/challenges', userId, `filter=${filter}`);
     if (cached) {
-      trackCacheHit('challenges');
+      trackCacheHit('challenges', userId);
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
         .orderBy('endDate', 'desc')
         .limit(50)
         .get();
-      trackReads('challenges', snapshot.docs.length);
+      trackReads('challenges', snapshot.docs.length, userId);
 
       // Filter out challenges the user is already participating in
       challenges = snapshot.docs
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
         .orderBy('endDate', 'desc')
         .limit(50)
         .get();
-      trackReads('challenges', snapshot.docs.length);
+      trackReads('challenges', snapshot.docs.length, userId);
 
       challenges = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     }
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
       const userDocs = await db.getAll(
         ...Array.from(allParticipantIds).map((id) => db.collection('users').doc(id))
       );
-      trackReads('challenges', userDocs.length);
+      trackReads('challenges', userDocs.length, userId);
       const avatarMap = new Map<string, string>();
       for (const doc of userDocs) {
         if (doc.exists) {

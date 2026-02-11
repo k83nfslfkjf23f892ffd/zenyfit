@@ -226,12 +226,12 @@ export async function GET(request: NextRequest) {
 
         if (newSnapshot.empty) {
           // No new data, return cached response
-          trackCacheHit('leaderboard/stats');
+          trackCacheHit('leaderboard/stats', userId);
           return NextResponse.json(cached.data, { status: 200 });
         }
 
         // Merge new logs into cached aggregation
-        trackReads('leaderboard/stats', newSnapshot.docs.length);
+        trackReads('leaderboard/stats', newSnapshot.docs.length, userId);
         processLogs(newSnapshot.docs, cached.aggregation, dateFormat);
         const lastDoc = newSnapshot.docs[newSnapshot.docs.length - 1];
         cached.lastTimestamp = lastDoc.data().timestamp;
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
         .orderBy('timestamp', 'asc')
         .limit(5000)
         .get();
-      trackReads('leaderboard/stats', logsSnapshot.docs.length);
+      trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
 
       const agg = initAggregation(periodKeys);
       processLogs(logsSnapshot.docs, agg, dateFormat);
@@ -282,11 +282,11 @@ export async function GET(request: NextRequest) {
       const newSnapshot = await newLogsQuery.get();
 
       if (newSnapshot.empty) {
-        trackCacheHit('leaderboard/stats');
+        trackCacheHit('leaderboard/stats', userId);
         return NextResponse.json(cached.data, { status: 200 });
       }
 
-      trackReads('leaderboard/stats', newSnapshot.docs.length);
+      trackReads('leaderboard/stats', newSnapshot.docs.length, userId);
       processLogs(newSnapshot.docs, cached.aggregation, dateFormat);
       const lastDoc = newSnapshot.docs[newSnapshot.docs.length - 1];
       cached.lastTimestamp = lastDoc.data().timestamp;
@@ -302,7 +302,7 @@ export async function GET(request: NextRequest) {
       .orderBy('timestamp', 'asc')
       .limit(2000)
       .get();
-    trackReads('leaderboard/stats', logsSnapshot.docs.length);
+    trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
 
     const agg = initAggregation(periodKeys);
     processLogs(logsSnapshot.docs, agg, dateFormat);

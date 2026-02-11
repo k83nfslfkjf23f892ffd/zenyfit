@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Check server cache
     const cached = getCached(route, userId);
     if (cached) {
-      trackCacheHit('achievements');
+      trackCacheHit('achievements', userId);
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Get user data
     const userDoc = await db.collection('users').doc(userId).get();
-    trackReads('achievements', 1);
+    trackReads('achievements', 1, userId);
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId)
       .count()
       .get();
-    trackReads('achievements', 1); // count aggregation = 1 read
+    trackReads('achievements', 1, userId); // count aggregation = 1 read
 
     // Get challenges created (count only)
     const challengesCreatedCount = await db
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       .where('createdBy', '==', userId)
       .count()
       .get();
-    trackReads('achievements', 1); // count aggregation = 1 read
+    trackReads('achievements', 1, userId); // count aggregation = 1 read
 
     // Get completed challenges (need docs to check participant progress)
     const challengesSnapshot = await db
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       .where('participantIds', 'array-contains', userId)
       .limit(50)
       .get();
-    trackReads('achievements', challengesSnapshot.docs.length);
+    trackReads('achievements', challengesSnapshot.docs.length, userId);
 
     let challengesCompleted = 0;
     challengesSnapshot.docs.forEach((doc) => {
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       .where('used', '==', true)
       .count()
       .get();
-    trackReads('achievements', 1); // count aggregation = 1 read
+    trackReads('achievements', 1, userId); // count aggregation = 1 read
 
     // Build stats object
     const stats: AchievementStats = {

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const cacheParams = `userId=${userId || 'global'}`;
     const cached = getCached('/api/leaderboard/trend', decodedToken.uid, cacheParams);
     if (cached) {
-      trackCacheHit('leaderboard/trend');
+      trackCacheHit('leaderboard/trend', decodedToken.uid);
       return NextResponse.json(cached, { status: 200 });
     }
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       .limit(500);
 
     const snapshot = await query.get();
-    trackReads('leaderboard/trend', snapshot.docs.length);
+    trackReads('leaderboard/trend', snapshot.docs.length, decodedToken.uid);
 
     // Group by day
     const dailyData: Record<string, { workouts: number; xp: number }> = {};

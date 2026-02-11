@@ -48,11 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load cached user after mount to avoid hydration mismatch
+  // Load cached user after mount — skip splash for returning users
   useEffect(() => {
     const cached = getCachedUser();
     if (cached) {
       setUser(cached);
+      setLoading(false);
     }
   }, []);
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);

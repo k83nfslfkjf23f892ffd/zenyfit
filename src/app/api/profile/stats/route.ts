@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
     // Check server cache
     const cached = getCached('/api/profile/stats', userId);
     if (cached) {
-      trackCacheHit('profile/stats');
+      trackCacheHit('profile/stats', userId);
       return NextResponse.json(cached);
     }
 
     const { db } = getAdminInstances();
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
-    trackReads('profile/stats', 1);
+    trackReads('profile/stats', 1, userId);
 
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         .where('userId', '==', userId)
         .orderBy('timestamp', 'desc')
         .get();
-      trackReads('profile/stats', allLogsSnapshot.docs.length);
+      trackReads('profile/stats', allLogsSnapshot.docs.length, userId);
 
       for (const doc of allLogsSnapshot.docs) {
         const log = doc.data();
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       .orderBy('timestamp', 'desc')
       .limit(500)
       .get();
-    trackReads('profile/stats', recentLogsSnapshot.docs.length);
+    trackReads('profile/stats', recentLogsSnapshot.docs.length, userId);
 
     // Count unique workout days in last 30 days
     const recentDates = new Set<string>();
