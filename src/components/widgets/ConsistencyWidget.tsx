@@ -11,12 +11,14 @@ interface ProfileStatsData {
   consistencyScore: number;
   workoutDaysLast30: number;
   activityMap?: Record<string, number>;
+  estimatedExerciseSeconds?: number;
 }
 
 interface HeatmapData {
   activityMap: Record<string, number>;
   totalWorkouts: number;
   activeDays: number;
+  estimatedExerciseSeconds: number;
 }
 
 const CACHE_TTL = CACHE_TTLS.profileStats;
@@ -70,7 +72,7 @@ function extractHeatmapData(stats: ProfileStatsData): HeatmapData {
   const activityMap = stats.activityMap || {};
   const totalWorkouts = Object.values(activityMap).reduce((sum, c) => sum + c, 0);
   const activeDays = Object.keys(activityMap).length;
-  return { activityMap, totalWorkouts, activeDays };
+  return { activityMap, totalWorkouts, activeDays, estimatedExerciseSeconds: stats.estimatedExerciseSeconds || 0 };
 }
 
 export function ConsistencyWidget() {
@@ -186,7 +188,7 @@ export function ConsistencyWidget() {
                 </div>
               ))}
             </div>
-            {/* Legend + Summary */}
+            {/* Legend */}
             <div className="flex items-center justify-between pt-1">
               <p className="text-xs text-foreground/50">
                 {data.activeDays} days active &middot; {data.totalWorkouts} workouts
@@ -201,6 +203,38 @@ export function ConsistencyWidget() {
                 <span className="text-[10px] text-foreground/40">More</span>
               </div>
             </div>
+            {/* Exercise time percentage bar */}
+            {(() => {
+              const today = new Date();
+              const daysElapsed = today.getDate();
+              const secondsElapsed = daysElapsed * 24 * 60 * 60;
+              const exerciseSecs = data.estimatedExerciseSeconds;
+              const pct = secondsElapsed > 0
+                ? Math.min(100, (exerciseSecs / secondsElapsed) * 100)
+                : 0;
+              // Format exercise time as human-readable
+              const hours = Math.floor(exerciseSecs / 3600);
+              const mins = Math.round((exerciseSecs % 3600) / 60);
+              const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+              return (
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-foreground/50">
+                      ~{timeStr} exercising ({pct < 0.1 ? '<0.1' : pct.toFixed(1)}% of {grid.monthName})
+                    </span>
+                    <span className="text-[11px] font-medium text-foreground/60">
+                      {data.activeDays}/{daysElapsed} days
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary/70 transition-all duration-500"
+                      style={{ width: `${Math.max(pct, 0.5)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <p className="text-sm text-foreground/40">Unable to load data</p>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { ESTIMATED_SECONDS_PER_UNIT } from '@shared/constants';
 import { getCached, setCache } from '@/lib/api-cache';
 import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
@@ -156,11 +157,19 @@ export async function GET(request: NextRequest) {
     // Count workouts per day and unique workout days in last 30 days
     const recentDates = new Set<string>();
     const activityMap: Record<string, number> = {};
+    // Estimated exercise seconds for the current month
+    const currentMonthPrefix = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    let estimatedExerciseSeconds = 0;
     for (const doc of recentLogsSnapshot.docs) {
       const log = doc.data();
       const date = new Date(log.timestamp).toISOString().split('T')[0];
       recentDates.add(date);
       activityMap[date] = (activityMap[date] || 0) + 1;
+      // Accumulate estimated time for current month only
+      if (date.startsWith(currentMonthPrefix)) {
+        const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[log.type] || 0;
+        estimatedExerciseSeconds += (log.amount || 0) * secsPerUnit;
+      }
     }
     const recentWorkoutDays = recentDates.size;
 
@@ -172,6 +181,7 @@ export async function GET(request: NextRequest) {
       consistencyScore,
       workoutDaysLast30: recentWorkoutDays,
       activityMap,
+      estimatedExerciseSeconds,
       currentStreak: userData.currentStreak || 0,
       longestStreak: userData.longestStreak || 0,
       lastWorkoutDate: userData.lastWorkoutDate,

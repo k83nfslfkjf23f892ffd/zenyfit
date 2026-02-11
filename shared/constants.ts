@@ -128,6 +128,30 @@ export const XP_RATES: Record<string, number> = {
   custom: 0,            // Tracking only
 } as const;
 
+// Estimated seconds per unit for each exercise type
+// Used to calculate approximate time spent exercising (time under tension, no rest)
+export const ESTIMATED_SECONDS_PER_UNIT: Record<string, number> = {
+  // Calisthenics (seconds per rep — eccentric + concentric phases)
+  pushups: 3, knee_pushups: 3, incline_pushups: 3, decline_pushups: 3,
+  diamond_pushups: 4, archer_pushups: 5, onearm_pushups: 6,
+  pullups: 4, assisted_pullups: 4, chinups: 4, wide_pullups: 5,
+  lsit_pullups: 6, australian_pullups: 3,
+  dips: 4, bench_dips: 3, ring_dips: 5,
+  muscleups: 8,        // pull + transition + push
+
+  // Bar Hangs (already in seconds)
+  passive_dead_hang: 1, active_dead_hang: 1, flexed_arm_hang: 1,
+
+  // Cardio (seconds per km — recreational pace)
+  running: 360,     // ~6:00 min/km
+  walking: 540,     // ~9:00 min/km (brisk)
+  swimming: 1500,   // ~25:00 min/km
+  sprinting: 180,   // ~3:00 min/km
+
+  // Team Sports (already in minutes → seconds)
+  volleyball: 60, basketball: 60, soccer: 60,
+};
+
 // Exercise display info
 export const EXERCISE_INFO: Record<string, { label: string; category: string; unit: string }> = {
   // Push-up variations
