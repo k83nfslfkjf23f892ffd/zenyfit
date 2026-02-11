@@ -33,6 +33,7 @@ import { SortableWidget } from '@/components/SortableWidget';
 import {
   UserHeaderWidget,
   StatsGridWidget,
+  StreaksWidget,
   ExerciseRatioWidget,
   WeeklyActivityWidget,
   ConsistencyWidget,
@@ -179,6 +180,8 @@ export default function DashboardPage() {
         return <UserHeaderWidget user={user} />;
       case 'stats-grid':
         return <StatsGridWidget />;
+      case 'streaks':
+        return <StreaksWidget />;
       case 'exercise-ratio':
         return <ExerciseRatioWidget totals={user.totals} />;
       case 'weekly-activity':

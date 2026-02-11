@@ -45,8 +45,11 @@ export async function GET(request: NextRequest) {
     const userData = userDoc.data()!;
     const personalBests: Record<string, number> = userData.personalBests || {};
 
-    // One-time migration: if user has no personalBests stored, calculate from all logs
-    if (!userData.personalBests) {
+    // One-time migration: if user has no personalBests or streaks, calculate from all logs
+    const needsPBMigration = !userData.personalBests;
+    const needsStreakMigration = userData.currentStreak === undefined;
+
+    if (needsPBMigration || needsStreakMigration) {
       const allLogsSnapshot = await db
         .collection('exercise_logs')
         .where('userId', '==', userId)
@@ -54,20 +57,87 @@ export async function GET(request: NextRequest) {
         .get();
       trackReads('profile/stats', allLogsSnapshot.docs.length, userId);
 
-      for (const doc of allLogsSnapshot.docs) {
-        const log = doc.data();
-        const type = log.type;
-        const amount = log.amount || 0;
+      const migrationUpdate: Record<string, unknown> = {};
 
-        if (type !== 'custom') {
-          if (!personalBests[type] || amount > personalBests[type]) {
-            personalBests[type] = amount;
+      // Personal bests migration
+      if (needsPBMigration) {
+        for (const doc of allLogsSnapshot.docs) {
+          const log = doc.data();
+          const type = log.type;
+          const amount = log.amount || 0;
+          if (type !== 'custom') {
+            if (!personalBests[type] || amount > personalBests[type]) {
+              personalBests[type] = amount;
+            }
           }
         }
+        migrationUpdate.personalBests = personalBests;
       }
 
-      // Store on user doc so this never happens again
-      await userRef.update({ personalBests });
+      // Streak migration
+      if (needsStreakMigration) {
+        const uniqueDates = new Set<string>();
+        for (const doc of allLogsSnapshot.docs) {
+          const date = new Date(doc.data().timestamp).toISOString().split('T')[0];
+          uniqueDates.add(date);
+        }
+
+        const sortedDates = Array.from(uniqueDates).sort();
+
+        // Calculate longest streak from all dates
+        let longestStreak = 0;
+        let tempStreak = 0;
+        let prevDate: Date | null = null;
+
+        for (const dateStr of sortedDates) {
+          const current = new Date(dateStr + 'T00:00:00Z');
+          if (prevDate) {
+            const diffDays = Math.round((current.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000));
+            if (diffDays === 1) {
+              tempStreak++;
+            } else {
+              tempStreak = 1;
+            }
+          } else {
+            tempStreak = 1;
+          }
+          if (tempStreak > longestStreak) longestStreak = tempStreak;
+          prevDate = current;
+        }
+
+        // Calculate current streak (walk backwards from today)
+        const today = new Date().toISOString().split('T')[0];
+        const reversedDates = sortedDates.reverse();
+        let currentStreak = 0;
+        const checkDate = new Date();
+
+        for (let i = 0; i < 365; i++) {
+          const dateStr = checkDate.toISOString().split('T')[0];
+          if (reversedDates.includes(dateStr)) {
+            currentStreak++;
+          } else if (currentStreak > 0) {
+            break;
+          } else if (dateStr < today) {
+            // No workout today is fine, but if yesterday also has nothing, streak is 0
+            break;
+          }
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        const lastWorkoutDate = reversedDates.length > 0 ? reversedDates[0] : undefined;
+
+        migrationUpdate.currentStreak = currentStreak;
+        migrationUpdate.longestStreak = longestStreak;
+        if (lastWorkoutDate) migrationUpdate.lastWorkoutDate = lastWorkoutDate;
+      }
+
+      await userRef.update(migrationUpdate);
+      // Update local vars for response
+      if (needsStreakMigration) {
+        userData.currentStreak = migrationUpdate.currentStreak as number;
+        userData.longestStreak = migrationUpdate.longestStreak as number;
+        userData.lastWorkoutDate = migrationUpdate.lastWorkoutDate as string | undefined;
+      }
     }
 
     // Fetch only last 30 days of logs for consistency
@@ -102,6 +172,9 @@ export async function GET(request: NextRequest) {
       consistencyScore,
       workoutDaysLast30: recentWorkoutDays,
       activityMap,
+      currentStreak: userData.currentStreak || 0,
+      longestStreak: userData.longestStreak || 0,
+      lastWorkoutDate: userData.lastWorkoutDate,
     };
 
     setCache('/api/profile/stats', userId, responseData);

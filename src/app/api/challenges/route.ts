@@ -4,6 +4,7 @@ import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { getCached, setCache, invalidateCache } from '@/lib/api-cache';
 import { z } from 'zod';
 import { trackReads, trackWrites, trackCacheHit } from '@/lib/firestore-metrics';
+import { sanitizeChallengeTitle, sanitizeChallengeDescription } from '@/lib/sanitize';
 
 const createChallengeSchema = z.object({
   title: z.string().min(1).max(100),
@@ -57,7 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, description, type, goal, duration, isPublic, inviteUserIds, colors } = validation.data;
+    const { title: rawTitle, description: rawDescription, type, goal, duration, isPublic, inviteUserIds, colors } = validation.data;
+    const title = sanitizeChallengeTitle(rawTitle);
+    const description = rawDescription ? sanitizeChallengeDescription(rawDescription) : '';
 
     const now = Date.now();
     const endDate = now + duration * 24 * 60 * 60 * 1000;
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
     const challengeData = {
       id: challengeRef.id,
       title,
-      description: description || '',
+      description,
       type,
       goal,
       startDate: now,

@@ -78,6 +78,70 @@ export async function DELETE(
     const newXp = Math.max(0, userData.xp - xpEarned);
     const newLevel = calculateLevel(newXp);
 
+    // Check if any other workouts remain for the deleted workout's day
+    const deletedDate = new Date(logData.timestamp).toISOString().split('T')[0];
+    const dayStart = new Date(deletedDate + 'T00:00:00Z').getTime();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+    const sameDaySnapshot = await db
+      .collection('exercise_logs')
+      .where('userId', '==', userId)
+      .where('timestamp', '>=', dayStart)
+      .where('timestamp', '<', dayEnd)
+      .limit(2) // Only need to know if >1 exists (the one being deleted + another)
+      .get();
+
+    // If only the one being deleted remains for that day, recalculate streak
+    const otherWorkoutsOnDay = sameDaySnapshot.docs.filter(d => d.id !== workoutId).length > 0;
+
+    let streakUpdate: Record<string, unknown> = {};
+
+    if (!otherWorkoutsOnDay) {
+      // Recalculate streak from recent logs (last 90 days)
+      const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const recentLogsSnapshot = await db
+        .collection('exercise_logs')
+        .where('userId', '==', userId)
+        .where('timestamp', '>=', ninetyDaysAgo)
+        .orderBy('timestamp', 'desc')
+        .limit(500)
+        .get();
+
+      // Get unique dates (excluding the deleted workout)
+      const uniqueDates = new Set<string>();
+      for (const doc of recentLogsSnapshot.docs) {
+        if (doc.id === workoutId) continue;
+        const date = new Date(doc.data().timestamp).toISOString().split('T')[0];
+        uniqueDates.add(date);
+      }
+
+      // Walk backwards from today to calculate current streak
+      const sortedDates = Array.from(uniqueDates).sort().reverse();
+      const today = new Date().toISOString().split('T')[0];
+      let currentStreak = 0;
+      const checkDate = new Date(today);
+
+      for (let i = 0; i < 90; i++) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        if (sortedDates.includes(dateStr)) {
+          currentStreak++;
+        } else if (currentStreak > 0 || dateStr < today) {
+          // Only break if we've already started counting or we're past today
+          if (currentStreak > 0) break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      const longestStreak = Math.max(userData.longestStreak || 0, currentStreak);
+      const lastWorkoutDate = sortedDates.length > 0 ? sortedDates[0] : undefined;
+
+      streakUpdate = {
+        currentStreak,
+        longestStreak,
+        ...(lastWorkoutDate ? { lastWorkoutDate } : {}),
+      };
+    }
+
     // Use a batch write to update user and delete log atomically
     const batch = db.batch();
 
@@ -86,6 +150,7 @@ export async function DELETE(
       totals: newTotals,
       xp: newXp,
       level: newLevel,
+      ...streakUpdate,
     });
 
     await batch.commit();

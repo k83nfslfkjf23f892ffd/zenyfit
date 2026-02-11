@@ -29,6 +29,11 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Bar chart of workouts per day',
   },
   {
+    id: 'streaks',
+    name: 'Workout Streak',
+    description: 'Current and best workout streaks',
+  },
+  {
     id: 'consistency',
     name: 'Consistency Score',
     description: 'Workout streak and consistency %',
@@ -60,6 +65,7 @@ export const DEFAULT_WIDGET_CONFIG = {
   order: [
     'user-header',
     'stats-grid',
+    'streaks',
     'exercise-ratio',
     'weekly-activity',
     'consistency',

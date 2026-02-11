@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.3.4';
+export const APP_VERSION = '2.4.0';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -10,6 +10,15 @@ export const APP_URL = 'https://zenyfit.vercel.app';
 // ============================================================================
 
 export const CHANGELOG = [
+  {
+    version: '2.4.0',
+    title: 'Workout Streaks & Security',
+    items: [
+      'New Workout Streak widget — track your current and longest streaks',
+      'Streaks auto-update when you log or delete workouts',
+      'Added Content Security Policy header for better protection',
+    ],
+  },
   {
     version: '2.3.4',
     title: 'Activity Heatmap',

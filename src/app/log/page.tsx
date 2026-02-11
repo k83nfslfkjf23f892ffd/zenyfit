@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil, WifiOff } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
-import { queueWorkout } from '@/lib/offline-queue';
+import { queueWorkout, getPendingWorkouts, onPendingCountChange } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -278,6 +278,51 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts]);
 
+  // Load pending offline workouts on mount and merge into recent logs
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPending() {
+      try {
+        const pending = await getPendingWorkouts();
+        if (cancelled || pending.length === 0) return;
+        const offlineEntries: RecentWorkout[] = pending.map(pw => ({
+          id: pw.id,
+          type: pw.type,
+          amount: pw.amount * pw.sets,
+          xpEarned: 0,
+          timestamp: pw.queuedAt,
+        }));
+        setRecentWorkouts(prev => {
+          // Avoid duplicates — remove any existing offline entries, then prepend fresh ones
+          const withoutOffline = prev.filter(w => !w.id.startsWith('offline_'));
+          return [...offlineEntries, ...withoutOffline];
+        });
+      } catch {
+        // IndexedDB unavailable — ignore
+      }
+    }
+
+    loadPending();
+
+    // Subscribe to pending count changes (sync completion)
+    const unsubscribe = onPendingCountChange((count) => {
+      if (count === 0) {
+        // All offline workouts synced — remove offline entries and refresh from API
+        setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
+        fetchRecentWorkouts(true);
+      } else {
+        // Re-load pending to update the list (e.g. partial sync)
+        loadPending();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [fetchRecentWorkouts]);
+
   // Delete a workout (called after confirmation)
   const handleConfirmDelete = async () => {
     if (!workoutToDelete || deletingId) return;
@@ -404,6 +449,17 @@ export default function LogPage() {
           const totalAmount = logAmount * logSets;
           setSessionTotal(prev => prev + totalAmount);
           setCustomAmount('');
+
+          // Add synthetic entry to recent logs so the workout appears immediately
+          const offlineEntry: RecentWorkout = {
+            id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            type: activeExercise,
+            amount: totalAmount,
+            xpEarned: 0,
+            timestamp: Date.now(),
+          };
+          setRecentWorkouts(prev => [offlineEntry, ...prev]);
+
           toast.info('Saved offline — will sync when connected');
         } catch (queueError) {
           console.error('Failed to queue offline workout:', queueError);
@@ -807,22 +863,33 @@ export default function LogPage() {
                   const exerciseLabel = EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
                   const timeAgo = getTimeAgo(workout.timestamp);
+                  const isOffline = workout.id.startsWith('offline_');
 
                   return (
                     <div
                       key={workout.id}
-                      onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-xl bg-surface border border-border p-3 transition-all duration-200 ${
-                        deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
+                      onClick={deleteMode && !isOffline ? () => setWorkoutToDelete(workout) : undefined}
+                      className={`flex items-center justify-between rounded-xl bg-surface border p-3 transition-all duration-200 ${
+                        isOffline ? 'border-dashed border-amber-500/40' : 'border-border'
+                      } ${
+                        deleteMode && !isOffline ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
                       <div className="flex-1">
                         <div className="text-sm font-medium">{exerciseLabel}</div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
+                          {workout.amount} {unit} •{' '}
+                          {isOffline ? (
+                            <span className="inline-flex items-center gap-1 text-amber-500">
+                              <WifiOff className="h-3 w-3" />
+                              Offline
+                            </span>
+                          ) : (
+                            <>+{workout.xpEarned} XP • {timeAgo}</>
+                          )}
                         </div>
                       </div>
-                      {deleteMode && (
+                      {deleteMode && !isOffline && (
                         <Trash2 className="h-4 w-4 text-foreground/30" />
                       )}
                     </div>

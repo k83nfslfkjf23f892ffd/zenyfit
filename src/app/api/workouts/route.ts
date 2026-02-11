@@ -159,11 +159,36 @@ export async function POST(request: NextRequest) {
       batch.set(logRefs[i], logDataList[i]);
     }
 
+    // Calculate streak update
+    const todayDate = new Date().toISOString().split('T')[0];
+    const lastWorkoutDate: string | undefined = userData.lastWorkoutDate;
+    let currentStreak: number = userData.currentStreak || 0;
+    let longestStreak: number = userData.longestStreak || 0;
+
+    if (lastWorkoutDate !== todayDate) {
+      // Check if yesterday
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+
+      if (lastWorkoutDate === yesterdayDate) {
+        currentStreak += 1;
+      } else {
+        currentStreak = 1;
+      }
+      if (currentStreak > longestStreak) {
+        longestStreak = currentStreak;
+      }
+    }
+
     batch.update(userRef, {
       totals: newTotals,
       xp: newXp,
       level: newLevel,
       personalBests: newPersonalBests,
+      currentStreak,
+      longestStreak,
+      lastWorkoutDate: todayDate,
     });
 
     await batch.commit();

@@ -72,6 +72,9 @@ export const userSchema = z.object({
   theme: z.string().optional(),
   quickAddPresets: z.record(z.string(), z.array(z.number().positive()).max(8)).optional(),
   dashboardWidgets: dashboardWidgetsSchema.optional(),
+  currentStreak: z.number().int().min(0).optional(),
+  longestStreak: z.number().int().min(0).optional(),
+  lastWorkoutDate: z.string().optional(), // YYYY-MM-DD
 });
 
 // ============================================================================

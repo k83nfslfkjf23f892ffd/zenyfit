@@ -2,6 +2,7 @@ export { UserHeaderWidget } from './UserHeaderWidget';
 export { StatsGridWidget } from './StatsGridWidget';
 export { ExerciseRatioWidget } from './ExerciseRatioWidget';
 export { WeeklyActivityWidget } from './WeeklyActivityWidget';
+export { StreaksWidget } from './StreaksWidget';
 export { ConsistencyWidget } from './ConsistencyWidget';
 export { PersonalBestsWidget } from './PersonalBestsWidget';
 export { ExerciseTotalsWidget } from './ExerciseTotalsWidget';
