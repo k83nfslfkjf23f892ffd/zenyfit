@@ -8,15 +8,15 @@
 
 /** Shared cache keys — widgets/pages reading same API use the same key */
 export const CACHE_KEYS = {
-  profileStats: 'zenyfit_profile_stats_v2',
-  trend: 'zenyfit_trend_cache',
-  statsGrid: 'zenyfit_stats_grid_v2',
-  challenges: 'zenyfit_challenges',
-  achievements: 'zenyfit_achievements_v2',
-  rankings: 'zenyfit_rankings_cache',
-  chartData: 'zenyfit_chart_cache',
+  profileStats: 'zenyfit_profile_stats_v3',
+  trend: 'zenyfit_trend_v2',
+  statsGrid: 'zenyfit_stats_grid_v3',
+  challenges: 'zenyfit_challenges_v2',
+  achievements: 'zenyfit_achievements_v3',
+  rankings: 'zenyfit_rankings_v2',
+  chartData: 'zenyfit_chart_v2',
   chartFilters: 'zenyfit_chart_filters',
-  repsHistory: 'zenyfit_reps_history',
+  repsHistory: 'zenyfit_reps_history_v2',
 } as const;
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
