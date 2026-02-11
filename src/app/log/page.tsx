@@ -257,7 +257,11 @@ export default function LogPage() {
       if (response.ok) {
         const data = await response.json();
         const workouts = data.logs || [];
-        setRecentWorkouts(workouts);
+        // Preserve any offline-queued entries that haven't synced yet
+        setRecentWorkouts(prev => {
+          const offlineEntries = prev.filter(w => w.id.startsWith('offline_'));
+          return [...offlineEntries, ...workouts];
+        });
         setCache(STORAGE_KEYS.recentWorkouts, workouts);
       }
     } catch (error) {
@@ -393,6 +397,34 @@ export default function LogPage() {
 
     setLogging(true);
 
+    // Queue offline immediately if no network — avoids getIdToken() failure on expired tokens
+    if (!navigator.onLine) {
+      try {
+        await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
+        const totalAmount = logAmount * logSets;
+        setSessionTotal(prev => prev + totalAmount);
+        setCustomAmount('');
+
+        const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
+        const offlineEntry: RecentWorkout = {
+          id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          type: activeExercise,
+          amount: totalAmount,
+          xpEarned: Math.floor(totalAmount * xpRate),
+          timestamp: Date.now(),
+        };
+        setRecentWorkouts(prev => [offlineEntry, ...prev]);
+
+        toast.info('Saved offline — will sync when connected');
+      } catch (queueError) {
+        console.error('Failed to queue offline workout:', queueError);
+        toast.error('Failed to save workout');
+      } finally {
+        setLogging(false);
+      }
+      return;
+    }
+
     try {
       const token = await firebaseUser?.getIdToken();
       if (!token) {
@@ -457,7 +489,7 @@ export default function LogPage() {
       fetchRecentWorkouts();
     } catch (error) {
       // Detect network errors — queue for offline sync
-      if (!navigator.onLine || (error instanceof TypeError && error.message.includes('fetch'))) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
         try {
           await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
           const totalAmount = logAmount * logSets;
