@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.3.3';
+export const APP_VERSION = '2.3.4';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================
@@ -10,6 +10,14 @@ export const APP_URL = 'https://zenyfit.vercel.app';
 // ============================================================================
 
 export const CHANGELOG = [
+  {
+    version: '2.3.4',
+    title: 'Activity Heatmap',
+    items: [
+      'Consistency widget replaced with monthly activity heatmap',
+      'Color-coded day cells show workout intensity at a glance',
+    ],
+  },
   {
     version: '2.3.3',
     title: 'Offline Workout Logging',

@@ -83,12 +83,14 @@ export async function GET(request: NextRequest) {
       .get();
     trackReads('profile/stats', recentLogsSnapshot.docs.length, userId);
 
-    // Count unique workout days in last 30 days
+    // Count workouts per day and unique workout days in last 30 days
     const recentDates = new Set<string>();
+    const activityMap: Record<string, number> = {};
     for (const doc of recentLogsSnapshot.docs) {
       const log = doc.data();
       const date = new Date(log.timestamp).toISOString().split('T')[0];
       recentDates.add(date);
+      activityMap[date] = (activityMap[date] || 0) + 1;
     }
     const recentWorkoutDays = recentDates.size;
 
@@ -99,6 +101,7 @@ export async function GET(request: NextRequest) {
       personalBests,
       consistencyScore,
       workoutDaysLast30: recentWorkoutDays,
+      activityMap,
     };
 
     setCache('/api/profile/stats', userId, responseData);
