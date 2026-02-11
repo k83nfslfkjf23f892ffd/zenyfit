@@ -910,19 +910,31 @@ export default function LogPage() {
                   const exerciseLabel = EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
                   const timeAgo = getTimeAgo(workout.timestamp);
+                  const isOffline = workout.id.startsWith('offline_');
 
                   return (
                     <div
                       key={workout.id}
                       onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-xl bg-surface border border-border p-3 transition-all duration-200 ${
+                      className={`flex items-center justify-between rounded-xl p-3 transition-all duration-200 ${
+                        isOffline
+                          ? 'bg-orange-500/5 border-2 border-dashed border-orange-400/60'
+                          : 'bg-surface border border-border'
+                      } ${
                         deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="text-sm font-medium">{exerciseLabel}</div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {exerciseLabel}
+                          {isOffline && (
+                            <span className="text-[10px] font-normal text-orange-500/80 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
+                              Pending sync
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
+                          {workout.amount} {unit}{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
                         </div>
                       </div>
                       {deleteMode && (
