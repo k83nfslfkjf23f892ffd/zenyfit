@@ -53,7 +53,7 @@ export function generateAvatarUrl(
     params.append('backgroundColor', backgroundColor);
   }
 
-  return `https://api.dicebear.com/7.x/${style}/svg?${params.toString()}`;
+  return `https://api.dicebear.com/9.x/${style}/png?${params.toString()}`;
 }
 
 // Generate avatar for username
@@ -111,7 +111,7 @@ export function getRandomFitnessAvatar(): string {
 // Parse a DiceBear URL to extract style and seed
 export function parseDiceBearUrl(url: string): { style: AvatarStyle; seed: string } | null {
   try {
-    const match = url.match(/dicebear\.com\/[\d.]+x\/([^/]+)\/svg\?(.+)/);
+    const match = url.match(/dicebear\.com\/[\d.]+x\/([^/]+)\/(?:svg|png)\?(.+)/);
     if (!match) return null;
 
     const style = match[1] as AvatarStyle;
@@ -175,6 +175,14 @@ export function isValidAvatarUrl(url: string): boolean {
   }
 }
 
+// Upgrade old DiceBear URLs (v7.x/svg) to current format (v9.x/png)
+function upgradeDiceBearUrl(url: string): string {
+  return url.replace(
+    /api\.dicebear\.com\/[\d.]+x\/([^/]+)\/svg\?/,
+    'api.dicebear.com/9.x/$1/png?'
+  );
+}
+
 // Get avatar display URL (with fallback)
 export function getAvatarDisplayUrl(
   avatar: string | null | undefined,
@@ -182,7 +190,7 @@ export function getAvatarDisplayUrl(
   style?: AvatarStyle
 ): string {
   if (avatar && isValidAvatarUrl(avatar)) {
-    return avatar;
+    return upgradeDiceBearUrl(avatar);
   }
 
   return getUserAvatar(username, style);

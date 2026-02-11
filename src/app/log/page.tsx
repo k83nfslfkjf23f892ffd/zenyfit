@@ -626,6 +626,7 @@ export default function LogPage() {
           return;
         }
 
+        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
         setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
         toast.success(`Undone (-${data.xpDeducted} XP)`);
         invalidateWorkoutCaches();
