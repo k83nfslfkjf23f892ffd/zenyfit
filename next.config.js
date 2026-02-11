@@ -12,6 +12,15 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   extendDefaultRuntimeCaching: true,
   workboxOptions: {
     runtimeCaching: [
+      // API routes: never SW-cache — dynamic data that changes on user
+      // actions (delete workout, log workout). The app uses localStorage
+      // for client-side caching instead. This overrides the default
+      // next-pwa rule that caches /api/ GETs for 24h.
+      {
+        urlPattern: ({ url: { pathname }, sameOrigin }) =>
+          sameOrigin && pathname.startsWith('/api/'),
+        handler: 'NetworkOnly',
+      },
       // Override default page strategies to add network timeout (3s)
       // so offline fallback to cache happens fast instead of waiting 30s+
       {
