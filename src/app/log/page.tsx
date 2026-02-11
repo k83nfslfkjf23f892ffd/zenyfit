@@ -342,7 +342,11 @@ export default function LogPage() {
       if (isOffline) {
         // Remove from IndexedDB queue
         await removePendingWorkout(workoutToDelete.id);
-        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setRecentWorkouts(prev => {
+          const updated = prev.filter(w => w.id !== workoutToDelete.id);
+          setCache(STORAGE_KEYS.recentWorkouts, updated);
+          return updated;
+        });
         setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
         toast.success('Deleted offline workout');
       } else {
@@ -364,7 +368,11 @@ export default function LogPage() {
           return;
         }
 
-        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setRecentWorkouts(prev => {
+          const updated = prev.filter(w => w.id !== workoutToDelete.id);
+          setCache(STORAGE_KEYS.recentWorkouts, updated);
+          return updated;
+        });
         setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
         invalidateWorkoutCaches();
         toast.success(`Deleted (-${data.xpDeducted} XP)`);
@@ -604,7 +612,11 @@ export default function LogPage() {
     try {
       if (isOffline) {
         await removePendingWorkout(lastWorkout.id);
-        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
+        setRecentWorkouts(prev => {
+          const updated = prev.filter(w => w.id !== lastWorkout.id);
+          setCache(STORAGE_KEYS.recentWorkouts, updated);
+          return updated;
+        });
         setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
         toast.success('Undone');
       } else {
@@ -626,7 +638,11 @@ export default function LogPage() {
           return;
         }
 
-        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
+        setRecentWorkouts(prev => {
+          const updated = prev.filter(w => w.id !== lastWorkout.id);
+          setCache(STORAGE_KEYS.recentWorkouts, updated);
+          return updated;
+        });
         setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
         toast.success(`Undone (-${data.xpDeducted} XP)`);
         invalidateWorkoutCaches();
