@@ -1,13 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Settings } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { getAvatarDisplayUrl } from '@/lib/avatar';
+import { getAvatarDisplayUrl, getAvatarInitials } from '@/lib/avatar';
 
 interface UserHeaderWidgetProps {
   user: {
@@ -23,19 +23,27 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
   const xpNeeded = getXPNeededForNextLevel(user.level);
   const progressPercent = (xpInLevel / xpNeeded) * 100;
   const avatarUrl = getAvatarDisplayUrl(user.avatar, user.username);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image
-            src={avatarUrl}
-            alt={user.username}
-            width={44}
-            height={44}
-            className="h-11 w-11 rounded-full bg-border/20 object-cover"
-            unoptimized
-          />
+          {imgError ? (
+            <div className="h-11 w-11 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+              {getAvatarInitials(user.username)}
+            </div>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarUrl}
+              alt={user.username}
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-full bg-border/20 object-cover"
+              onError={() => setImgError(true)}
+            />
+          )}
           <div>
             <h1 className="text-2xl font-bold gradient-text">
               {user.username}

@@ -406,16 +406,29 @@ export default function LogPage() {
         setCustomAmount('');
 
         const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
+        const xpEarned = Math.floor(totalAmount * xpRate);
+        const offlineId = `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const offlineEntry: RecentWorkout = {
-          id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          id: offlineId,
           type: activeExercise,
           amount: totalAmount,
-          xpEarned: Math.floor(totalAmount * xpRate),
+          xpEarned,
           timestamp: Date.now(),
         };
         setRecentWorkouts(prev => [offlineEntry, ...prev]);
 
-        toast.info('Saved offline — will sync when connected');
+        // Same celebration + undo as online logging
+        const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+        showWorkoutComplete(xpEarned, exerciseName, totalAmount);
+
+        setLastWorkout({
+          id: offlineId,
+          type: activeExercise,
+          amount: logAmount,
+          xpEarned,
+        });
+        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+        undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 10000);
       } catch (queueError) {
         console.error('Failed to queue offline workout:', queueError);
         toast.error('Failed to save workout');
@@ -496,18 +509,29 @@ export default function LogPage() {
           setSessionTotal(prev => prev + totalAmount);
           setCustomAmount('');
 
-          // Add synthetic entry to recent logs so the workout appears immediately
           const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
+          const xpEarned = Math.floor(totalAmount * xpRate);
+          const offlineId = `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           const offlineEntry: RecentWorkout = {
-            id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            id: offlineId,
             type: activeExercise,
             amount: totalAmount,
-            xpEarned: Math.floor(totalAmount * xpRate),
+            xpEarned,
             timestamp: Date.now(),
           };
           setRecentWorkouts(prev => [offlineEntry, ...prev]);
 
-          toast.info('Saved offline — will sync when connected');
+          const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+          showWorkoutComplete(xpEarned, exerciseName, totalAmount);
+
+          setLastWorkout({
+            id: offlineId,
+            type: activeExercise,
+            amount: logAmount,
+            xpEarned,
+          });
+          if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+          undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 10000);
         } catch (queueError) {
           console.error('Failed to queue offline workout:', queueError);
           toast.error('Failed to save workout');
@@ -574,31 +598,39 @@ export default function LogPage() {
   const handleUndo = async () => {
     if (!lastWorkout || undoing) return;
 
+    const isOffline = lastWorkout.id.startsWith('offline_');
+
     setUndoing(true);
     try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
+      if (isOffline) {
+        await removePendingWorkout(lastWorkout.id);
+        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
+        setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
+        toast.success('Undone');
+      } else {
+        const token = await firebaseUser?.getIdToken();
+        if (!token) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const response = await fetch(`/api/workouts/${lastWorkout.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          toast.error(data.error || 'Failed to undo');
+          return;
+        }
+
+        setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
+        toast.success(`Undone (-${data.xpDeducted} XP)`);
+        invalidateWorkoutCaches();
       }
 
-      const response = await fetch(`/api/workouts/${lastWorkout.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to undo');
-        return;
-      }
-
-      // Update session total
-      setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
-
-      toast.success(`Undone (-${data.xpDeducted} XP)`);
-      invalidateWorkoutCaches();
       setLastWorkout(null);
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
@@ -774,7 +806,7 @@ export default function LogPage() {
                               key={preset}
                               type="button"
                               variant="secondary"
-                              className="h-12 text-base font-semibold rounded-xl"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
                               onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
@@ -795,7 +827,7 @@ export default function LogPage() {
                               key={preset}
                               type="button"
                               variant="secondary"
-                              className="h-12 text-base font-semibold rounded-xl"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
                               onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
@@ -816,7 +848,7 @@ export default function LogPage() {
                               key={preset}
                               type="button"
                               variant="secondary"
-                              className="h-12 text-base font-semibold rounded-xl"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
                               onClick={() => handleQuickAdd(preset)}
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
@@ -846,7 +878,7 @@ export default function LogPage() {
                       key={preset}
                       type="button"
                       variant="secondary"
-                      className="h-12 text-base font-semibold rounded-xl"
+                      className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
