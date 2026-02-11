@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { BottomNav } from './BottomNav';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -12,6 +13,8 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { isScrolled } = useScrollPosition();
+  const { isOnline, isSyncing } = useOnlineStatus();
+  const bannerVisible = !isOnline || isSyncing;
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -42,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <OfflineBanner />
       </div>
 
-      <main className="relative z-10 container mx-auto max-w-2xl px-4 py-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))]">
+      <main className={`relative z-10 container mx-auto max-w-2xl px-4 py-6 pb-[calc(1.5rem+4rem+env(safe-area-inset-bottom))] ${bannerVisible ? 'pt-[calc(1.5rem+env(safe-area-inset-top)+2rem)]' : 'pt-[calc(1.5rem+env(safe-area-inset-top))]'}`}>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
