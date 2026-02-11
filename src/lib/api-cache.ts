@@ -14,7 +14,6 @@ const cache = new Map<string, CacheEntry>();
 
 /** Default TTLs per route (ms) */
 export const CACHE_TTLS = {
-  '/api/leaderboard/stats': 2 * 60 * 1000,
   '/api/leaderboard/trend': 2 * 60 * 1000,
   '/api/achievements': 2 * 60 * 1000,
   '/api/profile/stats': 2 * 60 * 1000,

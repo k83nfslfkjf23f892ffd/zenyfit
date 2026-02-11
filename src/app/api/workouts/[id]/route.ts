@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { invalidateCache } from '@/lib/api-cache';
-import { invalidateStatsCaches } from '@/lib/stats-cache';
 import { calculateLevel } from '@shared/constants';
 
 /**
@@ -157,8 +156,8 @@ export async function DELETE(
 
     await batch.commit();
 
-    // Invalidate all server-side caches affected by the deletion
-    invalidateStatsCaches(userId);
+    // Invalidate server-side caches (same-instance only; client-side cache
+    // invalidation handles the primary deduplication on serverless)
     invalidateCache('/api/leaderboard/trend', userId);
     invalidateCache('/api/leaderboard', userId);
     invalidateCache('/api/profile/stats', userId);

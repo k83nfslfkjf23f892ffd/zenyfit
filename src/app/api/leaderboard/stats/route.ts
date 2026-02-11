@@ -2,14 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { EXERCISE_INFO, EXERCISE_CATEGORIES } from '@shared/constants';
-import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
-import { communityCache, personalCache } from '@/lib/stats-cache';
+import { trackReads } from '@/lib/firestore-metrics';
 
 // Get calisthenics exercise types
 const CALISTHENICS_TYPES = EXERCISE_CATEGORIES.calisthenics.exercises;
-
-const COMMUNITY_TTL = 10 * 60 * 1000; // 10 minutes
-const PERSONAL_TTL = 5 * 60 * 1000;   // 5 minutes
 
 function getTimeRange(range: string) {
   const now = new Date();
@@ -183,116 +179,32 @@ export async function GET(request: NextRequest) {
     const { startTime, dateFormat, numPeriods, now } = getTimeRange(range);
     const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now);
 
-    // ── Community scope: shared cache + incremental updates ──
-    if (scope === 'community') {
-      const cacheKey = `community:${range}`;
-      const cached = communityCache.get(cacheKey);
+    // ── Build Firestore query ──
+    // Always query Firestore fresh — in-memory caches are unreliable on
+    // serverless (cross-instance invalidation doesn't work, and incremental
+    // caches can never subtract deleted workouts). Client-side caching
+    // handles request deduplication.
+    let query: FirebaseFirestore.Query = db.collection('exercise_logs')
+      .where('timestamp', '>', startTime)
+      .orderBy('timestamp', 'asc');
 
-      if (cached && Date.now() < cached.expiry) {
-        // Cache is fresh — check for new logs since last fetch
-        const newLogsQuery = db.collection('exercise_logs')
-          .where('timestamp', '>', cached.lastTimestamp)
-          .orderBy('timestamp', 'asc')
-          .limit(500);
-
-        const newSnapshot = await newLogsQuery.get();
-
-        if (newSnapshot.empty) {
-          // No new data, return cached response
-          trackCacheHit('leaderboard/stats', userId);
-          return NextResponse.json(cached.data, { status: 200 });
-        }
-
-        // Merge new logs into cached aggregation
-        trackReads('leaderboard/stats', newSnapshot.docs.length, userId);
-        processLogs(newSnapshot.docs, cached.aggregation, dateFormat);
-        const lastDoc = newSnapshot.docs[newSnapshot.docs.length - 1];
-        cached.lastTimestamp = lastDoc.data().timestamp;
-        cached.data = formatResponse(cached.aggregation, periodKeys, scope, range);
-
-        return NextResponse.json(cached.data, { status: 200 });
-      }
-
-      // Cache miss or expired — full query
-      const logsSnapshot = await db.collection('exercise_logs')
+    if (scope === 'personal') {
+      query = db.collection('exercise_logs')
+        .where('userId', '==', userId)
         .where('timestamp', '>', startTime)
         .orderBy('timestamp', 'asc')
-        .limit(5000)
-        .get();
-      trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
-
-      const agg = initAggregation(periodKeys);
-      processLogs(logsSnapshot.docs, agg, dateFormat);
-
-      const lastTimestamp = logsSnapshot.empty
-        ? startTime
-        : logsSnapshot.docs[logsSnapshot.docs.length - 1].data().timestamp;
-
-      const responseData = formatResponse(agg, periodKeys, scope, range);
-
-      communityCache.set(cacheKey, {
-        data: responseData,
-        expiry: Date.now() + COMMUNITY_TTL,
-        lastTimestamp,
-        aggregation: agg,
-      });
-
-      return NextResponse.json(responseData, { status: 200 });
+        .limit(2000);
+    } else {
+      query = query.limit(5000);
     }
 
-    // ── Personal scope: per-user cache + incremental updates ──
-    const personalKey = `${userId}:${range}`;
-    const cached = personalCache.get(personalKey);
-
-    if (cached && Date.now() < cached.expiry) {
-      // Check for new logs since last fetch
-      const newLogsQuery = db.collection('exercise_logs')
-        .where('userId', '==', userId)
-        .where('timestamp', '>', cached.lastTimestamp)
-        .orderBy('timestamp', 'asc')
-        .limit(500);
-
-      const newSnapshot = await newLogsQuery.get();
-
-      if (newSnapshot.empty) {
-        trackCacheHit('leaderboard/stats', userId);
-        return NextResponse.json(cached.data, { status: 200 });
-      }
-
-      trackReads('leaderboard/stats', newSnapshot.docs.length, userId);
-      processLogs(newSnapshot.docs, cached.aggregation, dateFormat);
-      const lastDoc = newSnapshot.docs[newSnapshot.docs.length - 1];
-      cached.lastTimestamp = lastDoc.data().timestamp;
-      cached.data = formatResponse(cached.aggregation, periodKeys, scope, range);
-
-      return NextResponse.json(cached.data, { status: 200 });
-    }
-
-    // Cache miss — full query
-    const logsSnapshot = await db.collection('exercise_logs')
-      .where('userId', '==', userId)
-      .where('timestamp', '>', startTime)
-      .orderBy('timestamp', 'asc')
-      .limit(2000)
-      .get();
+    const logsSnapshot = await query.get();
     trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
 
     const agg = initAggregation(periodKeys);
     processLogs(logsSnapshot.docs, agg, dateFormat);
 
-    const lastTimestamp = logsSnapshot.empty
-      ? startTime
-      : logsSnapshot.docs[logsSnapshot.docs.length - 1].data().timestamp;
-
     const responseData = formatResponse(agg, periodKeys, scope, range);
-
-    personalCache.set(personalKey, {
-      data: responseData,
-      expiry: Date.now() + PERSONAL_TTL,
-      lastTimestamp,
-      aggregation: agg,
-    });
-
     return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

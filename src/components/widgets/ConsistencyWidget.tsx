@@ -22,11 +22,14 @@ interface HeatmapData {
 const CACHE_TTL = CACHE_TTLS.profileStats;
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-function getIntensityClass(count: number): string {
-  if (count === 0) return 'bg-foreground/5';
-  if (count === 1) return 'bg-primary/25';
-  if (count === 2) return 'bg-primary/50';
-  return 'bg-primary/80';
+function getIntensityClass(count: number, maxCount: number): string {
+  if (count === 0) return 'bg-foreground/[0.06]';
+  // Normalize against the month's peak to get 4 GitHub-style intensity levels
+  const ratio = count / Math.max(maxCount, 1);
+  if (ratio <= 0.25) return 'bg-primary/20';
+  if (ratio <= 0.5) return 'bg-primary/40';
+  if (ratio <= 0.75) return 'bg-primary/65';
+  return 'bg-primary/90';
 }
 
 function buildMonthGrid(activityMap: Record<string, number>) {
@@ -129,6 +132,12 @@ export function ConsistencyWidget() {
     return buildMonthGrid(data?.activityMap || {});
   }, [data?.activityMap]);
 
+  const maxCount = useMemo(() => {
+    if (!data?.activityMap) return 1;
+    const counts = Object.values(data.activityMap);
+    return counts.length > 0 ? Math.max(...counts) : 1;
+  }, [data?.activityMap]);
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -150,9 +159,9 @@ export function ConsistencyWidget() {
             <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
           </div>
         ) : data ? (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {/* Day labels */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1.5">
               {DAY_LABELS.map((label, i) => (
                 <div key={i} className="text-[10px] text-foreground/40 text-center">
                   {label}
@@ -160,12 +169,12 @@ export function ConsistencyWidget() {
               ))}
             </div>
             {/* Heatmap grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1.5">
               {grid.cells.map((cell, i) => (
                 <div key={i} className="aspect-square flex items-center justify-center">
                   {cell.day !== null ? (
                     <div
-                      className={`w-full h-full rounded-[5px] flex items-center justify-center text-[10px] ${getIntensityClass(cell.count)} ${
+                      className={`w-full h-full rounded-lg flex items-center justify-center text-[10px] ${getIntensityClass(cell.count, maxCount)} ${
                         cell.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
                       }`}
                     >
@@ -177,10 +186,21 @@ export function ConsistencyWidget() {
                 </div>
               ))}
             </div>
-            {/* Summary */}
-            <p className="text-xs text-foreground/50 pt-1">
-              {data.activeDays} days active &middot; {data.totalWorkouts} workouts
-            </p>
+            {/* Legend + Summary */}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-foreground/50">
+                {data.activeDays} days active &middot; {data.totalWorkouts} workouts
+              </p>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-foreground/40">Less</span>
+                <div className="w-3 h-3 rounded bg-foreground/[0.06]" />
+                <div className="w-3 h-3 rounded bg-primary/20" />
+                <div className="w-3 h-3 rounded bg-primary/40" />
+                <div className="w-3 h-3 rounded bg-primary/65" />
+                <div className="w-3 h-3 rounded bg-primary/90" />
+                <span className="text-[10px] text-foreground/40">More</span>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-foreground/40">Unable to load data</p>
