@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import Image from 'next/image';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
 
@@ -322,6 +323,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
             {sortedParticipants.map((participant) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
               const isCurrentUser = user ? participant.userId === user.id : false;
+              const avatarUrl = getAvatarDisplayUrl(participant.avatar, participant.username);
               return (
                 <div
                   key={participant.userId}
@@ -333,12 +335,14 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                 >
                   <div className="flex items-center gap-3 mb-2">
                     {/* Avatar */}
-                    <div className="h-8 w-8 overflow-hidden rounded-full flex-shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getAvatarDisplayUrl(participant.avatar, participant.username)}
+                    <div className="h-8 w-8 overflow-hidden rounded-full flex-shrink-0 bg-border/20">
+                      <Image
+                        src={avatarUrl}
                         alt={participant.username}
+                        width={32}
+                        height={32}
                         className="h-full w-full object-cover"
+                        unoptimized={!avatarUrl.includes('dicebear.com')}
                       />
                     </div>
 
