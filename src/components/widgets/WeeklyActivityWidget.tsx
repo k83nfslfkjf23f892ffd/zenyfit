@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
 
 interface DayData {
   day: string;
@@ -30,6 +31,7 @@ interface ProfileStatsData {
 const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function WeeklyActivityWidget() {
+  const { isHolding, handlers } = useHoldToReveal();
   const { firebaseUser } = useAuth();
   const [data, setData] = useState<DayData[]>(() => {
     if (typeof window !== 'undefined') {
@@ -124,7 +126,7 @@ export function WeeklyActivityWidget() {
       <CardHeader>
         <CardTitle className="text-base">Weekly Activity</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent {...handlers}>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={data} barCategoryGap="25%">
             <XAxis
@@ -143,6 +145,7 @@ export function WeeklyActivityWidget() {
                 fontSize: '12px',
                 color: 'rgb(var(--foreground))',
               }}
+              wrapperStyle={tooltipVisibility(isHolding)}
             />
             <defs>
               <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">

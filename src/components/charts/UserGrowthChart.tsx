@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
 
 interface UserGrowthData {
   date: string;
@@ -28,6 +29,8 @@ export function UserGrowthChart({
   title = 'User Growth',
   description = 'Platform user growth over time',
 }: UserGrowthChartProps) {
+  const { isHolding, handlers } = useHoldToReveal();
+
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -50,7 +53,7 @@ export function UserGrowthChart({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data}>
             <defs>
@@ -84,6 +87,7 @@ export function UserGrowthChart({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              wrapperStyle={tooltipVisibility(isHolding)}
             />
             <Area
               type="monotone"

@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
+import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -107,6 +108,7 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 }
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
+  const { isHolding, handlers } = useHoldToReveal();
   const [scope, setScope] = useState<'personal' | 'community'>(() => {
     if (typeof window !== 'undefined') {
       return getSavedFilters().scope;
@@ -273,7 +275,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         </Tabs>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" {...handlers}>
         {/* Summary Stats */}
         {data && (
           <div className="grid grid-cols-2 gap-3">
@@ -323,7 +325,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={35}
                 />
-                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} />
+                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHolding)} />
                 <Area
                   type="monotone"
                   dataKey="reps"
@@ -359,7 +361,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHolding)} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}

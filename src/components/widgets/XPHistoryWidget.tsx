@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
+import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
 import {
   AreaChart,
   Area,
@@ -28,6 +29,7 @@ const CACHE_KEY = CACHE_KEYS.repsHistory;
 const CACHE_TTL = CACHE_TTLS.chartData;
 
 export function XPHistoryWidget() {
+  const { isHolding, handlers } = useHoldToReveal();
   const { user, firebaseUser } = useAuth();
   const [data, setData] = useState<RepsDay[]>(() => {
     if (typeof window !== 'undefined') {
@@ -145,7 +147,7 @@ export function XPHistoryWidget() {
           Reps This Week
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent {...handlers}>
         <ResponsiveContainer width="100%" height={180}>
           <AreaChart data={data}>
             <defs>
@@ -172,6 +174,7 @@ export function XPHistoryWidget() {
                 fontSize: '12px',
                 color: 'rgb(var(--foreground))',
               }}
+              wrapperStyle={tooltipVisibility(isHolding)}
             />
             <Area
               type="monotone"

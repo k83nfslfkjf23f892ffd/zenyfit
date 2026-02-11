@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
 
 interface WeeklyActivityData {
   day: string;
@@ -29,6 +30,7 @@ export function WeeklyActivityChart({
   title = 'Weekly Activity',
   description = 'Your workout activity this week',
 }: WeeklyActivityChartProps) {
+  const { isHolding, handlers } = useHoldToReveal();
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -51,7 +53,7 @@ export function WeeklyActivityChart({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -71,6 +73,7 @@ export function WeeklyActivityChart({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              wrapperStyle={tooltipVisibility(isHolding)}
             />
             <Legend />
             <Bar
