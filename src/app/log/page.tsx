@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil, WifiOff } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
-import { queueWorkout, getPendingWorkouts, onPendingCountChange } from '@/lib/offline-queue';
+import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -286,13 +286,17 @@ export default function LogPage() {
       try {
         const pending = await getPendingWorkouts();
         if (cancelled || pending.length === 0) return;
-        const offlineEntries: RecentWorkout[] = pending.map(pw => ({
-          id: pw.id,
-          type: pw.type,
-          amount: pw.amount * pw.sets,
-          xpEarned: 0,
-          timestamp: pw.queuedAt,
-        }));
+        const offlineEntries: RecentWorkout[] = pending.map(pw => {
+          const total = pw.amount * pw.sets;
+          const xpRate = XP_RATES[pw.type as keyof typeof XP_RATES] || 0;
+          return {
+            id: pw.id,
+            type: pw.type,
+            amount: total,
+            xpEarned: Math.floor(total * xpRate),
+            timestamp: pw.queuedAt,
+          };
+        });
         setRecentWorkouts(prev => {
           // Avoid duplicates — remove any existing offline entries, then prepend fresh ones
           const withoutOffline = prev.filter(w => !w.id.startsWith('offline_'));
@@ -327,31 +331,41 @@ export default function LogPage() {
   const handleConfirmDelete = async () => {
     if (!workoutToDelete || deletingId) return;
 
+    const isOffline = workoutToDelete.id.startsWith('offline_');
     setDeletingId(workoutToDelete.id);
+
     try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
+      if (isOffline) {
+        // Remove from IndexedDB queue
+        await removePendingWorkout(workoutToDelete.id);
+        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
+        toast.success('Deleted offline workout');
+      } else {
+        const token = await firebaseUser?.getIdToken();
+        if (!token) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const response = await fetch(`/api/workouts/${workoutToDelete.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          toast.error(data.error || 'Failed to delete');
+          return;
+        }
+
+        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
+        invalidateWorkoutCaches();
+        toast.success(`Deleted (-${data.xpDeducted} XP)`);
       }
 
-      const response = await fetch(`/api/workouts/${workoutToDelete.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to delete');
-        return;
-      }
-
-      // Remove from list and update session total
-      setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
-      setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
-      invalidateWorkoutCaches();
-      toast.success(`Deleted (-${data.xpDeducted} XP)`);
       setWorkoutToDelete(null);
       setDeleteMode(false);
     } catch (error) {
@@ -451,11 +465,12 @@ export default function LogPage() {
           setCustomAmount('');
 
           // Add synthetic entry to recent logs so the workout appears immediately
+          const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
           const offlineEntry: RecentWorkout = {
             id: `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             type: activeExercise,
             amount: totalAmount,
-            xpEarned: 0,
+            xpEarned: Math.floor(totalAmount * xpRate),
             timestamp: Date.now(),
           };
           setRecentWorkouts(prev => [offlineEntry, ...prev]);
@@ -863,33 +878,22 @@ export default function LogPage() {
                   const exerciseLabel = EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
                   const timeAgo = getTimeAgo(workout.timestamp);
-                  const isOffline = workout.id.startsWith('offline_');
 
                   return (
                     <div
                       key={workout.id}
-                      onClick={deleteMode && !isOffline ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-xl bg-surface border p-3 transition-all duration-200 ${
-                        isOffline ? 'border-dashed border-amber-500/40' : 'border-border'
-                      } ${
-                        deleteMode && !isOffline ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
+                      onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
+                      className={`flex items-center justify-between rounded-xl bg-surface border border-border p-3 transition-all duration-200 ${
+                        deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
                       <div className="flex-1">
                         <div className="text-sm font-medium">{exerciseLabel}</div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit} •{' '}
-                          {isOffline ? (
-                            <span className="inline-flex items-center gap-1 text-amber-500">
-                              <WifiOff className="h-3 w-3" />
-                              Offline
-                            </span>
-                          ) : (
-                            <>+{workout.xpEarned} XP • {timeAgo}</>
-                          )}
+                          {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
                         </div>
                       </div>
-                      {deleteMode && !isOffline && (
+                      {deleteMode && (
                         <Trash2 className="h-4 w-4 text-foreground/30" />
                       )}
                     </div>
@@ -979,13 +983,15 @@ export default function LogPage() {
                 {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>
               <div className="text-sm text-foreground/50">
-                {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'} • +{workoutToDelete.xpEarned} XP
+                {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'}{workoutToDelete.xpEarned > 0 ? ` • +${workoutToDelete.xpEarned} XP` : ''}
               </div>
             </div>
 
-            <p className="text-xs text-destructive mb-4">
-              This will deduct {workoutToDelete.xpEarned} XP from your total.
-            </p>
+            {!workoutToDelete.id.startsWith('offline_') && workoutToDelete.xpEarned > 0 && (
+              <p className="text-xs text-destructive mb-4">
+                This will deduct {workoutToDelete.xpEarned} XP from your total.
+              </p>
+            )}
 
             <div className="flex gap-3">
               <Button

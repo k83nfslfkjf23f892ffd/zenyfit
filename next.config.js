@@ -4,8 +4,62 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   register: true,
   skipWaiting: true,
   sw: 'sw.js',
-  cacheOnNavigation: true,
+  cacheOnFrontEndNav: true,
   reloadOnOnline: true,
+  fallbacks: {
+    document: '/~offline',
+  },
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    runtimeCaching: [
+      // Override default page strategies to add network timeout (3s)
+      // so offline fallback to cache happens fast instead of waiting 30s+
+      {
+        urlPattern: ({ request, url: { pathname }, sameOrigin }) =>
+          request.headers.get('RSC') === '1' &&
+          request.headers.get('Next-Router-Prefetch') === '1' &&
+          sameOrigin &&
+          !pathname.startsWith('/api/'),
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'pages-rsc-prefetch',
+          networkTimeoutSeconds: 3,
+          expiration: {
+            maxEntries: 32,
+            maxAgeSeconds: 86400,
+          },
+        },
+      },
+      {
+        urlPattern: ({ request, url: { pathname }, sameOrigin }) =>
+          request.headers.get('RSC') === '1' &&
+          sameOrigin &&
+          !pathname.startsWith('/api/'),
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'pages-rsc',
+          networkTimeoutSeconds: 3,
+          expiration: {
+            maxEntries: 32,
+            maxAgeSeconds: 86400,
+          },
+        },
+      },
+      {
+        urlPattern: ({ url: { pathname }, sameOrigin }) =>
+          sameOrigin && !pathname.startsWith('/api/'),
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'pages',
+          networkTimeoutSeconds: 3,
+          expiration: {
+            maxEntries: 32,
+            maxAgeSeconds: 86400,
+          },
+        },
+      },
+    ],
+  },
 });
 
 /** @type {import('next').NextConfig} */

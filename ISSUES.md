@@ -261,12 +261,215 @@
 
 ## PLANNED FEATURES
 
-*None currently*
+### Social Feed
+- **Status:** Open
+- **Priority:** High — core to app philosophy ("Others are working hard, I should too")
+- **Location:** `/social` is a "Coming Soon" placeholder
+- **Problem:** The #1 driver of social motivation doesn't exist yet. Users can't see friends' activity.
+- **Needs:** Friend system first (see below), then activity feed with workout posts
+
+### Friend System
+- **Status:** Open
+- **Priority:** High — foundation for social features
+- **Problem:** No follow/friend mechanism exists. Social features (feed, friend-only leaderboards, reactions) are blocked until this is built.
+- **Needs:** Follow model, friend requests, or invite-based connections
+
+### Push Notification Triggers
+- **Status:** Open
+- **Priority:** High
+- **Location:** Infrastructure built (`src/lib/push-notifications.ts`, `src/components/NotificationSettings.tsx`, `/api/notifications/subscribe`)
+- **Problem:** VAPID keys not configured, no server-side push sending, no triggers defined
+- **Triggers needed:** "Friend passed you on leaderboard", "Challenge ends in 24h", workout reminders, achievement alerts
+
+### Weekly/Monthly Goals
+- **Status:** Open
+- **Priority:** High — supports urgency principle
+- **Problem:** No goal-setting mechanism. "Do 100 push-ups this week" with progress bar creates focus and urgency.
+
+### Workout Templates/Routines
+- **Status:** Open
+- **Priority:** Medium
+- **Problem:** No way to save "Monday Push Day" as a template for quick logging
+- **Needs:** Pre-built routines (Push-Pull-Legs), customizable routines, schedule-based plans
+
+### Rest Timer
+- **Status:** Open
+- **Priority:** Medium
+- **Problem:** No in-app timer between sets
+- **Needs:** Audio alert, suggested rest time based on exercise type
+
+### More Achievements
+- **Status:** Open
+- **Priority:** Medium
+- **Problem:** Only 20 achievements across 4 categories
+- **Needs:** Tiered badges (bronze/silver/gold), seasonal achievements, rarity tiers, more granular milestones
+
+### Group Challenges (Teams)
+- **Status:** Open
+- **Priority:** Medium
+- **Problem:** Challenges are individual only. Teams competing against teams multiplies competition.
+
+### Data Export
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No CSV export of workout history or PDF progress reports
+
+### Workout Duration Tracking
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No timer during sessions, no total time tracked per workout
+
+### Comprehensive Analytics
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** Missing workout frequency trends (7/30/90 days), favorite exercises, volume progression, best day/time of week
+
+### Progress Photos
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No photo upload per workout/weekly, no side-by-side comparison
+
+### Body Measurements
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No weight/arms/chest/waist tracking with charts
+
+### Apple Health / Google Fit Integration
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No auto-import of steps, running distance, calories
+
+### Exercise Form Guides
+- **Status:** Open
+- **Priority:** Low
+- **Problem:** No video/GIF instruction per exercise, no form tips
+
+---
+
+## AUDIT FINDINGS (v2.4.0)
+
+*From comprehensive app audit. Items already fixed marked with ~~strikethrough~~.*
+
+### Security
+
+#### ~~Missing CSP Header~~ (Fixed v2.4.0)
+- Added Content-Security-Policy to `next.config.js`
+
+#### ~~Challenge Input Sanitization~~ (Fixed v2.4.0)
+- Challenge titles/descriptions now sanitized before storage
+
+#### No Audit Logging for Admin Actions
+- **Status:** Open
+- **Severity:** Medium
+- **Problem:** Admin actions (ban, delete, restore XP, recalculate, promote/demote) have no audit trail
+- **Fix:** Log admin actions to a Firestore `audit_log` collection
+
+#### Weak Password Policy
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** Only 7 chars minimum, no complexity requirements (uppercase, number, special char)
+
+#### User Cache in Plain localStorage
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** AuthContext caches user data as plain JSON in localStorage, accessible via XSS
+
+### Performance
+
+#### No Bundle Analyzer
+- **Status:** Open
+- **Problem:** No `@next/bundle-analyzer` configured. Firebase SDK ~130KB with no visibility into bundle composition.
+
+#### Limited Code Splitting
+- **Status:** Open
+- **Problem:** Only 1 dynamic import in the whole codebase (`LeaderboardCharts`). Missing lazy loads for:
+  - Admin panel components
+  - Challenge creation modal
+  - Chart components
+  - Moderation tabs
+
+#### No Error Tracking Service
+- **Status:** Open
+- **Problem:** No Sentry/LogRocket/Datadog. Errors only go to console.log, invisible in production.
+
+#### Dashboard Widgets Not Memoized
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** 9 widgets re-render during drag/toggle. `React.memo` could reduce unnecessary renders.
+
+#### Logo.svg is 90KB
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** Unoptimized SVG, not routed through `next/image`
+
+#### Service Account Key Parsed Every Call
+- **Status:** Open
+- **Severity:** Low
+- **Location:** `src/lib/firebase-admin.ts`
+- **Problem:** `FIREBASE_SERVICE_ACCOUNT_KEY` env var parsed on every `getAdminInstances()` call instead of cached
+
+### Architecture
+
+#### No Next.js Middleware for Auth
+- **Status:** Open
+- **Problem:** Auth verification duplicated in all 28 API routes. A centralized `src/middleware.ts` could handle auth + reduce boilerplate.
+
+#### Admin isAdmin Check Hits DB Every Request
+- **Status:** Open
+- **Problem:** Every admin API call queries Firestore to verify `isAdmin`. Should use Firebase Custom Claims to embed admin flag in ID token.
+
+### PWA
+
+#### Manifest Shortcuts Missing
+- **Status:** Open (quick win)
+- **Problem:** No app shortcuts defined in `manifest.json`
+- **Fix:** Add "Log Workout" and "Leaderboard" shortcuts (~10 lines)
+
+#### No Background Sync API
+- **Status:** Open
+- **Problem:** Offline workouts sync on-demand when app opens, not via Background Sync API (which syncs even when app is closed)
+
+#### Icon Maskable Purpose
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** Icons have "any maskable" purpose but spec recommends separate entries for "any" and "maskable"
+
+### Accessibility
+
+#### Minimal ARIA Attributes
+- **Status:** Open
+- **Problem:** Only 9 `aria-*` attributes in the entire codebase — very low for app of this size
+
+#### Icon-Only Buttons Missing aria-labels
+- **Status:** Open
+- **Problem:** Buttons with only icons have no accessible labels
+
+#### Charts Lack Screen Reader Descriptions
+- **Status:** Open
+- **Problem:** Recharts components have no text alternatives for screen readers
+
+#### No aria-live Regions
+- **Status:** Open
+- **Problem:** Real-time updates (offline banner, sync status, toasts) don't announce to screen readers
+
+#### Celebration Modals Missing ARIA
+- **Status:** Open
+- **Problem:** LevelUpCelebration, WorkoutCelebration, AchievementUnlock lack `aria-modal` and `aria-labelledby`
+
+### SEO (Minor — app is auth-gated)
+
+#### Missing robots.txt and sitemap.xml
+- **Status:** Open
+- **Severity:** Low
+- **Problem:** No robots.txt or sitemap. Minor since app is auth-gated.
 
 ---
 
 ## RECENTLY COMPLETED
 
+- v2.4.0: Workout Streaks — current/longest streak tracking, auto-update on log/delete, migration for existing users, new StreaksWidget on dashboard
+- v2.4.0: CSP header added to next.config.js
+- v2.4.0: Challenge title/description sanitization in POST /api/challenges
 - Dashboard widget customizer scroll fix - last item wasn't visible due to `overscroll-none` and missing bottom padding
 - XP info button on leaderboard - enlarged touch target (`p-2 -m-2`, icon `h-5 w-5`) for mobile accessibility
 - #20 Inefficient XP Rate Lookup - wrapped in `useMemo`
