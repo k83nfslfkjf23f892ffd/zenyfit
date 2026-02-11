@@ -38,7 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
-      <div className="relative z-20 pt-[env(safe-area-inset-top)]">
+      <div className="fixed top-[env(safe-area-inset-top)] left-0 right-0 z-30">
         <OfflineBanner />
       </div>
 

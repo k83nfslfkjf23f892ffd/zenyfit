@@ -23,7 +23,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Loader2, Pencil, Check, GripVertical } from 'lucide-react';
+import { Pencil, Check, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { DEFAULT_WIDGET_CONFIG, WIDGET_DEFINITIONS, getVisibleWidgets, getWidgetDefinition } from '@/lib/widgets';
 // listContainerVariants/listItemVariants removed — stagger variants caused
@@ -168,13 +168,7 @@ export default function DashboardPage() {
   if (!loading && !user) return null;
 
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   const visibleWidgets = getVisibleWidgets(localConfig);

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Users, Loader2 } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 
 export default function SocialPage() {
@@ -21,13 +21,7 @@ export default function SocialPage() {
   if (!loading && !user) return null;
 
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   return (

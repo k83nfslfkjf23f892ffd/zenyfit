@@ -79,15 +79,6 @@ function getTimeAgo(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
-// Exercise icons
-const EXERCISE_ICONS: Record<string, React.ReactNode> = {
-  pullups: <ArrowUp className="h-5 w-5" />,
-  pushups: <Minus className="h-5 w-5 rotate-90" />,
-  dips: <Circle className="h-5 w-5" />,
-  muscleups: <ArrowUp className="h-5 w-5" />,
-  hangs: <span className="text-lg">✊</span>,
-  running: <span className="text-lg">🏃</span>,
-};
 
 export default function LogPage() {
   const router = useRouter();
@@ -528,13 +519,7 @@ export default function LogPage() {
 
   // Show minimal loading while user is being fetched
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   // Main exercise types for quick selection (icon only)

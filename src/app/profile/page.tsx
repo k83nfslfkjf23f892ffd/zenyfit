@@ -202,13 +202,7 @@ export default function ProfilePage() {
   if (!loading && !user) return null;
 
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);

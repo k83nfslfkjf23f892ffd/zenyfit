@@ -123,13 +123,7 @@ export default function CreateChallengePage() {
   };
 
   if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   if (!user) {
