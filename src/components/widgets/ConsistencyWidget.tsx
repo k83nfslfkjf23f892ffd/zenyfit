@@ -70,8 +70,17 @@ function buildMonthGrid(activityMap: Record<string, number>) {
 
 function extractHeatmapData(stats: ProfileStatsData): HeatmapData {
   const activityMap = stats.activityMap || {};
-  const totalWorkouts = Object.values(activityMap).reduce((sum, c) => sum + c, 0);
-  const activeDays = Object.keys(activityMap).length;
+  // Only count workouts/days for the current month (matching the heatmap grid)
+  const now = new Date();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  let totalWorkouts = 0;
+  let activeDays = 0;
+  for (const [date, count] of Object.entries(activityMap)) {
+    if (date.startsWith(monthPrefix)) {
+      totalWorkouts += count;
+      activeDays++;
+    }
+  }
   return { activityMap, totalWorkouts, activeDays, estimatedExerciseSeconds: stats.estimatedExerciseSeconds || 0 };
 }
 
