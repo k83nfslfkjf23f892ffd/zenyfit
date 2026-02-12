@@ -16,7 +16,6 @@ export const CACHE_KEYS = {
   rankings: 'zenyfit_rankings_v2',
   chartData: 'zenyfit_chart_v2',
   chartFilters: 'zenyfit_chart_filters',
-  repsHistory: 'zenyfit_reps_history_v2',
   challengeProgress: 'zenyfit_challenge_progress_v1',
 } as const;
 
@@ -132,7 +131,6 @@ export function invalidateWorkoutCaches(): void {
     localStorage.removeItem(CACHE_KEYS.statsGrid);
     localStorage.removeItem(CACHE_KEYS.rankings);
     localStorage.removeItem(CACHE_KEYS.chartData);
-    localStorage.removeItem(CACHE_KEYS.repsHistory);
     localStorage.removeItem(CACHE_KEYS.challengeProgress);
   } catch {
     // Ignore storage errors

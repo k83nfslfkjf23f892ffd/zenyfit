@@ -6,5 +6,4 @@ export { StreaksWidget } from './StreaksWidget';
 export { ConsistencyWidget } from './ConsistencyWidget';
 export { PersonalBestsWidget } from './PersonalBestsWidget';
 export { ExerciseTotalsWidget } from './ExerciseTotalsWidget';
-export { XPHistoryWidget } from './XPHistoryWidget';
 export { ActiveChallengesWidget } from './ActiveChallengesWidget';

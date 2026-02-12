@@ -39,7 +39,6 @@ import {
   ConsistencyWidget,
   PersonalBestsWidget,
   ExerciseTotalsWidget,
-  XPHistoryWidget,
   ActiveChallengesWidget,
 } from '@/components/widgets';
 
@@ -64,10 +63,14 @@ export default function DashboardPage() {
     const savedOrder = config.order ?? DEFAULT_WIDGET_CONFIG.order;
     const savedHidden = config.hidden ?? [];
     const allValidIds = WIDGET_DEFINITIONS.map(w => w.id);
+    const validHidden = savedHidden.filter(id => allValidIds.includes(id));
     const missingIds = allValidIds.filter(id => !savedOrder.includes(id));
+    // Insert new widgets before hidden widgets so they appear visible
+    const visibleOrder = savedOrder.filter(id => !validHidden.includes(id));
+    const hiddenOrder = savedOrder.filter(id => validHidden.includes(id));
     setLocalConfig({
-      order: [...savedOrder, ...missingIds],
-      hidden: savedHidden.filter(id => allValidIds.includes(id)),
+      order: [...visibleOrder, ...missingIds, ...hiddenOrder],
+      hidden: validHidden,
     });
   }, [user?.dashboardWidgets, editMode]);
 
@@ -137,10 +140,25 @@ export default function DashboardPage() {
     setActiveId(null);
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = localConfig.order.indexOf(active.id as string);
-      const newIndex = localConfig.order.indexOf(over.id as string);
+      const draggedId = active.id as string;
+      const targetId = over.id as string;
+      const oldIndex = localConfig.order.indexOf(draggedId);
+      const newIndex = localConfig.order.indexOf(targetId);
       const newOrder = arrayMove(localConfig.order, oldIndex, newIndex);
-      const newConfig = { ...localConfig, order: newOrder };
+
+      // Update hidden status when dragging across the visible/hidden boundary
+      const wasHidden = localConfig.hidden.includes(draggedId);
+      const targetIsHidden = localConfig.hidden.includes(targetId);
+      let newHidden = localConfig.hidden;
+      if (!wasHidden && targetIsHidden) {
+        // Dragged visible widget into hidden zone → hide it
+        newHidden = [...newHidden, draggedId];
+      } else if (wasHidden && !targetIsHidden) {
+        // Dragged hidden widget into visible zone → show it
+        newHidden = newHidden.filter(id => id !== draggedId);
+      }
+
+      const newConfig = { order: newOrder, hidden: newHidden };
       setLocalConfig(newConfig);
       debouncedSave(newConfig);
     }
@@ -192,8 +210,6 @@ export default function DashboardPage() {
         return <PersonalBestsWidget />;
       case 'exercise-totals':
         return <ExerciseTotalsWidget totals={user.totals} />;
-      case 'reps-history':
-        return <XPHistoryWidget />;
       case 'active-challenges':
         return <ActiveChallengesWidget />;
       default:

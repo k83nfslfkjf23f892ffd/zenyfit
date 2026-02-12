@@ -49,11 +49,6 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Lifetime totals per exercise',
   },
   {
-    id: 'reps-history',
-    name: 'Reps This Week',
-    description: 'Daily rep count chart',
-  },
-  {
     id: 'active-challenges',
     name: 'Active Challenges',
     description: 'Current challenge progress',
@@ -71,7 +66,6 @@ export const DEFAULT_WIDGET_CONFIG = {
     'consistency',
     'personal-bests',
     'exercise-totals',
-    'reps-history',
     'active-challenges',
   ],
   hidden: [], // All widgets visible by default

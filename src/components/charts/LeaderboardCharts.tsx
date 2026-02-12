@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition, barHighlightCursor } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -366,12 +366,13 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={isHoldingBar ? barHighlightCursor : false} />
+                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
                   fill="rgb(var(--primary))"
-                  fillOpacity={isHoldingBar ? 0.4 : 1}
+                  fillOpacity={isHoldingBar ? 0.3 : 1}
+                  activeBar={isHoldingBar ? { fillOpacity: 1 } : false}
                   style={holdTransition}
                   animationDuration={400}
                 >
