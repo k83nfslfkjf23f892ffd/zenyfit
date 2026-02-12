@@ -9,10 +9,6 @@ export function useHoldToReveal(delay = 150) {
   const [isHolding, setIsHolding] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const start = useCallback(() => {
-    timerRef.current = setTimeout(() => setIsHolding(true), delay);
-  }, [delay]);
-
   const stop = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -21,11 +17,20 @@ export function useHoldToReveal(delay = 150) {
     setIsHolding(false);
   }, []);
 
+  const start = useCallback(() => {
+    timerRef.current = setTimeout(() => setIsHolding(true), delay);
+    // Listen globally so lifting finger outside the chart still dismisses
+    const onUp = () => {
+      stop();
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [delay, stop]);
+
   const handlers = {
     onPointerDown: start,
-    onPointerUp: stop,
-    onPointerLeave: stop,
-    onPointerCancel: stop,
     onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
     onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
     style: { touchAction: 'none' } as React.CSSProperties,
