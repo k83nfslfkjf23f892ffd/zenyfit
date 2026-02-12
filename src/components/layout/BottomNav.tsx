@@ -24,7 +24,9 @@ export function BottomNav() {
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         borderTop: '1px solid rgb(var(--glass-border) / 0.12)',
-        touchAction: 'manipulation',
+        touchAction: 'none',
+        overscrollBehavior: 'none',
+        overflow: 'hidden',
         WebkitTouchCallout: 'none',
       }}
       onContextMenu={(e) => e.preventDefault()}
