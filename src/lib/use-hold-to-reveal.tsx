@@ -26,6 +26,8 @@ export function useHoldToReveal(delay = 150) {
     onPointerUp: stop,
     onPointerLeave: stop,
     onPointerCancel: stop,
+    onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
+    onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
     style: { touchAction: 'none' } as React.CSSProperties,
   };
 
