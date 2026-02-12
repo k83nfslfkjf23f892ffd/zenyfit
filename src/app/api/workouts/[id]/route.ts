@@ -155,21 +155,33 @@ export async function DELETE(
       ...streakUpdate,
     });
 
-    // Decrement pre-aggregated monthly stats
+    // Decrement pre-aggregated monthly stats (personal + community)
     const deletedMonth = deletedDate.slice(0, 7); // "YYYY-MM"
-    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(deletedMonth);
     const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[type] || 0;
+
+    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(deletedMonth);
     batch.set(monthlyStatsRef, {
       [`activityMap.${deletedDate}`]: FieldValue.increment(-1),
       totalWorkouts: FieldValue.increment(-1),
       estimatedExerciseSeconds: FieldValue.increment(-(amount * secsPerUnit)),
+      [`exerciseByDay.${deletedDate}.${type}`]: FieldValue.increment(-amount),
+      [`xpByDay.${deletedDate}`]: FieldValue.increment(-xpEarned),
+    }, { merge: true });
+
+    const communityStatsRef = db.doc(`_system/communityStats_${deletedMonth}`);
+    batch.set(communityStatsRef, {
+      [`exerciseByDay.${deletedDate}.${type}`]: FieldValue.increment(-amount),
+      [`workoutsByDay.${deletedDate}`]: FieldValue.increment(-1),
+      [`xpByDay.${deletedDate}`]: FieldValue.increment(-xpEarned),
+      totalXp: FieldValue.increment(-xpEarned),
     }, { merge: true });
 
     await batch.commit();
 
-    // Invalidate server-side caches (same-instance only; client-side cache
-    // invalidation handles the primary deduplication on serverless)
+    // Invalidate server-side caches
     invalidateCache('/api/leaderboard/trend', userId);
+    invalidateCache('/api/leaderboard/stats', userId);
+    invalidateCache('/api/leaderboard/stats', '_community');
     invalidateCache('/api/leaderboard', userId);
     invalidateCache('/api/profile/stats', userId);
     invalidateCache('/api/achievements', userId);

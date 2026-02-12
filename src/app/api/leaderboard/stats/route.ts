@@ -6,7 +6,7 @@ import { getCached, setCache } from '@/lib/api-cache';
 import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
 // Get calisthenics exercise types
-const CALISTHENICS_TYPES = EXERCISE_CATEGORIES.calisthenics.exercises;
+const CALISTHENICS_TYPES: readonly string[] = EXERCISE_CATEGORIES.calisthenics.exercises;
 
 function getTimeRange(range: string) {
   const now = new Date();
@@ -190,25 +190,95 @@ export async function GET(request: NextRequest) {
     const { startTime, dateFormat, numPeriods, now } = getTimeRange(range);
     const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now);
 
-    let query: FirebaseFirestore.Query = db.collection('exercise_logs')
-      .where('timestamp', '>', startTime)
-      .orderBy('timestamp', 'asc');
-
-    if (scope === 'personal') {
-      query = db.collection('exercise_logs')
-        .where('userId', '==', userId)
-        .where('timestamp', '>', startTime)
-        .orderBy('timestamp', 'asc')
-        .limit(2000);
-    } else {
-      query = query.limit(5000);
-    }
-
-    const logsSnapshot = await query.get();
-    trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
-
     const agg = initAggregation(periodKeys);
-    processLogs(logsSnapshot.docs, agg, dateFormat);
+
+    if (range === 'daily') {
+      // Daily (half-hour) range: scan today's logs only (~10-50 docs)
+      let query: FirebaseFirestore.Query = db.collection('exercise_logs')
+        .where('timestamp', '>', startTime)
+        .orderBy('timestamp', 'asc');
+
+      if (scope === 'personal') {
+        query = db.collection('exercise_logs')
+          .where('userId', '==', userId)
+          .where('timestamp', '>', startTime)
+          .orderBy('timestamp', 'asc')
+          .limit(500);
+      } else {
+        query = query.limit(1000);
+      }
+
+      const logsSnapshot = await query.get();
+      trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
+      processLogs(logsSnapshot.docs, agg, dateFormat);
+    } else {
+      // Weekly/monthly: read from pre-aggregated docs (2-4 reads instead of 2000-5000)
+      const currentMonth = now.toISOString().slice(0, 7);
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonth = prevMonthDate.toISOString().slice(0, 7);
+
+      let docs: FirebaseFirestore.DocumentSnapshot[];
+      if (scope === 'community') {
+        docs = await Promise.all([
+          db.doc(`_system/communityStats_${currentMonth}`).get(),
+          db.doc(`_system/communityStats_${prevMonth}`).get(),
+        ]);
+      } else {
+        const col = db.collection('users').doc(userId).collection('monthlyStats');
+        docs = await Promise.all([
+          col.doc(currentMonth).get(),
+          col.doc(prevMonth).get(),
+        ]);
+      }
+      trackReads('leaderboard/stats', 2, userId);
+
+      const hasPreAggregated = docs.some(d => d.exists && d.data()?.exerciseByDay);
+
+      if (hasPreAggregated) {
+        // Build aggregation from pre-aggregated exerciseByDay data
+        const startDate = new Date(startTime).toISOString().split('T')[0];
+        for (const doc of docs) {
+          if (!doc.exists) continue;
+          const data = doc.data()!;
+          const exerciseByDay: Record<string, Record<string, number>> = data.exerciseByDay || {};
+          const workoutsByDay: Record<string, number> = data.workoutsByDay || {};
+
+          for (const [date, exercises] of Object.entries(exerciseByDay)) {
+            if (date < startDate) continue;
+            if (!agg.repsByPeriod[date]) continue;
+
+            for (const [type, amount] of Object.entries(exercises)) {
+              if (!CALISTHENICS_TYPES.includes(type) || amount <= 0) continue;
+              agg.repsByExercise[type] = (agg.repsByExercise[type] || 0) + amount;
+              agg.repsByPeriod[date][type] = (agg.repsByPeriod[date][type] || 0) + amount;
+              agg.activityByPeriod[date].reps += amount;
+            }
+
+            agg.activityByPeriod[date].workouts += workoutsByDay[date] || 0;
+            agg.totalWorkouts += workoutsByDay[date] || 0;
+          }
+        }
+      } else {
+        // Legacy fallback: scan logs (will be replaced as users log new workouts)
+        let query: FirebaseFirestore.Query = db.collection('exercise_logs')
+          .where('timestamp', '>', startTime)
+          .orderBy('timestamp', 'asc');
+
+        if (scope === 'personal') {
+          query = db.collection('exercise_logs')
+            .where('userId', '==', userId)
+            .where('timestamp', '>', startTime)
+            .orderBy('timestamp', 'asc')
+            .limit(2000);
+        } else {
+          query = query.limit(5000);
+        }
+
+        const logsSnapshot = await query.get();
+        trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
+        processLogs(logsSnapshot.docs, agg, dateFormat);
+      }
+    }
 
     const responseData = formatResponse(agg, periodKeys, scope, range);
     setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);

@@ -199,14 +199,27 @@ export async function POST(request: NextRequest) {
       lastWorkoutDate: workoutDate,
     });
 
-    // Pre-aggregate monthly stats (reduces stats endpoint from 500+ reads to 2)
+    // Pre-aggregate monthly stats (personal + community)
     const workoutMonth = workoutDate.slice(0, 7); // "YYYY-MM"
-    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(workoutMonth);
     const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[type] || 0;
+
+    // Personal monthly stats
+    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(workoutMonth);
     batch.set(monthlyStatsRef, {
       [`activityMap.${workoutDate}`]: FieldValue.increment(sets),
       totalWorkouts: FieldValue.increment(sets),
       estimatedExerciseSeconds: FieldValue.increment(sets * amount * secsPerUnit),
+      [`exerciseByDay.${workoutDate}.${type}`]: FieldValue.increment(totalAmount),
+      [`xpByDay.${workoutDate}`]: FieldValue.increment(totalXpEarned),
+    }, { merge: true });
+
+    // Community-wide monthly stats
+    const communityStatsRef = db.doc(`_system/communityStats_${workoutMonth}`);
+    batch.set(communityStatsRef, {
+      [`exerciseByDay.${workoutDate}.${type}`]: FieldValue.increment(totalAmount),
+      [`workoutsByDay.${workoutDate}`]: FieldValue.increment(sets),
+      [`xpByDay.${workoutDate}`]: FieldValue.increment(totalXpEarned),
+      totalXp: FieldValue.increment(totalXpEarned),
     }, { merge: true });
 
     await batch.commit();

@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     const workoutsSnapshot = await db.collection('exercise_logs').count().get();
     const totalWorkouts = workoutsSnapshot.data().count;
 
-    // Get total XP across all users
+    // Get total XP across all users (cached for 5 min, admin-only)
     const allUsersSnapshot = await db.collection('users').get();
     let totalXp = 0;
     allUsersSnapshot.docs.forEach(doc => {
