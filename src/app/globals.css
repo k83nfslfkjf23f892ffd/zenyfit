@@ -57,11 +57,6 @@
     @apply bg-background text-foreground;
     min-height: 100vh;
     min-height: -webkit-fill-available;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-  }
-  body::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
   }
 }
 
@@ -112,6 +107,15 @@
 /* Sonner toast notifications - respect iOS safe area */
 [data-sonner-toaster][data-y-position="top"] {
   top: calc(16px + env(safe-area-inset-top)) !important;
+}
+
+/* Hide scrollbars everywhere while keeping scroll functional */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 /* Make app feel native - prevent text selection and long-press preview */
