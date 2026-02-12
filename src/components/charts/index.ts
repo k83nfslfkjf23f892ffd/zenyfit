@@ -7,3 +7,4 @@
 export { UserGrowthChart } from './UserGrowthChart';
 export { WeeklyActivityChart } from './WeeklyActivityChart';
 export { ExerciseRatioChart } from './ExerciseRatioChart';
+export { ChallengeProgressChart } from './ChallengeProgressChart';

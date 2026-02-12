@@ -19,6 +19,7 @@ export const CACHE_TTLS = {
   '/api/profile/stats': 2 * 60 * 1000,
   '/api/leaderboard': 2 * 60 * 1000,
   '/api/challenges': 1 * 60 * 1000,
+  '/api/challenges/progress': 1 * 60 * 1000,
 } as const;
 
 /**

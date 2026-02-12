@@ -17,6 +17,7 @@ export const CACHE_KEYS = {
   chartData: 'zenyfit_chart_v2',
   chartFilters: 'zenyfit_chart_filters',
   repsHistory: 'zenyfit_reps_history_v2',
+  challengeProgress: 'zenyfit_challenge_progress_v1',
 } as const;
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
@@ -30,6 +31,7 @@ export const CACHE_TTLS = {
   rankings: 10 * 60 * 1000,      // 10 min — moderate churn
   chartData: 10 * 60 * 1000,     // 10 min — leaderboard charts
   challenges: 5 * 60 * 1000,     // 5 min  — keep fresh for timers
+  challengeProgress: 5 * 60 * 1000, // 5 min — same as challenges
 } as const;
 
 interface CacheWrapper<T> {
@@ -131,6 +133,7 @@ export function invalidateWorkoutCaches(): void {
     localStorage.removeItem(CACHE_KEYS.rankings);
     localStorage.removeItem(CACHE_KEYS.chartData);
     localStorage.removeItem(CACHE_KEYS.repsHistory);
+    localStorage.removeItem(CACHE_KEYS.challengeProgress);
   } catch {
     // Ignore storage errors
   }

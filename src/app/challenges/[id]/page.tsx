@@ -11,8 +11,14 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
+
+const ChallengeProgressChart = dynamic(
+  () => import('@/components/charts/ChallengeProgressChart').then((mod) => mod.ChallengeProgressChart),
+  { ssr: false }
+);
 
 interface Challenge {
   id: string;
@@ -305,6 +311,14 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
             )}
           </CardContent>
         </Card>
+
+        {/* Progress Chart */}
+        {challenge.participants.length > 0 && (
+          <ChallengeProgressChart
+            challengeId={challengeId}
+            firebaseUser={firebaseUser}
+          />
+        )}
 
         {/* Participants Leaderboard */}
         <Card>
