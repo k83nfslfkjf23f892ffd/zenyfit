@@ -108,7 +108,8 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 }
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
-  const { isHolding, handlers } = useHoldToReveal();
+  const { isHolding: isHoldingArea, handlers: areaHandlers } = useHoldToReveal();
+  const { isHolding: isHoldingBar, handlers: barHandlers } = useHoldToReveal();
   const [scope, setScope] = useState<'personal' | 'community'>(() => {
     if (typeof window !== 'undefined') {
       return getSavedFilters().scope;
@@ -275,7 +276,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         </Tabs>
       </CardHeader>
 
-      <CardContent className="space-y-4" {...handlers}>
+      <CardContent className="space-y-4">
         {/* Summary Stats */}
         {data && (
           <div className="grid grid-cols-2 gap-3">
@@ -300,7 +301,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
         {/* Reps Over Time Chart */}
         {data && data.activity.length > 0 && (
-          <div>
+          <div {...areaHandlers}>
             <h4 className="text-sm font-medium mb-2">Reps Over Time</h4>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={data.activity}>
@@ -325,16 +326,16 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={35}
                 />
-                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHolding)} cursor={isHolding ? <HighlightCursor /> : false} />
+                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
                 <Area
                   type="monotone"
                   dataKey="reps"
                   stroke="rgb(var(--primary))"
                   strokeWidth={2}
-                  strokeOpacity={isHolding ? 0.4 : 1}
+                  strokeOpacity={isHoldingArea ? 0.4 : 1}
                   fill="url(#repsGradient)"
-                  fillOpacity={isHolding ? 0.4 : 1}
-                  activeDot={isHolding ? holdActiveDot('rgb(var(--primary))') : false}
+                  fillOpacity={isHoldingArea ? 0.4 : 1}
+                  activeDot={isHoldingArea ? holdActiveDot('rgb(var(--primary))') : false}
                   style={holdTransition}
                   animationDuration={400}
                 />
@@ -345,7 +346,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
         {/* Exercise Breakdown Chart */}
         {data && data.exerciseTotals.length > 0 && (
-          <div>
+          <div {...barHandlers}>
             <h4 className="text-sm font-medium mb-2">By Exercise</h4>
             <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.length * 32)}>
               <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical">
@@ -365,12 +366,12 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHolding)} cursor={isHolding ? barHighlightCursor : false} />
+                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={isHoldingBar ? barHighlightCursor : false} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
                   fill="rgb(var(--primary))"
-                  fillOpacity={isHolding ? 0.4 : 1}
+                  fillOpacity={isHoldingBar ? 0.4 : 1}
                   style={holdTransition}
                   animationDuration={400}
                 >

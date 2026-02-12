@@ -41,32 +41,34 @@ export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
 }
 
 /**
- * Custom cursor for Line/Area charts — renders a vertical highlight band
- * at the active data point. Revolut-style visual feedback.
+ * Custom cursor for Line/Area charts — highlights a short segment of the
+ * chart line near the active data point with a soft glow.
  */
-export function HighlightCursor({ points, height }: { points?: Array<{ x: number }>; height?: number }) {
+export function HighlightCursor({ points }: { points?: Array<{ x: number; y: number }>; height?: number }) {
   if (!points?.[0]) return null;
-  const { x } = points[0];
-  const bandWidth = 28;
+  const { x, y } = points[0];
+  const segmentHeight = 40;
   return (
     <g>
-      <rect
-        x={x - bandWidth / 2}
-        y={0}
-        width={bandWidth}
-        height={height || 0}
-        fill="rgb(var(--foreground))"
-        fillOpacity={0.05}
-        rx={6}
+      {/* Soft glow behind the data point */}
+      <ellipse
+        cx={x}
+        cy={y}
+        rx={16}
+        ry={segmentHeight / 2}
+        fill="rgb(var(--primary))"
+        fillOpacity={0.12}
       />
+      {/* Short vertical tick at the data point */}
       <line
         x1={x}
-        y1={0}
+        y1={y - segmentHeight / 2}
         x2={x}
-        y2={height || 0}
-        stroke="rgb(var(--foreground))"
-        strokeOpacity={0.15}
-        strokeWidth={1}
+        y2={y + segmentHeight / 2}
+        stroke="rgb(var(--primary))"
+        strokeOpacity={0.25}
+        strokeWidth={1.5}
+        strokeLinecap="round"
       />
     </g>
   );
