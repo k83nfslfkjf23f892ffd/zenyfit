@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Loader2 } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface ParticipantInfo {
   userId: string;
@@ -223,6 +223,7 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
             <Tooltip
               content={<ChallengeTooltip unit={unit} />}
               wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={isHolding ? <HighlightCursor /> : false}
             />
             {participants.map((p) => (
               <Line
@@ -232,7 +233,10 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
                 name={p.username}
                 stroke={p.color}
                 strokeWidth={2}
+                strokeOpacity={isHolding ? 0.35 : 1}
                 dot={false}
+                activeDot={isHolding ? holdActiveDot(p.color) : false}
+                style={holdTransition}
                 animationDuration={400}
               />
             ))}

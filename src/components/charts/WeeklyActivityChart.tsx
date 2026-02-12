@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, barHighlightCursor, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface WeeklyActivityData {
   day: string;
@@ -74,19 +74,24 @@ export function WeeklyActivityChart({
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={isHolding ? barHighlightCursor : false}
             />
             <Legend />
             <Bar
               dataKey="workouts"
               fill="hsl(var(--primary))"
+              fillOpacity={isHolding ? 0.4 : 1}
               radius={[8, 8, 0, 0]}
               name="Workouts"
+              style={holdTransition}
             />
             <Bar
               dataKey="xp"
               fill="hsl(var(--chart-2))"
+              fillOpacity={isHolding ? 0.4 : 1}
               radius={[8, 8, 0, 0]}
               name="XP Earned"
+              style={holdTransition}
             />
           </BarChart>
         </ResponsiveContainer>

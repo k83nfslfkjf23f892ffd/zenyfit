@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition, barHighlightCursor } from '@/lib/use-hold-to-reveal';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -325,13 +325,17 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={35}
                 />
-                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHolding)} />
+                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHolding)} cursor={isHolding ? <HighlightCursor /> : false} />
                 <Area
                   type="monotone"
                   dataKey="reps"
                   stroke="rgb(var(--primary))"
                   strokeWidth={2}
+                  strokeOpacity={isHolding ? 0.4 : 1}
                   fill="url(#repsGradient)"
+                  fillOpacity={isHolding ? 0.4 : 1}
+                  activeDot={isHolding ? holdActiveDot('rgb(var(--primary))') : false}
+                  style={holdTransition}
                   animationDuration={400}
                 />
               </AreaChart>
@@ -361,11 +365,13 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHolding)} />
+                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHolding)} cursor={isHolding ? barHighlightCursor : false} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
                   fill="rgb(var(--primary))"
+                  fillOpacity={isHolding ? 0.4 : 1}
+                  style={holdTransition}
                   animationDuration={400}
                 >
                   {data.exerciseTotals.slice(0, 6).map((entry) => (

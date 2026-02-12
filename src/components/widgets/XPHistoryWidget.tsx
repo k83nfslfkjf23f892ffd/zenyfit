@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 import {
   AreaChart,
   Area,
@@ -175,14 +175,19 @@ export function XPHistoryWidget() {
                 color: 'rgb(var(--foreground))',
               }}
               wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={isHolding ? <HighlightCursor /> : false}
             />
             <Area
               type="monotone"
               dataKey="total"
               stroke="rgb(var(--primary))"
               strokeWidth={2}
+              strokeOpacity={isHolding ? 0.4 : 1}
               fill="url(#repsGradient)"
+              fillOpacity={isHolding ? 0.4 : 1}
               dot={false}
+              activeDot={isHolding ? holdActiveDot('rgb(var(--primary))') : false}
+              style={holdTransition}
             />
           </AreaChart>
         </ResponsiveContainer>

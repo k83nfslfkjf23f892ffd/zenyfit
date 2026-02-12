@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, barHighlightCursor, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface DayData {
   day: string;
@@ -137,7 +137,7 @@ export function WeeklyActivityWidget() {
             />
             <YAxis hide />
             <Tooltip
-              cursor={{ fill: 'rgb(var(--surface) / 0.3)' }}
+              cursor={isHolding ? barHighlightCursor : false}
               contentStyle={{
                 backgroundColor: 'rgb(var(--surface))',
                 border: '1px solid rgb(var(--border))',
@@ -156,7 +156,9 @@ export function WeeklyActivityWidget() {
             <Bar
               dataKey="workouts"
               fill="url(#barGradient)"
+              fillOpacity={isHolding ? 0.4 : 1}
               radius={[6, 6, 0, 0]}
+              style={holdTransition}
             />
           </BarChart>
         </ResponsiveContainer>

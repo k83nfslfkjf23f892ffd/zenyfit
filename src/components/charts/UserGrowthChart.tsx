@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useHoldToReveal, tooltipVisibility } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface UserGrowthData {
   date: string;
@@ -88,14 +88,18 @@ export function UserGrowthChart({
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={isHolding ? <HighlightCursor /> : false}
             />
             <Area
               type="monotone"
               dataKey="users"
               stroke="hsl(var(--primary))"
-              fillOpacity={1}
+              strokeOpacity={isHolding ? 0.4 : 1}
+              fillOpacity={isHolding ? 0.4 : 1}
               fill="url(#colorUsers)"
               name="Total Users"
+              activeDot={isHolding ? holdActiveDot('hsl(var(--primary))') : false}
+              style={holdTransition}
             />
           </AreaChart>
         </ResponsiveContainer>
