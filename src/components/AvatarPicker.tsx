@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getUserAvatar,
   getAvatarDisplayUrl,
   getAvatarInitials,
   getRandomFitnessAvatar,

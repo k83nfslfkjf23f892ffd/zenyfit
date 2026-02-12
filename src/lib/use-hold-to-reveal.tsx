@@ -41,37 +41,11 @@ export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
 }
 
 /**
- * Custom cursor for Line/Area charts — highlights a short segment of the
- * chart line near the active data point with a soft glow.
+ * No-op cursor — we rely solely on activeDot to highlight the touched point.
+ * Kept as a named export so existing imports don't break.
  */
-export function HighlightCursor({ points }: { points?: Array<{ x: number; y: number }>; height?: number }) {
-  if (!points?.[0]) return null;
-  const { x, y } = points[0];
-  const segmentHeight = 40;
-  return (
-    <g>
-      {/* Soft glow behind the data point */}
-      <ellipse
-        cx={x}
-        cy={y}
-        rx={16}
-        ry={segmentHeight / 2}
-        fill="rgb(var(--primary))"
-        fillOpacity={0.12}
-      />
-      {/* Short vertical tick at the data point */}
-      <line
-        x1={x}
-        y1={y - segmentHeight / 2}
-        x2={x}
-        y2={y + segmentHeight / 2}
-        stroke="rgb(var(--primary))"
-        strokeOpacity={0.25}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-    </g>
-  );
+export function HighlightCursor() {
+  return null;
 }
 
 /** Cursor config for Bar charts when holding — highlights the active bar area */

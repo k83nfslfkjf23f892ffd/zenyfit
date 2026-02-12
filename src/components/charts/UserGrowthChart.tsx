@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface UserGrowthData {
   date: string;
@@ -88,7 +88,7 @@ export function UserGrowthChart({
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
               wrapperStyle={tooltipVisibility(isHolding)}
-              cursor={isHolding ? <HighlightCursor /> : false}
+              cursor={false}
             />
             <Area
               type="monotone"
