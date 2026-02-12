@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { invalidateCache } from '@/lib/api-cache';
-import { calculateLevel } from '@shared/constants';
+import { calculateLevel, ESTIMATED_SECONDS_PER_UNIT } from '@shared/constants';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * DELETE /api/workouts/[id]
@@ -153,6 +154,16 @@ export async function DELETE(
       level: newLevel,
       ...streakUpdate,
     });
+
+    // Decrement pre-aggregated monthly stats
+    const deletedMonth = deletedDate.slice(0, 7); // "YYYY-MM"
+    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(deletedMonth);
+    const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[type] || 0;
+    batch.set(monthlyStatsRef, {
+      [`activityMap.${deletedDate}`]: FieldValue.increment(-1),
+      totalWorkouts: FieldValue.increment(-1),
+      estimatedExerciseSeconds: FieldValue.increment(-(amount * secsPerUnit)),
+    }, { merge: true });
 
     await batch.commit();
 

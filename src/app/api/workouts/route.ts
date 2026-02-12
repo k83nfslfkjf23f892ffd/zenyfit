@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { exerciseLogSchema } from '@shared/schema';
-import { XP_RATES, calculateLevel } from '@shared/constants';
+import { XP_RATES, ESTIMATED_SECONDS_PER_UNIT, calculateLevel } from '@shared/constants';
 import { trackReads, trackWrites } from '@/lib/firestore-metrics';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * POST /api/workouts
@@ -197,6 +198,16 @@ export async function POST(request: NextRequest) {
       longestStreak,
       lastWorkoutDate: workoutDate,
     });
+
+    // Pre-aggregate monthly stats (reduces stats endpoint from 500+ reads to 2)
+    const workoutMonth = workoutDate.slice(0, 7); // "YYYY-MM"
+    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(workoutMonth);
+    const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[type] || 0;
+    batch.set(monthlyStatsRef, {
+      [`activityMap.${workoutDate}`]: FieldValue.increment(sets),
+      totalWorkouts: FieldValue.increment(sets),
+      estimatedExerciseSeconds: FieldValue.increment(sets * amount * secsPerUnit),
+    }, { merge: true });
 
     await batch.commit();
     trackWrites('workouts', sets + 1, userId); // sets exercise_log docs + 1 user update

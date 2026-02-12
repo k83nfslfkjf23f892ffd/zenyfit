@@ -141,37 +141,100 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch only last 30 days of logs for consistency
-    const now = Date.now();
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    // Read pre-aggregated monthly stats (2 reads instead of 500+)
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7); // "YYYY-MM"
+    const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = prevMonthDate.toISOString().slice(0, 7);
 
-    const recentLogsSnapshot = await db
-      .collection('exercise_logs')
-      .where('userId', '==', userId)
-      .where('timestamp', '>=', thirtyDaysAgo)
-      .orderBy('timestamp', 'desc')
-      .limit(500)
-      .get();
-    trackReads('profile/stats', recentLogsSnapshot.docs.length, userId);
+    const monthlyStatsCol = db.collection('users').doc(userId).collection('monthlyStats');
+    const [currentMonthDoc, prevMonthDoc] = await Promise.all([
+      monthlyStatsCol.doc(currentMonth).get(),
+      monthlyStatsCol.doc(prevMonth).get(),
+    ]);
+    trackReads('profile/stats', 2, userId);
 
-    // Count workouts per day and unique workout days in last 30 days
-    const recentDates = new Set<string>();
+    // If monthly stats docs don't exist, fall back to scanning logs (one-time migration)
+    const hasMonthlyStats = currentMonthDoc.exists || prevMonthDoc.exists;
+
     const activityMap: Record<string, number> = {};
-    // Estimated exercise seconds for the current month
-    const currentMonthPrefix = new Date().toISOString().slice(0, 7); // "YYYY-MM"
     let estimatedExerciseSeconds = 0;
-    for (const doc of recentLogsSnapshot.docs) {
-      const log = doc.data();
-      const date = new Date(log.timestamp).toISOString().split('T')[0];
-      recentDates.add(date);
-      activityMap[date] = (activityMap[date] || 0) + 1;
-      // Accumulate estimated time for current month only
-      if (date.startsWith(currentMonthPrefix)) {
+    let recentWorkoutDays: number;
+
+    if (hasMonthlyStats) {
+      // Build activityMap from pre-aggregated data
+      const currentData = currentMonthDoc.exists ? currentMonthDoc.data()! : {};
+      const prevData = prevMonthDoc.exists ? prevMonthDoc.data()! : {};
+
+      const currentActivityMap: Record<string, number> = currentData.activityMap || {};
+      const prevActivityMap: Record<string, number> = prevData.activityMap || {};
+
+      // Merge both months, filtering to last 30 days
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const allDays = { ...prevActivityMap, ...currentActivityMap };
+
+      for (const [date, count] of Object.entries(allDays)) {
+        if (count > 0 && new Date(date + 'T00:00:00Z').getTime() >= thirtyDaysAgo) {
+          activityMap[date] = count;
+        }
+      }
+
+      recentWorkoutDays = Object.keys(activityMap).length;
+      estimatedExerciseSeconds = currentData.estimatedExerciseSeconds || 0;
+    } else {
+      // Legacy fallback: scan all logs for this period, then write monthly stats docs
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+      const recentLogsSnapshot = await db
+        .collection('exercise_logs')
+        .where('userId', '==', userId)
+        .where('timestamp', '>=', thirtyDaysAgo)
+        .orderBy('timestamp', 'desc')
+        .get();
+      trackReads('profile/stats', recentLogsSnapshot.docs.length, userId);
+
+      // Build activity maps per month for migration
+      const monthlyMaps: Record<string, Record<string, number>> = {};
+      const monthlyWorkouts: Record<string, number> = {};
+      const monthlySeconds: Record<string, number> = {};
+
+      for (const doc of recentLogsSnapshot.docs) {
+        const log = doc.data();
+        const date = new Date(log.timestamp).toISOString().split('T')[0];
+        const month = date.slice(0, 7);
+
+        if (!monthlyMaps[month]) {
+          monthlyMaps[month] = {};
+          monthlyWorkouts[month] = 0;
+          monthlySeconds[month] = 0;
+        }
+        monthlyMaps[month][date] = (monthlyMaps[month][date] || 0) + 1;
+        monthlyWorkouts[month]++;
         const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[log.type] || 0;
-        estimatedExerciseSeconds += (log.amount || 0) * secsPerUnit;
+        monthlySeconds[month] += (log.amount || 0) * secsPerUnit;
+
+        activityMap[date] = (activityMap[date] || 0) + 1;
+      }
+
+      recentWorkoutDays = Object.keys(activityMap).length;
+      estimatedExerciseSeconds = monthlySeconds[currentMonth] || 0;
+
+      // Write monthly stats docs for future reads (non-blocking migration)
+      try {
+        const batch = db.batch();
+        for (const [month, map] of Object.entries(monthlyMaps)) {
+          const ref = monthlyStatsCol.doc(month);
+          batch.set(ref, {
+            activityMap: map,
+            totalWorkouts: monthlyWorkouts[month],
+            estimatedExerciseSeconds: monthlySeconds[month],
+          });
+        }
+        await batch.commit();
+      } catch (migrationErr) {
+        console.error('Monthly stats migration failed (non-blocking):', migrationErr);
       }
     }
-    const recentWorkoutDays = recentDates.size;
 
     // Consistency score: perfect = 16+ days per month (4+ per week)
     const consistencyScore = Math.min(100, Math.round((recentWorkoutDays / 16) * 100));
