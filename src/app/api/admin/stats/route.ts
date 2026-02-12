@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 
 /**
  * Helper: Verify user is admin
@@ -45,6 +46,12 @@ export async function GET(request: NextRequest) {
     // Rate limiting
     const rateLimitResponse = rateLimitByUser(adminCheck.decodedToken!, request.nextUrl.pathname, RATE_LIMITS.ADMIN);
     if (rateLimitResponse) return rateLimitResponse;
+
+    // Server cache — admin stats don't need to be real-time
+    const cached = getCached('/api/admin/stats', adminCheck.userId!);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
 
     const { db } = getAdminInstances();
 
@@ -151,29 +158,29 @@ export async function GET(request: NextRequest) {
 
     const activeUsersLast7Days = activeUserIds.size;
 
-    return NextResponse.json(
-      {
-        overview: {
-          totalUsers,
-          activeUsers,
-          totalWorkouts,
-          totalXp,
-          totalChallenges,
-          activeChallenges,
-          totalInviteCodes,
-          usedInviteCodes,
-          totalCustomExercises,
-          activeUsersLast7Days,
-        },
-        growth: {
-          signupsByDay,
-          workoutsByDay,
-          xpByDay,
-        },
-        topUsers,
+    const responseData = {
+      overview: {
+        totalUsers,
+        activeUsers,
+        totalWorkouts,
+        totalXp,
+        totalChallenges,
+        activeChallenges,
+        totalInviteCodes,
+        usedInviteCodes,
+        totalCustomExercises,
+        activeUsersLast7Days,
       },
-      { status: 200 }
-    );
+      growth: {
+        signupsByDay,
+        workoutsByDay,
+        xpByDay,
+      },
+      topUsers,
+    };
+
+    setCache('/api/admin/stats', adminCheck.userId!, responseData);
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error) {
     console.error('Error in GET /api/admin/stats:', error);
     return NextResponse.json(

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { EXERCISE_INFO, EXERCISE_CATEGORIES } from '@shared/constants';
-import { trackReads } from '@/lib/firestore-metrics';
+import { getCached, setCache } from '@/lib/api-cache';
+import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 
 // Get calisthenics exercise types
 const CALISTHENICS_TYPES = EXERCISE_CATEGORIES.calisthenics.exercises;
@@ -171,19 +172,24 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = rateLimitByUser(decodedToken, request.nextUrl.pathname, RATE_LIMITS.READ_HEAVY);
     if (rateLimitResponse) return rateLimitResponse;
 
-    const { db } = getAdminInstances();
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope') || 'community';
     const range = searchParams.get('range') || 'weekly';
     const userId = decodedToken.uid;
+
+    // Server cache — community data shared across users, personal per-user
+    const cacheUser = scope === 'community' ? '_community' : userId;
+    const cacheParams = `${scope}_${range}`;
+    const cached = getCached('/api/leaderboard/stats', cacheUser, cacheParams);
+    if (cached) {
+      trackCacheHit('leaderboard/stats', userId);
+      return NextResponse.json(cached, { status: 200 });
+    }
+
+    const { db } = getAdminInstances();
     const { startTime, dateFormat, numPeriods, now } = getTimeRange(range);
     const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now);
 
-    // ── Build Firestore query ──
-    // Always query Firestore fresh — in-memory caches are unreliable on
-    // serverless (cross-instance invalidation doesn't work, and incremental
-    // caches can never subtract deleted workouts). Client-side caching
-    // handles request deduplication.
     let query: FirebaseFirestore.Query = db.collection('exercise_logs')
       .where('timestamp', '>', startTime)
       .orderBy('timestamp', 'asc');
@@ -205,6 +211,7 @@ export async function GET(request: NextRequest) {
     processLogs(logsSnapshot.docs, agg, dateFormat);
 
     const responseData = formatResponse(agg, periodKeys, scope, range);
+    setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);
     return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
