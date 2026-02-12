@@ -42,11 +42,22 @@ export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
 }
 
 /**
- * No-op cursor — we rely solely on activeDot to highlight the touched point.
- * Kept as a named export so existing imports don't break.
+ * Thin vertical line cursor at the active data point.
  */
-export function HighlightCursor() {
-  return null;
+export function HighlightCursor({ points, height }: { points?: Array<{ x: number }>; height?: number }) {
+  if (!points?.[0]) return null;
+  const { x } = points[0];
+  return (
+    <line
+      x1={x}
+      y1={0}
+      x2={x}
+      y2={height || 0}
+      stroke="rgb(var(--foreground))"
+      strokeOpacity={0.2}
+      strokeWidth={1}
+    />
+  );
 }
 
 /** Cursor config for Bar charts when holding — highlights the active bar area */

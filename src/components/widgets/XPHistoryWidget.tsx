@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 import {
   AreaChart,
   Area,
@@ -175,7 +175,7 @@ export function XPHistoryWidget() {
                 color: 'rgb(var(--foreground))',
               }}
               wrapperStyle={tooltipVisibility(isHolding)}
-              cursor={false}
+              cursor={isHolding ? <HighlightCursor /> : false}
             />
             <Area
               type="monotone"
