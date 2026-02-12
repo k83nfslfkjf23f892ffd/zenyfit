@@ -170,9 +170,13 @@ export default function DashboardPage() {
       let newHidden: string[];
       let newOrder: string[];
       if (isHidden) {
-        // Unhiding: remove from hidden, keep position
+        // Unhiding: remove from hidden, move to end of visible area
         newHidden = prev.hidden.filter(id => id !== widgetId);
-        newOrder = prev.order;
+        const orderWithout = prev.order.filter(id => id !== widgetId);
+        const firstHiddenIdx = orderWithout.findIndex(id => newHidden.includes(id));
+        newOrder = firstHiddenIdx === -1
+          ? [...orderWithout, widgetId]
+          : [...orderWithout.slice(0, firstHiddenIdx), widgetId, ...orderWithout.slice(firstHiddenIdx)];
       } else {
         // Hiding: add to hidden, move to end of order
         newHidden = [...prev.hidden, widgetId];
