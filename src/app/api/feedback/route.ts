@@ -74,6 +74,9 @@ export async function GET(request: NextRequest) {
       .get();
 
     const userId = decodedToken.uid;
+    const userDoc = await db.collection('users').doc(userId).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.isAdmin === true;
+
     const feedback = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
         category: data.category,
         message: data.message,
         createdAt: data.createdAt,
-        isOwn: data.userId === userId,
+        isOwn: data.userId === userId || isAdmin,
       };
     });
 
@@ -117,7 +120,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    if (doc.data()?.userId !== decodedToken.uid) {
+    // Allow owner or admin to delete
+    const isOwner = doc.data()?.userId === decodedToken.uid;
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.isAdmin === true;
+
+    if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: 'Not your feedback' }, { status: 403 });
     }
 
