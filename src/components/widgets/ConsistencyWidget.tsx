@@ -264,7 +264,7 @@ export function ConsistencyWidget() {
                 <div className="pt-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] text-foreground/50">
-                      ~{timeStr} exercising ({pct < 0.1 ? '<0.1' : pct.toFixed(1)}% of {grid.monthName})
+                      ~{timeStr} exercising ({pct < 0.1 ? '<0.1' : pct.toFixed(1)}% of {grid.monthName} so far)
                     </span>
                     <span className="text-[11px] font-medium text-foreground/60">
                       {data.activeDays}/{daysElapsed} days
