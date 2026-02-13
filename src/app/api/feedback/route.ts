@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     await db.collection('feedback').add({
       category,
       message: sanitized,
+      userId: decodedToken.uid,
       createdAt: Date.now(),
     });
 
@@ -72,14 +73,58 @@ export async function GET(request: NextRequest) {
       .limit(FEEDBACK_LIMIT)
       .get();
 
-    const feedback = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const userId = decodedToken.uid;
+    const feedback = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        category: data.category,
+        message: data.message,
+        createdAt: data.createdAt,
+        isOwn: data.userId === userId,
+      };
+    });
 
     return NextResponse.json({ feedback }, { status: 200 });
   } catch (error) {
     console.error('Error in GET /api/feedback:', error);
     return NextResponse.json({ error: 'Failed to fetch feedback' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/feedback — Delete own feedback
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const decodedToken = await verifyAuthToken(authHeader);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const feedbackId = searchParams.get('id');
+    if (!feedbackId) {
+      return NextResponse.json({ error: 'Missing feedback id' }, { status: 400 });
+    }
+
+    const { db } = getAdminInstances();
+    const docRef = db.collection('feedback').doc(feedbackId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    if (doc.data()?.userId !== decodedToken.uid) {
+      return NextResponse.json({ error: 'Not your feedback' }, { status: 403 });
+    }
+
+    await docRef.delete();
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error('Error in DELETE /api/feedback:', error);
+    return NextResponse.json({ error: 'Failed to delete feedback' }, { status: 500 });
   }
 }

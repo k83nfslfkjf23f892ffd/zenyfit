@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, Bug, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { Lightbulb, Bug, MessageCircle, Send, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { UserHeaderWidget } from '@/components/widgets';
@@ -26,6 +26,7 @@ interface FeedbackItem {
   category: Category;
   message: string;
   createdAt: number;
+  isOwn: boolean;
 }
 
 function timeAgo(timestamp: number): string {
@@ -118,6 +119,25 @@ export default function SocialPage() {
       toast.error('Network error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const token = await firebaseUserRef.current?.getIdToken();
+      if (!token) return;
+      const res = await fetch(`/api/feedback?id=${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setFeedback(prev => prev.filter(f => f.id !== id));
+        toast.success('Feedback deleted');
+      } else {
+        toast.error('Failed to delete');
+      }
+    } catch {
+      toast.error('Network error');
     }
   };
 
@@ -230,6 +250,14 @@ export default function SocialPage() {
                           {item.message}
                         </p>
                       </div>
+                      {item.isOwn && (
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="shrink-0 p-1.5 rounded-lg text-foreground/20 active:text-red-500 active:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
