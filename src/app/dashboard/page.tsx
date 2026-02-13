@@ -66,8 +66,8 @@ export default function DashboardPage() {
     const validHidden = savedHidden.filter(id => allValidIds.includes(id));
     const missingIds = allValidIds.filter(id => !savedOrder.includes(id));
     // Insert new widgets before hidden widgets so they appear visible
-    const visibleOrder = savedOrder.filter(id => !validHidden.includes(id));
-    const hiddenOrder = savedOrder.filter(id => validHidden.includes(id));
+    const visibleOrder = savedOrder.filter(id => allValidIds.includes(id) && !validHidden.includes(id));
+    const hiddenOrder = savedOrder.filter(id => allValidIds.includes(id) && validHidden.includes(id));
     setLocalConfig({
       order: [...visibleOrder, ...missingIds, ...hiddenOrder],
       hidden: validHidden,
