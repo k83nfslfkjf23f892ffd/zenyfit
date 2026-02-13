@@ -35,29 +35,29 @@ export interface Theme {
 // by OLED and Bright variants via resolveTheme().
 export const themes: Theme[] = [
   {
-    id: 'midnight',
-    name: 'Midnight',
+    id: 'forest',
+    name: 'Forest',
     isDark: true,
     colors: {
-      background: '13 13 28',
-      foreground: '226 232 240',
-      primary: '129 140 248',
+      background: '10 18 12',
+      foreground: '220 232 222',
+      primary: '34 197 94',
       primaryForeground: '255 255 255',
-      secondary: '99 102 241',
-      accent: '167 139 250',
-      muted: '30 30 52',
-      border: '45 45 80',
-      gradientFrom: '99 102 241',
-      gradientTo: '168 85 247',
+      secondary: '22 163 74',
+      accent: '74 222 128',
+      muted: '18 32 22',
+      border: '30 56 36',
+      gradientFrom: '22 163 74',
+      gradientTo: '34 197 94',
       glass: '255 255 255',
       glassBorder: '255 255 255',
-      glow: '129 140 248',
-      surface: '22 22 45',
-      chart1: '129 140 248',
-      chart2: '167 139 250',
-      chart3: '99 102 241',
-      chart4: '196 181 253',
-      chart5: '79 70 229',
+      glow: '34 197 94',
+      surface: '14 26 16',
+      chart1: '34 197 94',
+      chart2: '74 222 128',
+      chart3: '22 163 74',
+      chart4: '134 239 172',
+      chart5: '21 128 61',
     },
   },
   {
@@ -167,22 +167,22 @@ export const themes: Theme[] = [
   {
     id: 'daylight',
     name: 'Daylight',
-    isDark: false,
+    isDark: true,
     colors: {
-      background: '250 250 252',
-      foreground: '15 23 42',
+      background: '10 14 28',
+      foreground: '220 228 240',
       primary: '59 130 246',
       primaryForeground: '255 255 255',
       secondary: '37 99 235',
       accent: '99 102 241',
-      muted: '241 245 249',
-      border: '226 232 240',
+      muted: '20 26 48',
+      border: '35 42 72',
       gradientFrom: '59 130 246',
       gradientTo: '99 102 241',
       glass: '255 255 255',
-      glassBorder: '15 23 42',
+      glassBorder: '255 255 255',
       glow: '59 130 246',
-      surface: '255 255 255',
+      surface: '16 20 38',
       chart1: '59 130 246',
       chart2: '99 102 241',
       chart3: '37 99 235',
@@ -192,8 +192,8 @@ export const themes: Theme[] = [
   },
 ];
 
-// Parse a compound theme ID like "midnight-oled" into base + mode.
-// Bare IDs (e.g. "midnight") default to "dark" mode.
+// Parse a compound theme ID like "forest-oled" into base + mode.
+// Bare IDs (e.g. "forest") default to "dark" mode.
 export function parseThemeId(id: string): { baseId: string; mode: ThemeMode } {
   if (id.endsWith('-oled')) return { baseId: id.slice(0, -5), mode: 'oled' };
   if (id.endsWith('-bright')) return { baseId: id.slice(0, -7), mode: 'bright' };

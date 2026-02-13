@@ -36,14 +36,22 @@ export function ThemeSelector() {
     );
   }
 
-  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'midnight');
+  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'forest');
 
   const selectMode = (mode: ThemeMode) => {
     setTheme(composeThemeId(currentBase, mode));
   };
 
+  const modeOrder: ThemeMode[] = ['oled', 'dark', 'bright'];
+
   const selectTheme = (baseId: string) => {
-    setTheme(composeThemeId(baseId, currentMode));
+    if (baseId === currentBase) {
+      // Already selected — cycle to next brightness mode
+      const nextMode = modeOrder[(modeOrder.indexOf(currentMode) + 1) % modeOrder.length];
+      setTheme(composeThemeId(baseId, nextMode));
+    } else {
+      setTheme(composeThemeId(baseId, currentMode));
+    }
   };
 
   return (

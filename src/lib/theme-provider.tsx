@@ -64,7 +64,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="data-theme"
-      defaultTheme="midnight"
+      defaultTheme="forest"
       themes={ALL_THEME_IDS}
       enableSystem={false}
       disableTransitionOnChange={false}
