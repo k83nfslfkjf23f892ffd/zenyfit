@@ -1,5 +1,7 @@
 // Premium theme configuration for ZenyFit v2.0
 
+export type ThemeMode = 'oled' | 'dark' | 'bright';
+
 export interface Theme {
   id: string;
   name: string;
@@ -28,6 +30,9 @@ export interface Theme {
   };
 }
 
+// Base themes define the color identity (accent, primary, gradients, charts).
+// Background/surface/border are for the default "dark" mode and get overridden
+// by OLED and Bright variants via resolveTheme().
 export const themes: Theme[] = [
   {
     id: 'midnight',
@@ -187,8 +192,69 @@ export const themes: Theme[] = [
   },
 ];
 
-export function getThemeById(id: string): Theme | undefined {
-  return themes.find((t) => t.id === id);
+// Parse a compound theme ID like "midnight-oled" into base + mode.
+// Bare IDs (e.g. "midnight") default to "dark" mode.
+export function parseThemeId(id: string): { baseId: string; mode: ThemeMode } {
+  if (id.endsWith('-oled')) return { baseId: id.slice(0, -5), mode: 'oled' };
+  if (id.endsWith('-bright')) return { baseId: id.slice(0, -7), mode: 'bright' };
+  return { baseId: id, mode: 'dark' };
 }
 
-export const defaultTheme = themes.find(t => t.id === 'midnight') || themes[0];
+export function composeThemeId(baseId: string, mode: ThemeMode): string {
+  if (mode === 'dark') return baseId;
+  return `${baseId}-${mode}`;
+}
+
+// Resolve a compound theme ID into a full Theme object with derived colors.
+export function resolveTheme(id: string): Theme | undefined {
+  const { baseId, mode } = parseThemeId(id);
+  const base = themes.find((t) => t.id === baseId);
+  if (!base) return undefined;
+
+  if (mode === 'dark') return base;
+
+  if (mode === 'oled') {
+    return {
+      ...base,
+      id,
+      isDark: true,
+      colors: {
+        ...base.colors,
+        background: '0 0 0',
+        surface: '8 8 10',
+        muted: '14 14 18',
+        border: '24 24 30',
+      },
+    };
+  }
+
+  // bright
+  return {
+    ...base,
+    id,
+    isDark: false,
+    colors: {
+      ...base.colors,
+      background: '248 248 252',
+      foreground: '20 20 30',
+      surface: '255 255 255',
+      muted: '240 242 246',
+      border: '218 222 230',
+      glass: '255 255 255',
+      glassBorder: '20 20 30',
+    },
+  };
+}
+
+// All valid theme IDs (18 total: 6 base × 3 modes)
+export const ALL_THEME_IDS: string[] = themes.flatMap((t) => [
+  t.id,
+  `${t.id}-oled`,
+  `${t.id}-bright`,
+]);
+
+export function getThemeById(id: string): Theme | undefined {
+  return resolveTheme(id);
+}
+
+export const defaultTheme = themes[0];
