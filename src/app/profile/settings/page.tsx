@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
-import { LIMITS, APP_URL, APP_VERSION } from '@shared/constants';
+import { LIMITS, APP_URL } from '@shared/constants';
 import { ThemeSelector, ThemeModeToggle } from '@/components/ThemeSelector';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { NotificationSettings } from '@/components/NotificationSettings';
