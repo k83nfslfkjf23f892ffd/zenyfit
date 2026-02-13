@@ -1,0 +1,85 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
+import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { sanitizeText } from '@/lib/sanitize';
+
+const VALID_CATEGORIES = ['idea', 'bug', 'opinion'] as const;
+const MAX_MESSAGE_LENGTH = 500;
+const FEEDBACK_LIMIT = 50;
+
+/**
+ * POST /api/feedback — Submit anonymous feedback
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const decodedToken = await verifyAuthToken(authHeader);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Strict rate limit: 3 per hour
+    const rateLimitResponse = rateLimitByUser(
+      decodedToken,
+      '/api/feedback',
+      { maxRequests: 3, windowMs: 60 * 60 * 1000 }
+    );
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const body = await request.json();
+    const { category, message } = body;
+
+    if (!VALID_CATEGORIES.includes(category)) {
+      return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+    }
+
+    const sanitized = sanitizeText(message, MAX_MESSAGE_LENGTH);
+    if (!sanitized || sanitized.length < 3) {
+      return NextResponse.json({ error: 'Message too short' }, { status: 400 });
+    }
+
+    const { db } = getAdminInstances();
+    await db.collection('feedback').add({
+      category,
+      message: sanitized,
+      createdAt: Date.now(),
+    });
+
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error('Error in POST /api/feedback:', error);
+    return NextResponse.json({ error: 'Failed to submit feedback' }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/feedback — Fetch recent feedback
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const decodedToken = await verifyAuthToken(authHeader);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const rateLimitResponse = rateLimitByUser(decodedToken, '/api/feedback-read', RATE_LIMITS.MODERATE);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const { db } = getAdminInstances();
+    const snapshot = await db.collection('feedback')
+      .orderBy('createdAt', 'desc')
+      .limit(FEEDBACK_LIMIT)
+      .get();
+
+    const feedback = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return NextResponse.json({ feedback }, { status: 200 });
+  } catch (error) {
+    console.error('Error in GET /api/feedback:', error);
+    return NextResponse.json({ error: 'Failed to fetch feedback' }, { status: 500 });
+  }
+}

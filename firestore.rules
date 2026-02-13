@@ -94,6 +94,17 @@ service cloud.firestore {
     }
 
     // ========================================================================
+    // Feedback Collection
+    // ========================================================================
+    match /feedback/{feedbackId} {
+      // Any authenticated user can read feedback
+      allow read: if isAuthenticated();
+
+      // All writes must be done via Admin SDK (server-side)
+      allow write: if false;
+    }
+
+    // ========================================================================
     // Default: Deny all access
     // ========================================================================
     match /{document=**} {
