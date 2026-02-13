@@ -339,7 +339,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={35}
                   />
-                  <Tooltip content={(props) => {
+                  <Tooltip active={isHoldingArea || undefined} content={(props) => {
                     const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                     return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
                   }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
@@ -371,7 +371,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
           <CardContent>
             <div {...barHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
               <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.slice(0, 6).length * 40)}>
-                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={20}>
+                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
                   <XAxis
                     type="number"
@@ -388,7 +388,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={70}
                   />
-                  <Tooltip content={(props) => {
+                  <Tooltip active={isHoldingBar || undefined} content={(props) => {
                     const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                     return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
                   }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />

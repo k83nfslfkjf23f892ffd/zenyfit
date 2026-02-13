@@ -41,6 +41,7 @@ export function useHoldToReveal() {
 export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
   return {
     opacity: isHolding ? 1 : 0,
+    visibility: isHolding ? 'visible' as const : undefined,
     transition: 'none',
     pointerEvents: isHolding ? 'auto' as const : 'none' as const,
   };
