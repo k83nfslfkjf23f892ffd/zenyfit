@@ -15,10 +15,14 @@ export function useHoldToReveal() {
     lastTooltipRef.current = null;
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((e: React.PointerEvent) => {
     setIsHolding(true);
+    // Capture pointer so the chart keeps receiving move events even when finger leaves bounds
+    const target = e.currentTarget as HTMLElement;
+    try { target.setPointerCapture(e.pointerId); } catch {}
     // Listen globally so lifting finger outside the chart still dismisses
     const onUp = () => {
+      try { target.releasePointerCapture(e.pointerId); } catch {}
       stop();
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
