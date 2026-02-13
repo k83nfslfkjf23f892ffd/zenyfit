@@ -46,6 +46,18 @@ export async function GET(request: NextRequest) {
     const userData = userDoc.data()!;
     const personalBests: Record<string, number> = userData.personalBests || {};
 
+    // One-time migration: seed totalWorkoutSets from exercise log count
+    if (userData.totalWorkoutSets === undefined) {
+      const countSnapshot = await db.collection('exercise_logs')
+        .where('userId', '==', userId)
+        .count()
+        .get();
+      trackReads('profile/stats', 1, userId);
+      const totalSets = countSnapshot.data().count;
+      await userRef.update({ totalWorkoutSets: totalSets });
+      userData.totalWorkoutSets = totalSets;
+    }
+
     // One-time migration: if user has no personalBests or streaks, calculate from all logs
     const needsPBMigration = !userData.personalBests;
     const needsStreakMigration = userData.currentStreak === undefined;

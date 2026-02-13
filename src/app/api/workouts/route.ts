@@ -197,6 +197,7 @@ export async function POST(request: NextRequest) {
       currentStreak,
       longestStreak,
       lastWorkoutDate: workoutDate,
+      totalWorkoutSets: FieldValue.increment(sets),
     });
 
     // Pre-aggregate monthly stats (personal + community)

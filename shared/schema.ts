@@ -75,6 +75,7 @@ export const userSchema = z.object({
   currentStreak: z.number().int().min(0).optional(),
   longestStreak: z.number().int().min(0).optional(),
   lastWorkoutDate: z.string().optional(), // YYYY-MM-DD
+  totalWorkoutSets: z.number().int().min(0).optional(),
 });
 
 // ============================================================================

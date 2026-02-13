@@ -152,6 +152,7 @@ export async function DELETE(
       totals: newTotals,
       xp: newXp,
       level: newLevel,
+      totalWorkoutSets: FieldValue.increment(-1),
       ...streakUpdate,
     });
 
