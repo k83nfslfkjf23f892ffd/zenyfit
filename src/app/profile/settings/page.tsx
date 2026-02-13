@@ -11,7 +11,7 @@ import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCo
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { LIMITS, APP_URL, APP_VERSION, CHANGELOG } from '@shared/constants';
-import { ThemeSelector } from '@/components/ThemeSelector';
+import { ThemeSelector, ThemeModeToggle } from '@/components/ThemeSelector';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { NotificationSettings } from '@/components/NotificationSettings';
 
@@ -192,12 +192,15 @@ export default function SettingsPage() {
         {/* Theme Selector */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg gradient-bg-subtle">
-                <Palette className="h-4 w-4 text-primary" />
-              </div>
-              Theme
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                  <Palette className="h-4 w-4 text-primary" />
+                </div>
+                Theme
+              </CardTitle>
+              <ThemeModeToggle />
+            </div>
           </CardHeader>
           <CardContent>
             <ThemeSelector />

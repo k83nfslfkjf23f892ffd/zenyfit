@@ -12,6 +12,44 @@ const modes: { value: ThemeMode; label: string }[] = [
   { value: 'bright', label: 'Bright' },
 ];
 
+export function ThemeModeToggle() {
+  const { theme: currentTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-7 w-36 rounded-lg bg-border/20 animate-pulse" />;
+  }
+
+  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'forest');
+
+  const selectMode = (mode: ThemeMode) => {
+    setTheme(composeThemeId(currentBase, mode));
+  };
+
+  return (
+    <div className="inline-flex rounded-lg p-0.5 bg-muted/60">
+      {modes.map(({ value, label }) => (
+        <button
+          key={value}
+          onClick={() => selectMode(value)}
+          className={cn(
+            'px-3 py-1 text-xs font-medium rounded-md transition-all duration-200',
+            currentMode === value
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-foreground/50 active:text-foreground/80'
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ThemeSelector() {
   const { theme: currentTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -22,25 +60,18 @@ export function ThemeSelector() {
 
   if (!mounted) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-48 rounded-lg bg-border/20 animate-pulse ml-auto" />
-        <div className="grid grid-cols-3 gap-3">
-          {themes.map((theme) => (
-            <div
-              key={theme.id}
-              className="aspect-[4/3] rounded-xl bg-border/20 animate-pulse"
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        {themes.map((theme) => (
+          <div
+            key={theme.id}
+            className="aspect-[4/3] rounded-xl bg-border/20 animate-pulse"
+          />
+        ))}
       </div>
     );
   }
 
   const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'forest');
-
-  const selectMode = (mode: ThemeMode) => {
-    setTheme(composeThemeId(currentBase, mode));
-  };
 
   const modeOrder: ThemeMode[] = ['oled', 'dark', 'bright'];
 
@@ -55,28 +86,7 @@ export function ThemeSelector() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Brightness mode toggle */}
-      <div className="flex items-center justify-end">
-        <div className="inline-flex rounded-lg p-0.5 bg-muted/60">
-          {modes.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => selectMode(value)}
-              className={cn(
-                'px-3 py-1 text-xs font-medium rounded-md transition-all duration-200',
-                currentMode === value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-foreground/50 active:text-foreground/80'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Theme color grid */}
+    <div>
       <div className="grid grid-cols-3 gap-3">
         {themes.map((theme) => {
           const isSelected = currentBase === theme.id;
