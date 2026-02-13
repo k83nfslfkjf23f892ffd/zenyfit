@@ -128,6 +128,8 @@ export default function SocialPage() {
     <AppLayout>
       <UserHeaderWidget user={user} />
 
+      <div className="h-2" />
+
       <motion.div
         className="space-y-4 pb-6"
         variants={listContainerVariants}
