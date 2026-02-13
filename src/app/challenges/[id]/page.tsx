@@ -128,7 +128,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     } catch (error) {
       console.error('Error fetching challenge:', error);
       if (!getCachedChallenge(challengeId)) {
-        toast.error('An error occurred');
+        toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load challenge');
       }
     } finally {
       setLoadingChallenge(false);
@@ -167,7 +167,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
       }
     } catch (error) {
       console.error('Error joining challenge:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to join challenge');
     } finally {
       setJoining(false);
     }
@@ -195,7 +195,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   };
 
   const handleTouchEnd = () => {
-    if (pullDistance >= 60 && !refreshing) {
+    if (pullDistance >= 40 && !refreshing) {
       handleRefresh();
     }
     setPullDistance(0);
@@ -238,11 +238,11 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
         {(pullDistance > 0 || refreshing) && (
           <div
             className="flex justify-center items-center py-2"
-            style={{ height: refreshing ? 40 : Math.min(pullDistance, 60) }}
+            style={{ height: refreshing ? 40 : Math.min(pullDistance, 50) }}
           >
             <div
               className={`rounded-full border-2 p-1 transition-colors ${
-                pullDistance >= 60 || refreshing
+                pullDistance >= 40 || refreshing
                   ? 'border-primary text-primary'
                   : 'border-foreground/10 text-foreground/30'
               }`}

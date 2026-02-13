@@ -8,6 +8,8 @@ import { useState, useCallback, useRef } from 'react';
 export function useHoldToReveal(delay = 150) {
   const [isHolding, setIsHolding] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep track of the last tooltip props so tooltip persists when finger slides outside chart
+  const lastTooltipRef = useRef<{ active: boolean; payload: unknown[]; label: string } | null>(null);
 
   const stop = useCallback(() => {
     if (timerRef.current) {
@@ -15,6 +17,7 @@ export function useHoldToReveal(delay = 150) {
       timerRef.current = null;
     }
     setIsHolding(false);
+    lastTooltipRef.current = null;
   }, []);
 
   const start = useCallback(() => {
@@ -36,7 +39,7 @@ export function useHoldToReveal(delay = 150) {
     style: { touchAction: 'none' } as React.CSSProperties,
   };
 
-  return { isHolding, handlers };
+  return { isHolding, handlers, lastTooltipRef };
 }
 
 /** Style to apply to Recharts <Tooltip> wrapperStyle when using hold-to-reveal */
@@ -79,3 +82,35 @@ export function holdActiveDot(color: string) {
 export const holdTransition: React.CSSProperties = {
   transition: 'stroke-opacity 0.2s ease, fill-opacity 0.2s ease',
 };
+
+/**
+ * Creates a "sticky" tooltip that remembers the last data when the finger
+ * slides outside the chart area but is still held down.
+ */
+export function useStickyTooltip<P extends { active?: boolean; payload?: unknown[]; label?: string }>(
+  lastTooltipRef: React.MutableRefObject<{ active: boolean; payload: unknown[]; label: string } | null>,
+  isHolding: boolean,
+) {
+  return (props: P): P => {
+    // Save last active tooltip data
+    if (props.active && props.payload && props.payload.length > 0) {
+      lastTooltipRef.current = {
+        active: true,
+        payload: props.payload,
+        label: props.label || '',
+      };
+    }
+
+    // If holding but Recharts says inactive, use last known data
+    if (isHolding && !props.active && lastTooltipRef.current) {
+      return {
+        ...props,
+        active: true,
+        payload: lastTooltipRef.current.payload,
+        label: lastTooltipRef.current.label,
+      } as P;
+    }
+
+    return props;
+  };
+}

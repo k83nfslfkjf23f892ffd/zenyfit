@@ -226,8 +226,9 @@ export async function POST(request: NextRequest) {
     await batch.commit();
     trackWrites('workouts', sets + 1, userId); // sets exercise_log docs + 1 user update
 
-    // Check for active challenges that match this exercise type (non-blocking)
-    // If this fails, workout is still logged successfully
+    // Check for active challenges that match this exercise type
+    // If this fails, workout is still logged — we return a warning to the client
+    let challengeUpdateFailed = false;
     try {
       const now = Date.now();
       const challengesSnapshot = await db
@@ -270,8 +271,31 @@ export async function POST(request: NextRequest) {
         trackWrites('workouts', challengeUpdates.length, userId);
       }
     } catch (challengeError) {
-      // Log but don't fail the workout
-      console.error('Error updating challenges (workout still logged):', challengeError);
+      // Log but don't fail the workout — retry once
+      console.error('Challenge update failed, retrying once:', challengeError);
+      try {
+        const retrySnapshot = await db
+          .collection('challenges')
+          .where('participantIds', 'array-contains', userId)
+          .where('endDate', '>', Date.now())
+          .where('type', '==', type)
+          .get();
+        trackReads('workouts', retrySnapshot.docs.length, userId);
+
+        for (const challengeDoc of retrySnapshot.docs) {
+          const challengeData = challengeDoc.data();
+          const participants = challengeData.participants || [];
+          const idx = participants.findIndex((p: { userId: string }) => p.userId === userId);
+          if (idx !== -1) {
+            participants[idx].progress = (participants[idx].progress || 0) + totalAmount;
+            await challengeDoc.ref.update({ participants });
+            trackWrites('workouts', 1, userId);
+          }
+        }
+      } catch (retryError) {
+        console.error('Challenge update retry also failed:', retryError);
+        challengeUpdateFailed = true;
+      }
     }
 
     return NextResponse.json(
@@ -287,6 +311,7 @@ export async function POST(request: NextRequest) {
         newXp,
         newLevel,
         leveledUp: newLevel > userData.level,
+        ...(challengeUpdateFailed && { warning: 'Challenge progress may not have updated. Pull to refresh your challenge.' }),
       },
       { status: 201 }
     );

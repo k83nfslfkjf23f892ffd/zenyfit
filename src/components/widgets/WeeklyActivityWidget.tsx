@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { useHoldToReveal, tooltipVisibility, holdTransition } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, holdTransition, useStickyTooltip } from '@/lib/use-hold-to-reveal';
 
 interface DayData {
   day: string;
@@ -31,7 +31,8 @@ interface ProfileStatsData {
 const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function WeeklyActivityWidget() {
-  const { isHolding, handlers } = useHoldToReveal();
+  const { isHolding, handlers, lastTooltipRef } = useHoldToReveal();
+  const stickyProps = useStickyTooltip(lastTooltipRef, isHolding);
   const { firebaseUser } = useAuth();
   const [data, setData] = useState<DayData[]>(() => {
     if (typeof window !== 'undefined') {
@@ -98,8 +99,13 @@ export function WeeklyActivityWidget() {
           <CardTitle className="text-base">Weekly Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="h-[180px] flex items-end gap-3 px-2 pb-6">
+            {[40, 65, 30, 80, 55, 45, 70].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full rounded-t-md bg-border/20 animate-pulse" style={{ height: `${h}%` }} />
+                <div className="h-3 w-6 rounded bg-border/20 animate-pulse" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -126,7 +132,8 @@ export function WeeklyActivityWidget() {
       <CardHeader>
         <CardTitle className="text-base">Weekly Activity</CardTitle>
       </CardHeader>
-      <CardContent {...handlers}>
+      <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={data} barCategoryGap="25%">
             <XAxis
@@ -138,12 +145,16 @@ export function WeeklyActivityWidget() {
             <YAxis hide />
             <Tooltip
               cursor={false}
-              contentStyle={{
-                backgroundColor: 'rgb(var(--surface))',
-                border: '1px solid rgb(var(--border))',
-                borderRadius: '12px',
-                fontSize: '12px',
-                color: 'rgb(var(--foreground))',
+              content={(props) => {
+                const p = stickyProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                if (!p.active || !p.payload || (p.payload as Array<{ value: number }>).length === 0) return null;
+                const entry = (p.payload as Array<{ value: number }>)[0];
+                return (
+                  <div className="bg-surface rounded-xl px-3 py-2 shadow-lg border border-border text-xs text-foreground">
+                    <p className="text-foreground/40 mb-0.5">{p.label}</p>
+                    <p className="font-medium">{entry.value} workouts</p>
+                  </div>
+                );
               }}
               wrapperStyle={tooltipVisibility(isHolding)}
             />
@@ -163,6 +174,7 @@ export function WeeklyActivityWidget() {
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

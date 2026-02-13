@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { User, Users, Dumbbell } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition, useStickyTooltip } from '@/lib/use-hold-to-reveal';
 
 // Colors for different exercises - using theme colors with opacity variants
 const EXERCISE_COLORS: Record<string, string> = {
@@ -85,7 +85,7 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps) {
-  if (!active || !payload || payload.length === 0) return null;
+  if (!active || !payload) return null;
 
   return (
     <div className="bg-surface rounded-lg px-3 py-2 shadow-lg border border-border">
@@ -108,8 +108,10 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 }
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
-  const { isHolding: isHoldingArea, handlers: areaHandlers } = useHoldToReveal();
-  const { isHolding: isHoldingBar, handlers: barHandlers } = useHoldToReveal();
+  const { isHolding: isHoldingArea, handlers: areaHandlers, lastTooltipRef: areaTooltipRef } = useHoldToReveal();
+  const { isHolding: isHoldingBar, handlers: barHandlers, lastTooltipRef: barTooltipRef } = useHoldToReveal();
+  const stickyAreaProps = useStickyTooltip(areaTooltipRef, isHoldingArea);
+  const stickyBarProps = useStickyTooltip(barTooltipRef, isHoldingBar);
   const [scope, setScope] = useState<'personal' | 'community'>(() => {
     if (typeof window !== 'undefined') {
       return getSavedFilters().scope;
@@ -301,8 +303,9 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
         {/* Reps Over Time Chart */}
         {data && data.activity.length > 0 && (
-          <div {...areaHandlers}>
+          <div>
             <h4 className="text-sm font-medium mb-2">Reps Over Time</h4>
+            <div {...areaHandlers}>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={data.activity}>
                 <defs>
@@ -326,7 +329,10 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={35}
                 />
-                <Tooltip content={<CustomTooltip formatter={formatPeriod} />} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
+                <Tooltip content={(props) => {
+                  const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                  return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
+                }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
                 <Area
                   type="monotone"
                   dataKey="reps"
@@ -341,13 +347,15 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
 
         {/* Exercise Breakdown Chart */}
         {data && data.exerciseTotals.length > 0 && (
-          <div {...barHandlers}>
+          <div>
             <h4 className="text-sm font-medium mb-2">By Exercise</h4>
+            <div {...barHandlers}>
             <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.length * 32)}>
               <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
@@ -366,7 +374,10 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                   tickLine={false}
                   width={70}
                 />
-                <Tooltip content={<CustomTooltip />} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
+                <Tooltip content={(props) => {
+                  const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                  return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
+                }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
                 <Bar
                   dataKey="reps"
                   radius={[0, 4, 4, 0]}
@@ -385,6 +396,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
 

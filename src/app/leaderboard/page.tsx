@@ -114,7 +114,7 @@ export default function LeaderboardPage() {
       } catch (error) {
         console.error(error);
         if (!getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL)) {
-          toast.error('An error occurred');
+          toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load leaderboard');
         }
       } finally {
         setLoadingRankings(false);
@@ -182,8 +182,20 @@ export default function LeaderboardPage() {
 
           <TabsContent value={activeTab}>
             {loadingRankings ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl p-3 bg-surface/50 border border-border/50">
+                    <div className="h-10 w-10 rounded-full bg-border/20 animate-pulse" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-4 w-24 rounded bg-border/20 animate-pulse" />
+                      <div className="h-3 w-12 rounded bg-border/20 animate-pulse" />
+                    </div>
+                    <div className="text-right space-y-1.5">
+                      <div className="h-4 w-16 rounded bg-border/20 animate-pulse" />
+                      <div className="h-3 w-8 rounded bg-border/20 animate-pulse ml-auto" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : rankings.length === 0 ? (
               <p className="py-12 text-center text-sm text-foreground/40">

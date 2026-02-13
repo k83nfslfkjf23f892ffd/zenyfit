@@ -53,7 +53,8 @@ export function WeeklyActivityChart({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent {...handlers}>
+      <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -97,6 +98,7 @@ export function WeeklyActivityChart({
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

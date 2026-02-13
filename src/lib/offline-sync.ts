@@ -40,9 +40,15 @@ async function syncPendingWorkouts() {
 
   setSyncing(true);
   let syncedCount = 0;
+  let failedCount = 0;
+  const total = toSync.length;
 
   try {
     const token = await firebaseUserRef.getIdToken(true);
+
+    if (total > 1) {
+      toast.info(`Syncing ${total} workouts...`);
+    }
 
     for (const workout of toSync) {
       await markSyncing(workout.id);
@@ -71,7 +77,8 @@ async function syncPendingWorkouts() {
           if (response.status === 400) {
             console.error('Server rejected offline workout:', data.error);
             await removePendingWorkout(workout.id);
-            toast.error(`Failed to sync: ${data.error || 'Invalid workout'}`);
+            failedCount++;
+            toast.error(`Sync rejected: ${data.error || 'Invalid workout'}`);
           } else {
             // Transient error — mark back to pending for retry
             await markPending(workout.id);
@@ -92,11 +99,17 @@ async function syncPendingWorkouts() {
 
     if (syncedCount > 0) {
       invalidateWorkoutCaches();
-      toast.success(`${syncedCount} workout${syncedCount > 1 ? 's' : ''} synced`);
+      const remaining = total - syncedCount - failedCount;
+      if (remaining > 0) {
+        toast.warning(`${syncedCount} synced, ${remaining} still pending`);
+      } else {
+        toast.success(`${syncedCount} workout${syncedCount > 1 ? 's' : ''} synced`);
+      }
     }
   } catch {
     // Token refresh failed or other error — workouts stay queued
     console.error('Sync failed — will retry when online');
+    toast.error('Sync failed — will retry when back online');
   } finally {
     setSyncing(false);
   }

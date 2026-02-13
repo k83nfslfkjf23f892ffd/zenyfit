@@ -119,7 +119,7 @@ export default function ChallengesPage() {
     } catch (error) {
       console.error('Error fetching challenges:', error);
       if (!getNestedCache<{ challenges: Challenge[] }>(CACHE_KEYS.challenges, filter, CACHE_TTL)) {
-        toast.error('An error occurred');
+        toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load challenges');
       }
     } finally {
       setLoadingChallenges(false);
@@ -205,8 +205,22 @@ export default function ChallengesPage() {
 
           <TabsContent value={activeTab}>
             {loadingChallenges ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-surface border border-border rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1.5">
+                        <div className="h-5 w-36 rounded bg-border/20 animate-pulse" />
+                        <div className="h-3 w-48 rounded bg-border/20 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-24 rounded bg-border/20 animate-pulse" />
+                      <div className="h-4 w-20 rounded bg-border/20 animate-pulse" />
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-border/20 animate-pulse" />
+                  </div>
+                ))}
               </div>
             ) : challenges.length === 0 ? (
               <div className="py-12 text-center">

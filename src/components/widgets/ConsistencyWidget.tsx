@@ -190,8 +190,19 @@ export function ConsistencyWidget() {
       )}
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-7 gap-1.5">
+              {DAY_LABELS.map((label, i) => (
+                <div key={i} className="text-[10px] text-foreground/40 text-center">{label}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {Array.from({ length: 35 }).map((_, i) => (
+                <div key={i} className="aspect-square">
+                  <div className="w-full h-full rounded-lg bg-border/20 animate-pulse" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : data ? (
           <div className="space-y-2.5">

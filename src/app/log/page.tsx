@@ -147,6 +147,7 @@ export default function LogPage() {
   const [workoutToDelete, setWorkoutToDelete] = useState<RecentWorkout | null>(null);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTouchStartRef = useRef<{ x: number; y: number } | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if current selection is calisthenics
@@ -380,7 +381,7 @@ export default function LogPage() {
       setDeleteMode(false);
     } catch (error) {
       console.error('Error deleting workout:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to delete workout');
     } finally {
       setDeletingId(null);
     }
@@ -434,7 +435,7 @@ export default function LogPage() {
           xpEarned,
         });
         if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-        undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 10000);
+        undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 20000);
       } catch (queueError) {
         console.error('Failed to queue offline workout:', queueError);
         toast.error('Failed to save workout');
@@ -477,6 +478,11 @@ export default function LogPage() {
       const totalAmount = data.totalAmount || logAmount;
       setSessionTotal(prev => prev + totalAmount);
 
+      // Warn if challenge progress failed to update
+      if (data.warning) {
+        toast.warning(data.warning);
+      }
+
       // Show celebration with total XP and sets info
       const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
       showWorkoutComplete(data.xpEarned, exerciseName, totalAmount);
@@ -494,7 +500,7 @@ export default function LogPage() {
         clearTimeout(undoTimeoutRef.current);
       }
 
-      // Auto-dismiss undo after 10 seconds
+      // Auto-dismiss undo after 20 seconds
       undoTimeoutRef.current = setTimeout(() => {
         setLastWorkout(null);
       }, 10000);
@@ -537,14 +543,14 @@ export default function LogPage() {
             xpEarned,
           });
           if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-          undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 10000);
+          undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 20000);
         } catch (queueError) {
           console.error('Failed to queue offline workout:', queueError);
           toast.error('Failed to save workout');
         }
       } else {
         console.error('Error logging workout:', error);
-        toast.error('An error occurred');
+        toast.error('Something went wrong — please try again');
       }
     } finally {
       setLogging(false);
@@ -574,12 +580,32 @@ export default function LogPage() {
   // Long press handlers for sets x reps
   const handleLongPressStart = (preset: number) => {
     longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
       setReps(preset.toString());
       setSetsRepsModal({ preset, open: true });
-    }, 800);
+    }, 500);
+  };
+
+  const handleLongPressTouchStart = (preset: number, e: React.TouchEvent) => {
+    longPressTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    handleLongPressStart(preset);
+  };
+
+  const handleLongPressTouchMove = (e: React.TouchEvent) => {
+    // Only cancel if finger moves more than 10px — prevents scroll gestures from killing long-press
+    if (longPressTouchStartRef.current && longPressTimerRef.current) {
+      const dx = e.touches[0].clientX - longPressTouchStartRef.current.x;
+      const dy = e.touches[0].clientY - longPressTouchStartRef.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        longPressTouchStartRef.current = null;
+      }
+    }
   };
 
   const handleLongPressEnd = () => {
+    longPressTouchStartRef.current = null;
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -650,7 +676,7 @@ export default function LogPage() {
       }
     } catch (error) {
       console.error('Error undoing workout:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to undo workout');
     } finally {
       setUndoing(false);
     }
@@ -824,9 +850,9 @@ export default function LogPage() {
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
                               onMouseLeave={handleLongPressEnd}
-                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
                               onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}
@@ -845,9 +871,9 @@ export default function LogPage() {
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
                               onMouseLeave={handleLongPressEnd}
-                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
                               onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}
@@ -866,9 +892,9 @@ export default function LogPage() {
                               onMouseDown={() => handleLongPressStart(preset)}
                               onMouseUp={handleLongPressEnd}
                               onMouseLeave={handleLongPressEnd}
-                              onTouchStart={() => handleLongPressStart(preset)}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
                               onTouchEnd={handleLongPressEnd}
-                              onTouchMove={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
                               disabled={logging}
                             >
                               +{preset}{isHangType ? 's' : ''}

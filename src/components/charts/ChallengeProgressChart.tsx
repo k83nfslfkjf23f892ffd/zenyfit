@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Loader2 } from 'lucide-react';
 import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
-import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition, useStickyTooltip } from '@/lib/use-hold-to-reveal';
 
 interface ParticipantInfo {
   userId: string;
@@ -42,7 +42,7 @@ interface ChallengeTooltipProps {
 }
 
 function ChallengeTooltip({ active, payload, label, unit }: ChallengeTooltipProps) {
-  if (!active || !payload || payload.length === 0) return null;
+  if (!active || !payload) return null;
 
   return (
     <div className="bg-surface rounded-lg px-3 py-2 shadow-lg border border-border">
@@ -64,7 +64,8 @@ function ChallengeTooltip({ active, payload, label, unit }: ChallengeTooltipProp
 }
 
 export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeProgressChartProps) {
-  const { isHolding, handlers } = useHoldToReveal();
+  const { isHolding, handlers, lastTooltipRef } = useHoldToReveal();
+  const stickyProps = useStickyTooltip(lastTooltipRef, isHolding);
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +189,8 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
           {loading && <Loader2 className="h-4 w-4 animate-spin text-foreground/30" />}
         </CardTitle>
       </CardHeader>
-      <CardContent {...handlers}>
+      <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={progress}>
             <CartesianGrid
@@ -221,7 +223,10 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
               }}
             />
             <Tooltip
-              content={<ChallengeTooltip unit={unit} />}
+              content={(props) => {
+                const p = stickyProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                return <ChallengeTooltip active={p.active} payload={p.payload as ChallengeTooltipProps['payload']} label={p.label} unit={unit} />;
+              }}
               wrapperStyle={tooltipVisibility(isHolding)}
               cursor={isHolding ? <HighlightCursor /> : false}
             />
@@ -242,6 +247,7 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
             ))}
           </LineChart>
         </ResponsiveContainer>
+        </div>
 
         {/* Legend */}
         <div className="flex flex-wrap justify-center gap-3 mt-2">

@@ -2,7 +2,7 @@
 // App Version
 // ============================================================================
 
-export const APP_VERSION = '2.4.6';
+export const APP_VERSION = '2.5.0';
 export const APP_URL = 'https://zenyfit.vercel.app';
 
 // ============================================================================

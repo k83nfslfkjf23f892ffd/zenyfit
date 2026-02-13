@@ -40,12 +40,12 @@ interface ProfileStats {
   workoutDaysLast30: number;
 }
 
-function buildStatsFromCache(): Stats | null {
+function buildStatsFromCache(userTotalSets: number): Stats | null {
   const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
   const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
   if (!trend && !achievements) return null;
   return {
-    totalWorkouts: trend?.data.totalWorkouts || 0,
+    totalWorkouts: userTotalSets,
     thisWeekWorkouts: trend?.data.totalWorkouts || 0,
     totalXP: trend?.data.totalXp || 0,
     thisWeekXP: trend?.data.totalXp || 0,
@@ -64,16 +64,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
+  const userTotalSets = user?.totalWorkoutSets ?? 0;
   const [stats, setStats] = useState<Stats>(() => {
     if (typeof window !== 'undefined') {
-      return buildStatsFromCache() || {
-        totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0,
+      return buildStatsFromCache(userTotalSets) || {
+        totalWorkouts: userTotalSets, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0,
       };
     }
-    return { totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0 };
+    return { totalWorkouts: userTotalSets, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0 };
   });
   const [loadingStats, setLoadingStats] = useState(() => {
-    if (typeof window !== 'undefined') return !buildStatsFromCache();
+    if (typeof window !== 'undefined') return !buildStatsFromCache(userTotalSets);
     return true;
   });
   const [updating, setUpdating] = useState(false);
@@ -101,7 +102,7 @@ export default function ProfilePage() {
       const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
       if (trendCache || achievementsCache) {
-        const cached = buildStatsFromCache();
+        const cached = buildStatsFromCache(userTotalSets);
         if (cached) {
           setStats(cached);
           setLoadingStats(false);
@@ -142,7 +143,7 @@ export default function ProfilePage() {
       }
 
       const newStats = {
-        totalWorkouts: trendData.totalWorkouts || 0,
+        totalWorkouts: userTotalSets,
         thisWeekWorkouts: trendData.totalWorkouts || 0,
         totalXP: trendData.totalXp || 0,
         thisWeekXP: trendData.totalXp || 0,
@@ -156,7 +157,7 @@ export default function ProfilePage() {
       setLoadingStats(false);
       setUpdating(false);
     }
-  }, [firebaseUser, user?.id]);
+  }, [firebaseUser, user?.id, userTotalSets]);
 
   useEffect(() => {
     if (user && firebaseUser) fetchStats();
@@ -294,8 +295,12 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             {loadingProfileStats ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-9 w-16 rounded bg-border/20 animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-border/20 animate-pulse" />
+                </div>
+                <div className="h-2 w-full rounded-full bg-border/20 animate-pulse" />
               </div>
             ) : profileStats ? (
               <div className="space-y-3">
@@ -327,8 +332,13 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {loadingProfileStats ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
+                    <div className="h-4 w-20 rounded bg-border/20 animate-pulse" />
+                    <div className="h-4 w-14 rounded bg-border/20 animate-pulse" />
+                  </div>
+                ))}
               </div>
             ) : profileStats && Object.keys(profileStats.personalBests).length > 0 ? (
               Object.entries(profileStats.personalBests)

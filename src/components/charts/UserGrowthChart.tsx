@@ -53,7 +53,8 @@ export function UserGrowthChart({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent {...handlers}>
+      <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data}>
             <defs>
@@ -103,6 +104,7 @@ export function UserGrowthChart({
             />
           </AreaChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

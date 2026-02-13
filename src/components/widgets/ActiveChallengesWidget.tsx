@@ -116,8 +116,20 @@ export function ActiveChallengesWidget() {
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="space-y-2">
+            {[1, 2].map(i => (
+              <div key={i} className="rounded-xl bg-surface border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-32 rounded bg-border/20 animate-pulse" />
+                  <div className="h-3 w-14 rounded bg-border/20 animate-pulse" />
+                </div>
+                <div className="h-2 w-full rounded-full bg-border/20 animate-pulse" />
+                <div className="flex justify-between">
+                  <div className="h-3 w-16 rounded bg-border/20 animate-pulse" />
+                  <div className="h-3 w-8 rounded bg-border/20 animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : challenges.length > 0 ? (
           challenges.map((challenge) => {

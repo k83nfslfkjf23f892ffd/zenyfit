@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { formatSecondsAsMinutes } from '@shared/constants';
@@ -15,7 +16,7 @@ const exercises = [
   { key: 'running', label: 'Running', unit: ' km' },
 ];
 
-export function ExerciseTotalsWidget({ totals }: ExerciseTotalsWidgetProps) {
+export const ExerciseTotalsWidget = memo(function ExerciseTotalsWidget({ totals }: ExerciseTotalsWidgetProps) {
   const hangSeconds = (totals.passive_dead_hang || 0) + (totals.active_dead_hang || 0) + (totals.flexed_arm_hang || 0);
 
   return (
@@ -37,4 +38,4 @@ export function ExerciseTotalsWidget({ totals }: ExerciseTotalsWidgetProps) {
       </CardContent>
     </Card>
   );
-}
+});

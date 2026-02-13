@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Flame, Trophy, Loader2 } from 'lucide-react';
+import { Flame, Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 function getMotivationalText(streak: number): string {
@@ -78,8 +78,22 @@ export function StreaksWidget() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-border/20 animate-pulse" />
+              <div className="flex flex-col gap-1">
+                <div className="h-3 w-8 rounded bg-border/20 animate-pulse" />
+                <div className="h-3 w-12 rounded bg-border/20 animate-pulse" />
+              </div>
+            </div>
+            <div className="h-10 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded bg-border/20 animate-pulse" />
+              <div className="flex flex-col gap-1">
+                <div className="h-3 w-6 rounded bg-border/20 animate-pulse" />
+                <div className="h-3 w-8 rounded bg-border/20 animate-pulse" />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-6">

@@ -84,8 +84,13 @@ export function PersonalBestsWidget() {
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-surface border border-border p-3">
+                <div className="h-4 w-20 rounded bg-border/20 animate-pulse" />
+                <div className="h-4 w-14 rounded bg-border/20 animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : Object.keys(personalBests).length > 0 ? (
           Object.entries(personalBests)

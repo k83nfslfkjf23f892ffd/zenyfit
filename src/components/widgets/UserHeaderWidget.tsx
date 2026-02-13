@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Settings } from 'lucide-react';
@@ -19,7 +19,7 @@ interface UserHeaderWidgetProps {
   };
 }
 
-export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
+export const UserHeaderWidget = memo(function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
   const xpNeeded = getXPNeededForNextLevel(user.level);
   const progressPercent = (xpInLevel / xpNeeded) * 100;
@@ -80,4 +80,4 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
       </div>
     </div>
   );
-}
+});
