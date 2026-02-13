@@ -24,7 +24,7 @@ export function ThemeModeToggle() {
     return <div className="h-7 w-36 rounded-lg bg-border/20 animate-pulse" />;
   }
 
-  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'forest');
+  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'daylight');
 
   const selectMode = (mode: ThemeMode) => {
     setTheme(composeThemeId(currentBase, mode));
@@ -71,7 +71,7 @@ export function ThemeSelector() {
     );
   }
 
-  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'forest');
+  const { baseId: currentBase, mode: currentMode } = parseThemeId(currentTheme || 'daylight');
 
   const modeOrder: ThemeMode[] = ['oled', 'dark', 'bright'];
 
