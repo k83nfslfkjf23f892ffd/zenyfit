@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useRef } from 'react';
 import { Home, Trophy, Target, Users, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,8 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <nav
@@ -46,6 +49,21 @@ export function BottomNav() {
                   : 'text-foreground/60 active:text-foreground/80'
               )}
               onContextMenu={(e) => e.preventDefault()}
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+              }}
+              onTouchEnd={(e) => {
+                if (!touchStartRef.current) return;
+                const touch = e.changedTouches[0];
+                const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+                const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+                touchStartRef.current = null;
+                if (dx < 10 && dy < 10) {
+                  e.preventDefault();
+                  router.push(href);
+                }
+              }}
               style={{ WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent' }}
             >
               <Icon className={cn('h-7 w-7', isActive && 'fill-primary drop-shadow-[0_0_8px_rgb(var(--glow)/0.5)]')} />

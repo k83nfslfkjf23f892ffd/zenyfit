@@ -5,23 +5,18 @@ import { useState, useCallback, useRef } from 'react';
  * Returns isHolding state and event handlers to spread on a wrapper div.
  * Tooltip should be hidden when not holding, visible when holding.
  */
-export function useHoldToReveal(delay = 150) {
+export function useHoldToReveal() {
   const [isHolding, setIsHolding] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keep track of the last tooltip props so tooltip persists when finger slides outside chart
   const lastTooltipRef = useRef<{ active: boolean; payload: unknown[]; label: string } | null>(null);
 
   const stop = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     setIsHolding(false);
     lastTooltipRef.current = null;
   }, []);
 
   const start = useCallback(() => {
-    timerRef.current = setTimeout(() => setIsHolding(true), delay);
+    setIsHolding(true);
     // Listen globally so lifting finger outside the chart still dismisses
     const onUp = () => {
       stop();
@@ -30,7 +25,7 @@ export function useHoldToReveal(delay = 150) {
     };
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
-  }, [delay, stop]);
+  }, [stop]);
 
   const handlers = {
     onPointerDown: start,
@@ -46,7 +41,7 @@ export function useHoldToReveal(delay = 150) {
 export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
   return {
     opacity: isHolding ? 1 : 0,
-    transition: 'opacity 0.15s ease',
+    transition: 'none',
     pointerEvents: isHolding ? 'auto' as const : 'none' as const,
   };
 }
@@ -87,10 +82,14 @@ export const holdTransition: React.CSSProperties = {
  * Creates a "sticky" tooltip that remembers the last data when the finger
  * slides outside the chart area but is still held down.
  */
+const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
+
 export function useStickyTooltip<P extends { active?: boolean; payload?: unknown[]; label?: string }>(
   lastTooltipRef: React.MutableRefObject<{ active: boolean; payload: unknown[]; label: string } | null>,
   isHolding: boolean,
 ) {
+  const prevLabelRef = useRef<string | null>(null);
+
   return (props: P): P => {
     // Save last active tooltip data
     if (props.active && props.payload && props.payload.length > 0) {
@@ -100,6 +99,13 @@ export function useStickyTooltip<P extends { active?: boolean; payload?: unknown
         label: props.label || '',
       };
     }
+
+    // Haptic feedback when active data point changes
+    const currentLabel = lastTooltipRef.current?.label ?? null;
+    if (isHolding && currentLabel !== null && prevLabelRef.current !== null && currentLabel !== prevLabelRef.current) {
+      if (canVibrate) navigator.vibrate(1);
+    }
+    prevLabelRef.current = currentLabel;
 
     // If holding but Recharts says inactive, use last known data
     if (isHolding && !props.active && lastTooltipRef.current) {

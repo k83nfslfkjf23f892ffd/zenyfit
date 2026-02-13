@@ -9,11 +9,6 @@ export interface WidgetDefinition {
 // All available widgets
 export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   {
-    id: 'user-header',
-    name: 'User Header',
-    description: 'Username, level, XP, and progress bar',
-  },
-  {
     id: 'stats-grid',
     name: 'Stats Grid',
     description: 'Workouts, this week, XP, achievements',
@@ -22,11 +17,6 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     id: 'exercise-ratio',
     name: 'Exercise Chart',
     description: 'Calisthenics distribution pie chart',
-  },
-  {
-    id: 'weekly-activity',
-    name: 'Weekly Activity',
-    description: 'Bar chart of workouts per day',
   },
   {
     id: 'streaks',
@@ -58,11 +48,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
 // Default widget configuration for new users - all visible
 export const DEFAULT_WIDGET_CONFIG = {
   order: [
-    'user-header',
     'stats-grid',
     'streaks',
     'exercise-ratio',
-    'weekly-activity',
     'consistency',
     'personal-bests',
     'exercise-totals',

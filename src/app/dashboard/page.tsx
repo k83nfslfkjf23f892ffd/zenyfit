@@ -31,11 +31,9 @@ import { DEFAULT_WIDGET_CONFIG, WIDGET_DEFINITIONS, getVisibleWidgets, getWidget
 import { WidgetErrorBoundary } from '@/components/ErrorBoundary';
 import { SortableWidget } from '@/components/SortableWidget';
 import {
-  UserHeaderWidget,
   StatsGridWidget,
   StreaksWidget,
   ExerciseRatioWidget,
-  WeeklyActivityWidget,
   ConsistencyWidget,
   PersonalBestsWidget,
   ExerciseTotalsWidget,
@@ -198,16 +196,12 @@ export default function DashboardPage() {
 
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
-      case 'user-header':
-        return <UserHeaderWidget user={user} />;
       case 'stats-grid':
         return <StatsGridWidget />;
       case 'streaks':
         return <StreaksWidget />;
       case 'exercise-ratio':
         return <ExerciseRatioWidget totals={user.totals} />;
-      case 'weekly-activity':
-        return <WeeklyActivityWidget />;
       case 'consistency':
         return <ConsistencyWidget />;
       case 'personal-bests':

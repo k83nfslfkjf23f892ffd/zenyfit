@@ -19,10 +19,11 @@ ZenyFit is a gamified fitness tracking application that turns workouts into an R
 
 ## Features
 
-- **Workout Logging** - Track pull-ups, push-ups, dips, running with quick-add buttons
+- **Workout Logging** - Track pull-ups, push-ups, dips, running, team sports, and more with quick-add buttons
 - **Custom Exercises** - Create your own exercises with custom units and quick actions (tracking only, no XP)
 - **XP & Leveling** - Earn XP for standard workouts and level up
 - **6 Themes** - User-selectable color schemes with dark/light mode
+- **Customizable Dashboard** - Reorder, hide, and show widgets via drag-and-drop
 - **Challenges** - Create and join time-based fitness competitions
   - Public challenges anyone can join
   - Private challenges with invitation system
@@ -70,6 +71,7 @@ zenyfit/
 │   │   └── [page]/       # Page components
 │   ├── components/       # React components
 │   │   ├── ui/           # shadcn/ui components
+│   │   ├── widgets/      # Dashboard widgets (10 customizable)
 │   │   ├── admin/        # Admin panel components
 │   │   ├── charts/       # Recharts data visualization
 │   │   └── animations/   # Framer Motion animations

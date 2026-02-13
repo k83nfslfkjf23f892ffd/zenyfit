@@ -31,6 +31,7 @@ interface UserChange {
  *
  * Query params:
  * - preview=true: Show what would change without applying (dry run)
+ * - userId=xxx: Only recalculate for a specific user (reduces reads)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     const { db } = getAdminInstances();
     const { searchParams } = new URL(request.url);
     const isPreview = searchParams.get('preview') === 'true';
+    const targetUserId = searchParams.get('userId');
 
     // Check if user is admin
     const userDoc = await db.collection('users').doc(decodedToken.uid).get();
@@ -51,21 +53,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Get all users
-    const usersSnapshot = await db.collection('users').get();
+    // Get users — single user or all (with select to reduce bandwidth)
+    let usersSnapshot;
+    if (targetUserId) {
+      const singleDoc = await db.collection('users').doc(targetUserId).get();
+      usersSnapshot = { docs: singleDoc.exists ? [singleDoc] : [] };
+    } else {
+      usersSnapshot = await db.collection('users')
+        .select('username', 'xp', 'level', 'totals')
+        .get();
+    }
     const results: UserChange[] = [];
     let totalLogsChanged = 0;
 
     for (const userDocRef of usersSnapshot.docs) {
       const userId = userDocRef.id;
       const userData = userDocRef.data();
+      if (!userData) continue;
       const oldXp = userData.xp || 0;
       const oldLevel = userData.level || 1;
 
-      // Get all exercise logs for this user
+      // Get all exercise logs for this user — select only needed fields
       const logsSnapshot = await db
         .collection('exercise_logs')
         .where('userId', '==', userId)
+        .select('type', 'amount', 'xpEarned', 'isCustom', 'timestamp')
         .get();
 
       // Calculate total XP from logs

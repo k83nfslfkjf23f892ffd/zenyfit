@@ -79,10 +79,41 @@ export async function GET(
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    // Query exercise_logs per participant in parallel
-    // Uses existing composite index: (userId ASC, type ASC, timestamp DESC)
+    // Read from pre-aggregated monthly stats (1-2 reads per participant)
+    // instead of scanning exercise_logs (50-200+ reads per participant)
+    const startMonth = new Date(startDate).toISOString().slice(0, 7);
+    const endMonth = new Date(clampedEnd).toISOString().slice(0, 7);
+    const months = [startMonth];
+    if (endMonth !== startMonth) months.push(endMonth);
+
     const logsByParticipant = await Promise.all(
       participantIds.map(async (pid: string) => {
+        // Try monthly stats first
+        const monthlyDocs = await Promise.all(
+          months.map(m =>
+            db.collection('users').doc(pid).collection('monthlyStats').doc(m).get()
+          )
+        );
+
+        const hasPreAggregated = monthlyDocs.some(d => d.exists && d.data()?.exerciseByDay);
+
+        if (hasPreAggregated) {
+          const dailyAmounts: Record<string, number> = {};
+          for (const doc of monthlyDocs) {
+            if (!doc.exists) continue;
+            const exerciseByDay: Record<string, Record<string, number>> =
+              doc.data()!.exerciseByDay || {};
+            for (const [date, exercises] of Object.entries(exerciseByDay)) {
+              const amount = exercises[challengeType] || 0;
+              if (amount > 0) {
+                dailyAmounts[date] = (dailyAmounts[date] || 0) + amount;
+              }
+            }
+          }
+          return { userId: pid, dailyAmounts };
+        }
+
+        // Legacy fallback: query exercise_logs for users without monthly stats
         const snapshot = await db
           .collection('exercise_logs')
           .where('userId', '==', pid)
@@ -92,7 +123,6 @@ export async function GET(
           .orderBy('timestamp', 'desc')
           .get();
 
-        // Group amounts by day
         const dailyAmounts: Record<string, number> = {};
         for (const doc of snapshot.docs) {
           const data = doc.data();

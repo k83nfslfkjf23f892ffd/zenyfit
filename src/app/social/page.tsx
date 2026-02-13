@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Users } from 'lucide-react';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
+import { UserHeaderWidget } from '@/components/widgets';
 
 export default function SocialPage() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function SocialPage() {
 
   return (
     <AppLayout>
+      <UserHeaderWidget user={user} />
+
       <motion.div
         className="flex flex-col items-center justify-center py-20 space-y-4"
         variants={listContainerVariants}

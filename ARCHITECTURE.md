@@ -119,14 +119,38 @@ ZenyFit runs entirely on free tiers. Here's what we get and what to watch.
 
 | Widget | API Called | Firestore Reads (cold) | With Cache |
 |--------|-----------|----------------------|------------|
+| UserHeaderWidget | — (auth context) | 0 | 0 |
 | StatsGridWidget | `/api/leaderboard/trend` + `/api/achievements` | ~15 (trend logs) + ~5 (achievements counts) | 0 |
-| ConsistencyWidget | `/api/profile/stats` | ~50-200 (all user logs) | 0 (shared cache) |
-| PersonalBestsWidget | `/api/profile/stats` | 0 (shared cache hit) | 0 |
+| StreaksWidget | `/api/profile/stats` | ~50-200 (all user logs) | 0 (shared cache) |
+| ExerciseRatioWidget | — (auth context totals) | 0 | 0 |
 | WeeklyActivityWidget | `/api/profile/stats` | 0 (shared cache hit) | 0 |
+| ConsistencyWidget | `/api/profile/stats` | 0 (shared cache hit) | 0 |
+| PersonalBestsWidget | `/api/profile/stats` | 0 (shared cache hit) | 0 |
+| ExerciseTotalsWidget | — (auth context totals) | 0 | 0 |
 | XPHistoryWidget | `/api/leaderboard/trend` | 0 (shared cache hit) | 0 |
 | ActiveChallengesWidget | `/api/challenges` | ~5-20 (challenges + participant avatars) | 0 |
 
 **Total cold:** ~75-240 reads | **With fresh cache:** 0 reads | **API calls:** 4 unique (was 7 before deduplication)
+
+#### Widget Customization System
+
+Users can reorder, hide, and show dashboard widgets via an edit mode.
+
+**Data model** (stored in user doc as `dashboardWidgets`):
+- `order: string[]` — All widget IDs in display order (visible first, hidden at end)
+- `hidden: string[]` — Widget IDs that are hidden from the dashboard
+
+**Key files:**
+- `src/lib/widgets.ts` — Widget definitions, default config, `getVisibleWidgets()` / `getHiddenWidgets()` helpers
+- `src/components/SortableWidget.tsx` — Edit mode wrapper with drag handle and hide/show toggle
+- `src/app/dashboard/page.tsx` — Dashboard page with `@dnd-kit/sortable` drag-and-drop
+
+**Behavior:**
+- Edit mode shows all widgets (visible + hidden) with a "Hidden" separator between zones
+- Drag-and-drop reorders widgets; dragging across the visible/hidden boundary toggles visibility
+- Hide/Show button moves widget to/from the hidden zone
+- New widgets (added to `WIDGET_DEFINITIONS`) are auto-inserted at the end of the visible area
+- Config is debounce-saved (500ms) to `/api/users/[id]` via PATCH
 
 ### Profile Page
 

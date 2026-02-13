@@ -395,7 +395,7 @@
 #### Dashboard Widgets Not Memoized
 - **Status:** Open
 - **Severity:** Low
-- **Problem:** 9 widgets re-render during drag/toggle. `React.memo` could reduce unnecessary renders.
+- **Problem:** 10 widgets re-render during drag/toggle. `React.memo` could reduce unnecessary renders.
 
 #### Logo.svg is 90KB
 - **Status:** Open
@@ -467,6 +467,8 @@
 
 ## RECENTLY COMPLETED
 
+- v2.4.5: Dashboard widget customization fixes — hidden widgets no longer show on dashboard, new widgets added to visible area (before hidden section), drag-and-drop between visible/hidden zones updates visibility
+- v2.4.5: Revolut-style chart highlight, pre-aggregate exercise breakdowns + community stats, server cache for leaderboard/stats
 - v2.4.0: Workout Streaks — current/longest streak tracking, auto-update on log/delete, migration for existing users, new StreaksWidget on dashboard
 - v2.4.0: CSP header added to next.config.js
 - v2.4.0: Challenge title/description sanitization in POST /api/challenges

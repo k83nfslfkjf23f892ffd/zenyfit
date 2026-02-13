@@ -23,7 +23,7 @@
 
 ## Key Requirements
 
-- **24 themes** available in app settings (from `design-mockups/theme-prototype.html`)
+- **6 themes** available in app settings (reduced from 24 in v2.0.0)
 - **Strictly follow** `prompts/prompt.md` specification
 - **Invite-code only** registration (no public signup)
 - **ALL database writes** server-side only (XP calculations never client-side)
@@ -121,34 +121,22 @@ This incremental testing approach ensures:
 
 ## Phase 3: Theme System ✅ COMPLETED
 
-**Status:** All theme system features implemented and working. 24 themes available.
+**Status:** All theme system features implemented and working. Reduced to 6 themes in v2.0.0.
 
-13. **Extract 24 themes from `theme-prototype.html`** into structured CSS/theme config ✅
+13. **Extract themes from `theme-prototype.html`** into structured CSS/theme config ✅
 14. **Create theme provider/context** for Next.js ✅
-15. **Build theme selector component** (grid of 24 theme cards) ✅
+15. **Build theme selector component** ✅
 16. **Integrate theme selector in settings page** ✅
 17. **Update CSS variables** to work with RGB-based theme system ✅
 
-**Testing completed:**
-- Build compiles successfully
-- All 24 themes extracted from design mockups
-- Theme selector renders visual grid with previews
-- CSS variables dynamically updated via ThemeProvider
-- Tailwind config updated to use RGB color format
-
 **Files created:**
-- `src/lib/themes.ts` - 24 theme definitions with RGB color values
+- `src/lib/themes.ts` - 6 theme definitions with RGB color values
 - `src/lib/theme-provider.tsx` - ThemeProvider with dynamic CSS variable application
 - `src/components/ThemeSelector.tsx` - Visual theme grid selector component
 - Updated `src/app/globals.css` - CSS variables for theme system
 - Updated `tailwind.config.js` - RGB color format support
 
-**Themes available:**
-- Timepage V2 (default), Timepage V1, Book Tracker, Retro Music, Minimal Zen
-- Sport Tracker, Blue Journal, Gratitude Pastel, Neon, Sunset
-- Forest, Ocean, Purple, and 11 Legacy themes
-
-**Note:** Theme persistence to user profile (Firestore) deferred for later implementation
+**Note:** Originally 6 themes, reduced to 6 in v2.0.0 for maintainability
 
 ---
 
@@ -895,7 +883,7 @@ WEB_PUSH_EMAIL=your-contact-email
 92. **Test offline mode** (workout queue, sync, indicator)
 93. **Test push notifications** (all types, permissions)
 94. **Test PWA installation** (installable, works offline)
-95. **Test all 24 themes** (switching, persistence)
+95. **Test all 6 themes** (switching, persistence)
 
 ---
 
@@ -924,11 +912,17 @@ WEB_PUSH_EMAIL=your-contact-email
 
 ## XP System Reference
 
-**Standard Exercises (earn XP):**
-- Pull-ups: **15 XP/rep**
-- Push-ups: **3 XP/rep**
-- Dips: **12 XP/rep**
-- Running: **30 XP/km**
+**Calisthenics (per rep):**
+- Push-ups: **3 XP** (baseline), variations: 2-6 XP
+- Pull-ups: **6 XP**, variations: 2-8 XP
+- Dips: **6 XP**, variations: 2-7 XP
+- Muscle-ups: **11 XP**
+
+**Cardio (per km):**
+- Running: **30 XP**, Walking: **18 XP**, Swimming: **40 XP**, Sprinting: **50 XP**
+
+**Team Sports (per minute):**
+- Volleyball/Basketball/Soccer: **2 XP**
 
 **Custom Exercises:** **0 XP** (tracking only)
 
@@ -940,13 +934,12 @@ WEB_PUSH_EMAIL=your-contact-email
 
 ## Database Collections
 
-1. **`users`** - User profiles (XP, level, stats, isAdmin, isBanned, pushSubscription)
-2. **`exercise_logs`** - Individual workout entries (userId, type, amount, timestamp)
-3. **`custom_exercises`** - User-defined exercises (userId, name, unit, buttons, max 12)
+1. **`users`** - User profiles (XP, level, totals, isAdmin, isBanned, theme, dashboardWidgets, pushSubscription)
+2. **`exercise_logs`** - Individual workout entries (userId, type, amount, timestamp, xpEarned)
+3. **`custom_exercises`** - User-defined exercises (userId, name, unit, quickActions, max 12)
 4. **`challenges`** - Challenge definitions with participant progress
-5. **`challengeInvites`** - Pending challenge invitations
-6. **`inviteCodes`** - Registration codes (10 chars, max 5 per user)
-7. **`pushSubscriptions`** - Web Push subscriptions (multi-device support)
+5. **`inviteCodes`** - Registration codes (code as doc ID, createdBy, used, usedBy)
+6. **`pushSubscriptions`** - Web Push subscriptions (userId, endpoint, keys)
 
 ---
 
@@ -968,34 +961,9 @@ WEB_PUSH_EMAIL                        # Contact email
 
 ---
 
-## 24 Themes to Implement
+## Themes (6 active)
 
-From `design-mockups/theme-prototype.html`:
-
-1. Timepage V2
-2. Timepage V1
-3. Book Tracker
-4. Retro Music
-5. Minimal Zen
-6. Sport Tracker
-7. Blue Journal
-8. Gratitude Pastel
-9. Neon
-10. Sunset
-11. Forest
-12. Ocean
-13. Purple
-14. Dark Gym (Legacy)
-15. Original (Legacy)
-16. Athletic (Legacy)
-17. Vibrant (Legacy)
-18. Minimal (Legacy)
-19. Legacy Retro
-20. Volcano (Legacy)
-21. Matrix (Legacy)
-22. Cosmic (Legacy)
-23. Cherry (Legacy)
-24. Slate (Legacy)
+Reduced from 24 to 6 in v2.0.0 for maintainability. Defined in `src/lib/themes.ts`.
 
 ---
 
@@ -1004,14 +972,14 @@ From `design-mockups/theme-prototype.html`:
 **CORE APPLICATION COMPLETE** ✅
 **Build Status:** Production-ready (requires Firebase configuration)
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-02-13
 
 ## ✅ COMPLETED PHASES (20/24 - 83% Complete)
 
 ### Core Application (Phases 1-15) - 100% COMPLETE
 - ✅ **Phase 1:** Project Setup & Foundation
 - ✅ **Phase 2:** Firebase & Authentication Infrastructure
-- ✅ **Phase 3:** Theme System (24 themes)
+- ✅ **Phase 3:** Theme System (6 themes)
 - ✅ **Phase 4:** Authentication UI (signup/login)
 - ✅ **Phase 5:** Core Data Models & API
 - ✅ **Phase 6:** Challenge System
@@ -1069,7 +1037,7 @@ From `design-mockups/theme-prototype.html`:
 - Email/password auth (username@zenyfit.local format)
 - Invite-code only registration (security feature)
 - User profiles with level/XP system
-- 24 theme customization options
+- 6 theme customization options
 - Profile settings and logout
 
 ### Workout & Progress Tracking
@@ -1189,7 +1157,7 @@ The application is **production-ready** and fully functional. All core features 
 - ✅ Achievements tracking (18 achievements, 4 categories)
 - ✅ Full admin panel (5 tabs: users, stats, moderation, invites, system health)
 - ✅ Invite system (5 codes per user, URL sharing)
-- ✅ 24 theme options (light/dark, multiple color schemes)
+- ✅ 6 theme options (light/dark, multiple color schemes)
 
 ### Advanced Features ✅
 - ✅ PWA capabilities (installable, offline support, custom icons)

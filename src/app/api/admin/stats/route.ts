@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
     const workoutsSnapshot = await db.collection('exercise_logs').count().get();
     const totalWorkouts = workoutsSnapshot.data().count;
 
-    // Get total XP across all users (cached for 5 min, admin-only)
-    const allUsersSnapshot = await db.collection('users').get();
+    // Get total XP across all users — select only xp field to reduce bandwidth
+    const allUsersSnapshot = await db.collection('users').select('xp').get();
     let totalXp = 0;
     allUsersSnapshot.docs.forEach(doc => {
       totalXp += doc.data().xp || 0;
@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
 
     const newUsersSnapshot = await db.collection('users')
       .where('createdAt', '>', thirtyDaysAgo)
+      .select('createdAt')
       .get();
 
     // Group new users by day
@@ -116,9 +117,11 @@ export async function GET(request: NextRequest) {
       signupsByDay[date] = (signupsByDay[date] || 0) + 1;
     });
 
-    // Get workout growth data (last 30 days)
+    // Get workout growth data (last 30 days) — select only needed fields, cap at 10k
     const recentWorkoutsSnapshot = await db.collection('exercise_logs')
       .where('timestamp', '>', thirtyDaysAgo)
+      .select('timestamp', 'xpEarned')
+      .limit(10000)
       .get();
 
     const workoutsByDay: { [key: string]: number } = {};
@@ -145,10 +148,12 @@ export async function GET(request: NextRequest) {
       avatar: doc.data().avatar,
     }));
 
-    // Calculate activity stats (users active in last 7 days)
+    // Calculate activity stats (users active in last 7 days) — only need userId
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentLogsSnapshot = await db.collection('exercise_logs')
       .where('timestamp', '>', sevenDaysAgo)
+      .select('userId')
+      .limit(5000)
       .get();
 
     const activeUserIds = new Set<string>();
