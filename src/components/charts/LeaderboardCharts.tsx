@@ -195,7 +195,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     if (!firebaseUser) return;
     fetchStats(scope, range);
     return () => { abortRef.current?.abort(); };
-  }, [scope, range, fetchStats]); // firebaseUser intentionally excluded — ref handles it
+  }, [scope, range, fetchStats]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScopeChange = (newScope: string) => {
     setScope(newScope as 'personal' | 'community');
