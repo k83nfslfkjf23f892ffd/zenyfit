@@ -2,12 +2,12 @@
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { ReactNode, useEffect } from 'react';
-import { themes } from './themes';
+import { resolveTheme, ALL_THEME_IDS } from './themes';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const applyTheme = (themeId: string) => {
-      const theme = themes.find((t) => t.id === themeId);
+      const theme = resolveTheme(themeId);
       if (!theme) return;
 
       const root = document.documentElement;
@@ -64,8 +64,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="data-theme"
-      defaultTheme="midnight"
-      themes={themes.map((t) => t.id)}
+      defaultTheme="daylight"
+      themes={ALL_THEME_IDS}
       enableSystem={false}
       disableTransitionOnChange={false}
     >

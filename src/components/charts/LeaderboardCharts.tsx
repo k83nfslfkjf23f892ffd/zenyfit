@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -128,25 +128,34 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Use ref for firebaseUser to avoid re-creating fetchStats on every render
+  const firebaseUserRef = useRef(firebaseUser);
+  firebaseUserRef.current = firebaseUser;
+
+  // AbortController ref to cancel in-flight requests
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchStats = useCallback(async (newScope: string, newRange: string, skipCache = false) => {
     // Try cache first (unless skipCache is true)
     if (!skipCache) {
       const cached = getCachedData(newScope, newRange);
       if (cached) {
         setData(cached.data);
-        // Only background fetch when stale
-        if (cached.isStale) {
-          fetchStats(newScope, newRange, true);
-        }
+        // Stale cache: show cached data, don't auto-refetch (server cache handles freshness)
         return;
       }
     }
+
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setLoading(true);
     setError(null);
 
     try {
-      const token = await firebaseUser?.getIdToken();
+      const token = await firebaseUserRef.current?.getIdToken();
       if (!token) {
         setError('Not authenticated');
         return;
@@ -156,6 +165,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         `/api/leaderboard/stats?scope=${newScope}&range=${newRange}`,
         {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         }
       );
 
@@ -170,32 +180,22 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         }
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Error fetching stats:', err);
-      if (!getCachedData(scope, range)) {
+      if (!getCachedData(newScope, newRange)) {
         setError('Network error');
       }
     } finally {
       setLoading(false);
     }
-  }, [firebaseUser, scope, range]);
+  }, []); // No dependencies — uses refs for mutable state
 
-  // Initial load - try cache first
+  // Single useEffect for initial load + scope/range changes
   useEffect(() => {
-    if (firebaseUser) {
-      const cached = getCachedData(scope, range);
-      if (cached) {
-        setData(cached.data);
-      }
-      fetchStats(scope, range);
-    }
-  }, [firebaseUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch when scope or range changes
-  useEffect(() => {
-    if (firebaseUser) {
-      fetchStats(scope, range);
-    }
-  }, [scope, range, firebaseUser, fetchStats]);
+    if (!firebaseUser) return;
+    fetchStats(scope, range);
+    return () => { abortRef.current?.abort(); };
+  }, [scope, range, fetchStats]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScopeChange = (newScope: string) => {
     setScope(newScope as 'personal' | 'community');
@@ -238,180 +238,198 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <div className="p-1.5 rounded-lg gradient-bg-subtle">
-              <Dumbbell className="h-4 w-4 text-primary" />
-            </div>
-            Calisthenics
-          </CardTitle>
-          {loading && (
-            <span className="text-xs text-foreground/40 animate-pulse">
-              Updating...
-            </span>
-          )}
-        </div>
+    <div className="space-y-5">
+      {/* Controls tile */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                <Dumbbell className="h-4 w-4 text-primary" />
+              </div>
+              Calisthenics
+            </CardTitle>
+            {loading && (
+              <span className="text-xs text-foreground/40 animate-pulse">
+                Updating...
+              </span>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 pt-0">
+          {/* Scope Tabs */}
+          <Tabs value={scope} onValueChange={handleScopeChange}>
+            <TabsList className="grid w-full grid-cols-2 h-8">
+              <TabsTrigger value="personal" className="text-xs gap-1">
+                <User className="h-3 w-3" />
+                Personal
+              </TabsTrigger>
+              <TabsTrigger value="community" className="text-xs gap-1">
+                <Users className="h-3 w-3" />
+                Community
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        {/* Scope Tabs */}
-        <Tabs value={scope} onValueChange={handleScopeChange} className="mt-2">
-          <TabsList className="grid w-full grid-cols-2 h-8">
-            <TabsTrigger value="personal" className="text-xs gap-1">
-              <User className="h-3 w-3" />
-              Personal
-            </TabsTrigger>
-            <TabsTrigger value="community" className="text-xs gap-1">
-              <Users className="h-3 w-3" />
-              Community
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+          {/* Range Tabs */}
+          <Tabs value={range} onValueChange={handleRangeChange}>
+            <TabsList className="grid w-full grid-cols-3 h-8">
+              <TabsTrigger value="daily" className="text-xs">Daily</TabsTrigger>
+              <TabsTrigger value="weekly" className="text-xs">Weekly</TabsTrigger>
+              <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-        {/* Range Tabs */}
-        <Tabs value={range} onValueChange={handleRangeChange} className="mt-2">
-          <TabsList className="grid w-full grid-cols-3 h-8">
-            <TabsTrigger value="daily" className="text-xs">Daily</TabsTrigger>
-            <TabsTrigger value="weekly" className="text-xs">Weekly</TabsTrigger>
-            <TabsTrigger value="monthly" className="text-xs">Monthly</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Summary Stats */}
-        {data && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-surface border border-border p-3 text-center">
+      {/* Summary Stats tile */}
+      {data && (
+        <div className="grid grid-cols-2 gap-3">
+          <Card>
+            <CardContent className="p-3 text-center">
               <div className="text-2xl font-bold gradient-text">
                 {data.summary.totalReps.toLocaleString()}
               </div>
               <div className="text-xs text-foreground/40">
                 reps {data.summary.periodLabel}
               </div>
-            </div>
-            <div className="rounded-xl bg-surface border border-border p-3 text-center">
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
               <div className="text-2xl font-bold">
                 {data.summary.totalWorkouts}
               </div>
               <div className="text-xs text-foreground/40">
                 workouts {data.summary.periodLabel}
               </div>
-            </div>
-          </div>
-        )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        {/* Reps Over Time Chart */}
-        {data && data.activity.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2">Reps Over Time</h4>
-            <div {...areaHandlers}>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={data.activity}>
-                <defs>
-                  <linearGradient id="repsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="rgb(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
-                <XAxis
-                  dataKey="period"
-                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
-                  tickFormatter={formatPeriod}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
-                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
-                  axisLine={false}
-                  tickLine={false}
-                  width={35}
-                />
-                <Tooltip content={(props) => {
-                  const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
-                  return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
-                }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
-                <Area
-                  type="monotone"
-                  dataKey="reps"
-                  stroke="rgb(var(--primary))"
-                  strokeWidth={2}
-                  strokeOpacity={isHoldingArea ? 0.4 : 1}
-                  fill="url(#repsGradient)"
-                  fillOpacity={isHoldingArea ? 0.4 : 1}
-                  activeDot={isHoldingArea ? holdActiveDot('rgb(var(--primary))') : false}
-                  style={holdTransition}
-                  animationDuration={400}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* Reps Over Time tile */}
+      {data && data.activity.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Reps Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div {...areaHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={data.activity}>
+                  <defs>
+                    <linearGradient id="repsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="rgb(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+                  <XAxis
+                    dataKey="period"
+                    tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
+                    tickFormatter={formatPeriod}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
+                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                    axisLine={false}
+                    tickLine={false}
+                    width={35}
+                  />
+                  <Tooltip content={(props) => {
+                    const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                    return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
+                  }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
+                  <Area
+                    type="monotone"
+                    dataKey="reps"
+                    stroke="rgb(var(--primary))"
+                    strokeWidth={2}
+                    strokeOpacity={isHoldingArea ? 0.4 : 1}
+                    fill="url(#repsGradient)"
+                    fillOpacity={isHoldingArea ? 0.4 : 1}
+                    activeDot={isHoldingArea ? holdActiveDot('rgb(var(--primary))') : false}
+                    style={holdTransition}
+                    animationDuration={400}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Exercise Breakdown Chart */}
-        {data && data.exerciseTotals.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2">By Exercise</h4>
-            <div {...barHandlers}>
-            <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.length * 32)}>
-              <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
-                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={70}
-                />
-                <Tooltip content={(props) => {
-                  const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
-                  return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
-                }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
-                <Bar
-                  dataKey="reps"
-                  radius={[0, 4, 4, 0]}
-                  fill="rgb(var(--primary))"
-                  fillOpacity={isHoldingBar ? 0.3 : 1}
-                  activeBar={isHoldingBar ? { fillOpacity: 1 } : false}
-                  style={holdTransition}
-                  animationDuration={400}
-                >
-                  {data.exerciseTotals.slice(0, 6).map((entry) => (
-                    <rect
-                      key={entry.type}
-                      fill={EXERCISE_COLORS[entry.type] || DEFAULT_COLOR}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Exercise Breakdown tile */}
+      {data && data.exerciseTotals.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">By Exercise</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div {...barHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
+              <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.slice(0, 6).length * 40)}>
+                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
+                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: 'rgb(var(--foreground) / 0.4)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={70}
+                  />
+                  <Tooltip content={(props) => {
+                    const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                    return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
+                  }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
+                  <Bar
+                    dataKey="reps"
+                    radius={[0, 4, 4, 0]}
+                    fill="rgb(var(--primary))"
+                    fillOpacity={isHoldingBar ? 0.3 : 1}
+                    activeBar={isHoldingBar ? { fillOpacity: 1 } : false}
+                    style={holdTransition}
+                    animationDuration={400}
+                  >
+                    {data.exerciseTotals.slice(0, 6).map((entry) => (
+                      <rect
+                        key={entry.type}
+                        fill={EXERCISE_COLORS[entry.type] || DEFAULT_COLOR}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Empty state */}
-        {data && data.exerciseTotals.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-foreground/40">
-            <Dumbbell className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">No calisthenics logged {data.summary.periodLabel}</p>
-            <p className="text-xs mt-1">
-              {scope === 'personal' ? 'Log some reps to see your progress!' : 'Be the first to log some reps!'}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {/* Empty state */}
+      {data && data.exerciseTotals.length === 0 && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center justify-center text-foreground/40">
+              <Dumbbell className="h-8 w-8 mb-2 opacity-50" />
+              <p className="text-sm">No calisthenics logged {data.summary.periodLabel}</p>
+              <p className="text-xs mt-1">
+                {scope === 'personal' ? 'Log some reps to see your progress!' : 'Be the first to log some reps!'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 

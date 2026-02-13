@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProgressRing } from '@/components/ui/progress';
-import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame } from 'lucide-react';
+import { Settings, Award, Activity, Calendar, TrendingUp, Trophy, Flame, Sparkles } from 'lucide-react';
+import { APP_VERSION } from '@shared/constants';
 import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel, formatSecondsAsMinutes } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
@@ -91,6 +92,8 @@ export default function ProfilePage() {
     }
     return true;
   });
+
+  const hasNewUpdate = typeof window !== 'undefined' && localStorage.getItem('zenyfit_lastSeenVersion') !== APP_VERSION;
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -239,11 +242,21 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/profile/settings">
-              <Settings className="h-5 w-5 text-foreground/40" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" asChild className="relative">
+              <Link href="/profile/whats-new">
+                <Sparkles className="h-5 w-5 text-foreground/40" />
+                {hasNewUpdate && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+                )}
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/profile/settings">
+                <Settings className="h-5 w-5 text-foreground/40" />
+              </Link>
+            </Button>
+          </div>
         </motion.div>
 
         {/* XP Progress */}

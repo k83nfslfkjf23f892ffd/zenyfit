@@ -7,11 +7,11 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft, Sparkles, ChevronDown } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
-import { LIMITS, APP_URL, APP_VERSION, CHANGELOG } from '@shared/constants';
-import { ThemeSelector } from '@/components/ThemeSelector';
+import { LIMITS, APP_URL } from '@shared/constants';
+import { ThemeSelector, ThemeModeToggle } from '@/components/ThemeSelector';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { NotificationSettings } from '@/components/NotificationSettings';
 
@@ -32,11 +32,6 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showQrCode, setShowQrCode] = useState<string | null>(null);
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const [hasNewUpdate, setHasNewUpdate] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('zenyfit_lastSeenVersion') !== APP_VERSION;
-  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -192,12 +187,15 @@ export default function SettingsPage() {
         {/* Theme Selector */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg gradient-bg-subtle">
-                <Palette className="h-4 w-4 text-primary" />
-              </div>
-              Theme
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="p-1.5 rounded-lg gradient-bg-subtle">
+                  <Palette className="h-4 w-4 text-primary" />
+                </div>
+                Theme
+              </CardTitle>
+              <ThemeModeToggle />
+            </div>
           </CardHeader>
           <CardContent>
             <ThemeSelector />
@@ -213,57 +211,6 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <NotificationSettings />
-
-        {/* What's New */}
-        <Card>
-          <CardHeader className="pb-3">
-            <button
-              onClick={() => {
-                setWhatsNewOpen(!whatsNewOpen);
-                if (!whatsNewOpen && hasNewUpdate) {
-                  localStorage.setItem('zenyfit_lastSeenVersion', APP_VERSION);
-                  setHasNewUpdate(false);
-                }
-              }}
-              className="flex items-center justify-between w-full"
-            >
-              <CardTitle className="flex items-center gap-2 text-base">
-                <div className="p-1.5 rounded-lg gradient-bg-subtle relative">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {hasNewUpdate && (
-                    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                  )}
-                </div>
-                What&apos;s New
-                <span className="text-xs font-normal text-foreground/40">v{APP_VERSION}</span>
-              </CardTitle>
-              <ChevronDown className={`h-4 w-4 text-foreground/40 transition-transform duration-200 ${whatsNewOpen ? 'rotate-180' : ''}`} />
-            </button>
-          </CardHeader>
-          {whatsNewOpen && (
-            <CardContent className="pt-0 space-y-4">
-              {CHANGELOG.map((entry, i) => (
-                <div key={entry.version}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-sm font-semibold">{entry.title}</span>
-                    <span className="text-xs text-foreground/30">v{entry.version}</span>
-                  </div>
-                  <ul className="space-y-1">
-                    {entry.items.map((item, j) => (
-                      <li key={j} className="text-sm text-foreground/60 flex gap-2">
-                        <span className="text-foreground/25 shrink-0">-</span>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                  {i < CHANGELOG.length - 1 && (
-                    <div className="border-b border-border/50 mt-3" />
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          )}
-        </Card>
 
         {/* Invite Codes */}
         <Card>

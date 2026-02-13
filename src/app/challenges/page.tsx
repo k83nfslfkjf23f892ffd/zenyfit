@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Target, Plus, Clock, Users, Loader2 } from 'lucide-react';
+import { Target, Plus, Clock, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISE_INFO } from '@shared/constants';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
