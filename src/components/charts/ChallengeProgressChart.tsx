@@ -223,7 +223,7 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
               }}
             />
             <Tooltip
-              active={isHolding || undefined}
+              active={(isHolding && lastTooltipRef.current) ? true : undefined}
               content={(props) => {
                 const p = stickyProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                 return <ChallengeTooltip active={p.active} payload={p.payload as ChallengeTooltipProps['payload']} label={p.label} unit={unit} />;

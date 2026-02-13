@@ -85,7 +85,7 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps) {
-  if (!active || !payload) return null;
+  if (!active || !payload || !payload[0]) return null;
 
   return (
     <div className="bg-surface rounded-lg px-3 py-2 shadow-lg border border-border">
@@ -339,7 +339,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={35}
                   />
-                  <Tooltip active={isHoldingArea || undefined} content={(props) => {
+                  <Tooltip active={(isHoldingArea && areaTooltipRef.current) ? true : undefined} content={(props) => {
                     const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                     return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
                   }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
@@ -388,7 +388,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={70}
                   />
-                  <Tooltip active={isHoldingBar || undefined} content={(props) => {
+                  <Tooltip active={(isHoldingBar && barTooltipRef.current) ? true : undefined} content={(props) => {
                     const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                     return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
                   }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
