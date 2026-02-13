@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, Bug, MessageCircle, Send, Loader2, Trash2 } from 'lucide-react';
+import { Lightbulb, Bug, MessageCircle, Send, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
 import { UserHeaderWidget } from '@/components/widgets';
@@ -26,6 +26,7 @@ interface FeedbackItem {
   category: Category;
   message: string;
   createdAt: number;
+  fixed: boolean;
   isOwn: boolean;
 }
 
@@ -141,6 +142,28 @@ export default function SocialPage() {
     }
   };
 
+  const handleToggleFixed = async (id: string, currentFixed: boolean) => {
+    try {
+      const token = await firebaseUserRef.current?.getIdToken();
+      if (!token) return;
+      const res = await fetch('/api/feedback', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id, fixed: !currentFixed }),
+      });
+      if (res.ok) {
+        setFeedback(prev => prev.map(f => f.id === id ? { ...f, fixed: !currentFixed } : f));
+      } else {
+        toast.error('Failed to update');
+      }
+    } catch {
+      toast.error('Network error');
+    }
+  };
+
   if (!loading && !user) return null;
   if (!user) return null;
 
@@ -163,13 +186,13 @@ export default function SocialPage() {
               <p className="text-sm font-medium">Share your feedback</p>
 
               {/* Category pills */}
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {CATEGORIES.map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
                     onClick={() => setCategory(value)}
                     className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                      'flex items-center justify-center gap-1.5 py-1.5 rounded-full text-xs font-medium transition-all',
                       category === value
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted/60 text-foreground/50 active:bg-muted'
@@ -242,21 +265,39 @@ export default function SocialPage() {
                           <span className={cn('text-xs font-medium', style.text)}>
                             {catInfo?.label}
                           </span>
+                          {item.fixed && (
+                            <span className="text-[10px] font-medium text-green-500 bg-green-500/15 px-1.5 py-0.5 rounded-full">
+                              Fixed
+                            </span>
+                          )}
                           <span className="text-xs text-foreground/25">
                             {timeAgo(item.createdAt)}
                           </span>
                         </div>
-                        <p className="text-sm text-foreground/70 whitespace-pre-wrap break-words">
+                        <p className={cn('text-sm whitespace-pre-wrap break-words', item.fixed ? 'text-foreground/40 line-through' : 'text-foreground/70')}>
                           {item.message}
                         </p>
                       </div>
                       {item.isOwn && (
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="shrink-0 p-1.5 rounded-lg text-foreground/20 active:text-red-500 active:bg-red-500/10 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          {item.category === 'bug' && user?.isAdmin && (
+                            <button
+                              onClick={() => handleToggleFixed(item.id, item.fixed)}
+                              className={cn(
+                                'p-1.5 rounded-lg transition-colors',
+                                item.fixed ? 'text-green-500 bg-green-500/10' : 'text-foreground/20 active:text-green-500 active:bg-green-500/10'
+                              )}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 rounded-lg text-foreground/20 active:text-red-500 active:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </CardContent>

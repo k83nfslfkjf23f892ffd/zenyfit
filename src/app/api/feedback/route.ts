@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
         category: data.category,
         message: data.message,
         createdAt: data.createdAt,
+        fixed: data.fixed || false,
         isOwn: data.userId === userId || isAdmin,
       };
     });
@@ -134,5 +135,42 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Error in DELETE /api/feedback:', error);
     return NextResponse.json({ error: 'Failed to delete feedback' }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/feedback — Admin: toggle bug as fixed
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const decodedToken = await verifyAuthToken(authHeader);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { db } = getAdminInstances();
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    if (!userDoc.exists || !userDoc.data()?.isAdmin) {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, fixed } = body;
+    if (!id || typeof fixed !== 'boolean') {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    const docRef = db.collection('feedback').doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    await docRef.update({ fixed });
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error('Error in PATCH /api/feedback:', error);
+    return NextResponse.json({ error: 'Failed to update feedback' }, { status: 500 });
   }
 }
