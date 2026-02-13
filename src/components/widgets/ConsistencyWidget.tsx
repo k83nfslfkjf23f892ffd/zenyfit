@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Info, Loader2 } from 'lucide-react';
+import { CalendarDays, Info } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 

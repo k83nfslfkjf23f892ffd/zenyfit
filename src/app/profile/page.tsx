@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProgressRing } from '@/components/ui/progress';
-import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame } from 'lucide-react';
+import { Settings, Award, Activity, Calendar, TrendingUp, Trophy, Flame } from 'lucide-react';
 import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel, formatSecondsAsMinutes } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';

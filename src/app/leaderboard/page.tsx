@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
