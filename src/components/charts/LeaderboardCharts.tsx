@@ -315,7 +315,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
             <CardTitle className="text-sm font-medium">Reps Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div {...areaHandlers}>
+            <div {...areaHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={data.activity}>
                   <defs>
@@ -369,7 +369,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
             <CardTitle className="text-sm font-medium">By Exercise</CardTitle>
           </CardHeader>
           <CardContent>
-            <div {...barHandlers}>
+            <div {...barHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
               <ResponsiveContainer width="100%" height={data.exerciseTotals.slice(0, 6).length * 50}>
                 <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barCategoryGap="20%">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
