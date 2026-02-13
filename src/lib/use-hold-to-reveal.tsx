@@ -17,16 +17,32 @@ export function useHoldToReveal() {
 
   const start = useCallback((e: React.PointerEvent) => {
     setIsHolding(true);
-    // Capture pointer so the chart keeps receiving move events even when finger leaves bounds
-    const target = e.currentTarget as HTMLElement;
-    try { target.setPointerCapture(e.pointerId); } catch {}
-    // Listen globally so lifting finger outside the chart still dismisses
+    const wrapper = e.currentTarget as HTMLElement;
+    const rechartsWrapper = wrapper.querySelector('.recharts-wrapper') as HTMLElement | null;
+
+    // Forward global pointer moves to Recharts with X clamped to chart bounds
+    const onMove = (moveEvent: PointerEvent) => {
+      if (!rechartsWrapper) return;
+      const rect = rechartsWrapper.getBoundingClientRect();
+      const clampedX = Math.max(rect.left + 1, Math.min(rect.right - 1, moveEvent.clientX));
+      rechartsWrapper.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: clampedX,
+        clientY: Math.max(rect.top, Math.min(rect.bottom, moveEvent.clientY)),
+        bubbles: true,
+      }));
+    };
+
     const onUp = () => {
-      try { target.releasePointerCapture(e.pointerId); } catch {}
       stop();
+      // Trigger mouseleave so Recharts cleans up its internal state
+      if (rechartsWrapper) {
+        rechartsWrapper.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      }
+      window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
+    window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
   }, [stop]);
