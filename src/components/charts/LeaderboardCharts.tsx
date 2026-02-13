@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -128,25 +128,34 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Use ref for firebaseUser to avoid re-creating fetchStats on every render
+  const firebaseUserRef = useRef(firebaseUser);
+  firebaseUserRef.current = firebaseUser;
+
+  // AbortController ref to cancel in-flight requests
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchStats = useCallback(async (newScope: string, newRange: string, skipCache = false) => {
     // Try cache first (unless skipCache is true)
     if (!skipCache) {
       const cached = getCachedData(newScope, newRange);
       if (cached) {
         setData(cached.data);
-        // Only background fetch when stale
-        if (cached.isStale) {
-          fetchStats(newScope, newRange, true);
-        }
+        // Stale cache: show cached data, don't auto-refetch (server cache handles freshness)
         return;
       }
     }
+
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setLoading(true);
     setError(null);
 
     try {
-      const token = await firebaseUser?.getIdToken();
+      const token = await firebaseUserRef.current?.getIdToken();
       if (!token) {
         setError('Not authenticated');
         return;
@@ -156,6 +165,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         `/api/leaderboard/stats?scope=${newScope}&range=${newRange}`,
         {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         }
       );
 
@@ -170,32 +180,22 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
         }
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Error fetching stats:', err);
-      if (!getCachedData(scope, range)) {
+      if (!getCachedData(newScope, newRange)) {
         setError('Network error');
       }
     } finally {
       setLoading(false);
     }
-  }, [firebaseUser, scope, range]);
+  }, []); // No dependencies — uses refs for mutable state
 
-  // Initial load - try cache first
+  // Single useEffect for initial load + scope/range changes
   useEffect(() => {
-    if (firebaseUser) {
-      const cached = getCachedData(scope, range);
-      if (cached) {
-        setData(cached.data);
-      }
-      fetchStats(scope, range);
-    }
-  }, [firebaseUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch when scope or range changes
-  useEffect(() => {
-    if (firebaseUser) {
-      fetchStats(scope, range);
-    }
-  }, [scope, range, firebaseUser, fetchStats]);
+    if (!firebaseUser) return;
+    fetchStats(scope, range);
+    return () => { abortRef.current?.abort(); };
+  }, [scope, range, fetchStats]); // firebaseUser intentionally excluded — ref handles it
 
   const handleScopeChange = (newScope: string) => {
     setScope(newScope as 'personal' | 'community');

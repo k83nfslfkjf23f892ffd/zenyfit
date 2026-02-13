@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from 'react';
 import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase, getFirebaseInstances } from '@/lib/firebase-client';
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const previousLevelRef = useRef<number | null>(null);
   const lastCelebratedLevelRef = useRef<number>(0);
   const onLevelUpCallbackRef = useRef<((newLevel: number) => void) | undefined>(undefined);
+  const userJsonRef = useRef<string>('');
 
   // Initialize Firebase on mount
   useEffect(() => {
@@ -119,11 +120,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Update previous level
           previousLevelRef.current = userData.level;
 
-          setUser(userData);
-          setCachedUser(userData);
+          // Only trigger re-render when user data actually changed
+          const newJson = JSON.stringify(userData);
+          if (newJson !== userJsonRef.current) {
+            userJsonRef.current = newJson;
+            setUser(userData);
+            setCachedUser(userData);
+          }
         } else {
-          setUser(null);
-          setCachedUser(null);
+          if (userJsonRef.current !== '') {
+            userJsonRef.current = '';
+            setUser(null);
+            setCachedUser(null);
+          }
         }
         setLoading(false);
       },

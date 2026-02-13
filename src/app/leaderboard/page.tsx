@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/auth-context';
@@ -71,6 +71,11 @@ export default function LeaderboardPage() {
     }
   }, [user, loading, router]);
 
+  // Use ref so fetchRankings doesn't re-create on every render
+  const firebaseUserRef = useRef(firebaseUser);
+  firebaseUserRef.current = firebaseUser;
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchRankings = useCallback(
     async (type: RankingType, skipCache = false) => {
       if (!skipCache) {
@@ -78,20 +83,19 @@ export default function LeaderboardPage() {
         if (cached) {
           setRankings(cached.data);
           setLoadingRankings(false);
-          if (cached.isStale) {
-            setUpdating(true);
-            if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-            updateTimeoutRef.current = setTimeout(() => setUpdating(false), 10000);
-            fetchRankings(type, true);
-          }
+          // Stale cache: show cached data, server cache handles freshness
           return;
         }
       }
 
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       if (!skipCache) setLoadingRankings(true);
 
       try {
-        const token = await firebaseUser?.getIdToken();
+        const token = await firebaseUserRef.current?.getIdToken();
         if (!token) return;
 
         const url =
@@ -101,6 +105,7 @@ export default function LeaderboardPage() {
 
         const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
 
         if (response.ok) {
@@ -112,6 +117,7 @@ export default function LeaderboardPage() {
           toast.error('Failed to load leaderboard');
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error(error);
         if (!getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL)) {
           toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load leaderboard');
@@ -125,14 +131,15 @@ export default function LeaderboardPage() {
         }
       }
     },
-    [firebaseUser]
+    []
   );
 
   useEffect(() => {
     if (user && firebaseUser) {
       fetchRankings(activeTab);
     }
-  }, [user, firebaseUser, activeTab, fetchRankings]);
+    return () => { abortRef.current?.abort(); };
+  }, [activeTab, fetchRankings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!loading && !user) {
     return null;
