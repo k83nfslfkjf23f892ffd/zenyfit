@@ -1,14 +1,14 @@
 'use client';
 
+import { memo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Settings } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { getAvatarDisplayUrl } from '@/lib/avatar';
+import { getAvatarDisplayUrl, getUserAvatar, getAvatarInitials } from '@/lib/avatar';
 
 interface UserHeaderWidgetProps {
   user: {
@@ -19,24 +19,38 @@ interface UserHeaderWidgetProps {
   };
 }
 
-export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
+export const UserHeaderWidget = memo(function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
   const xpNeeded = getXPNeededForNextLevel(user.level);
   const progressPercent = (xpInLevel / xpNeeded) * 100;
   const avatarUrl = getAvatarDisplayUrl(user.avatar, user.username);
+  const dicebearFallback = getUserAvatar(user.username);
+  // 0 = primary URL, 1 = DiceBear fallback, 2 = initials
+  const [errorStage, setErrorStage] = useState(0);
+
+  const currentSrc = errorStage === 0 ? avatarUrl
+    : errorStage === 1 ? dicebearFallback
+    : null;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image
-            src={avatarUrl}
-            alt={user.username}
-            width={44}
-            height={44}
-            className="h-11 w-11 rounded-full bg-border/20 object-cover"
-            unoptimized
-          />
+          {currentSrc ? (
+            <Image
+              src={currentSrc}
+              alt={user.username}
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-full bg-border/20 object-cover"
+              onError={() => setErrorStage(prev => prev + 1)}
+              unoptimized={!currentSrc.includes('dicebear.com')}
+            />
+          ) : (
+            <div className="h-11 w-11 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+              {getAvatarInitials(user.username)}
+            </div>
+          )}
           <div>
             <h1 className="text-2xl font-bold gradient-text">
               {user.username}
@@ -49,11 +63,12 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/profile/settings">
+        <Link
+            href="/profile/settings"
+            className="h-10 w-10 flex items-center justify-center rounded-lg active:bg-foreground/10 transition-colors"
+          >
             <Settings className="h-5 w-5 text-foreground/40" />
           </Link>
-        </Button>
       </div>
 
       <div className="space-y-2">
@@ -65,4 +80,4 @@ export function UserHeaderWidget({ user }: UserHeaderWidgetProps) {
       </div>
     </div>
   );
-}
+});

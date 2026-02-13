@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility, HighlightCursor, holdActiveDot, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface UserGrowthData {
   date: string;
@@ -28,6 +29,8 @@ export function UserGrowthChart({
   title = 'User Growth',
   description = 'Platform user growth over time',
 }: UserGrowthChartProps) {
+  const { isHolding, handlers } = useHoldToReveal();
+
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -51,6 +54,7 @@ export function UserGrowthChart({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data}>
             <defs>
@@ -84,17 +88,23 @@ export function UserGrowthChart({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={isHolding ? <HighlightCursor /> : false}
             />
             <Area
               type="monotone"
               dataKey="users"
               stroke="hsl(var(--primary))"
-              fillOpacity={1}
+              strokeOpacity={isHolding ? 0.4 : 1}
+              fillOpacity={isHolding ? 0.4 : 1}
               fill="url(#colorUsers)"
               name="Total Users"
+              activeDot={isHolding ? holdActiveDot('hsl(var(--primary))') : false}
+              style={holdTransition}
             />
           </AreaChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

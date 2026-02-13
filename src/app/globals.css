@@ -109,6 +109,15 @@
   top: calc(16px + env(safe-area-inset-top)) !important;
 }
 
+/* Hide scrollbars everywhere while keeping scroll functional */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* Make app feel native - prevent text selection and long-press preview */
 * {
   -webkit-touch-callout: none;

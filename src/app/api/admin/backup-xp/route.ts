@@ -93,8 +93,10 @@ export async function POST(request: NextRequest) {
       // No body is fine
     }
 
-    // Backup all users' XP data
-    const usersSnapshot = await db.collection('users').get();
+    // Backup all users' XP data — select only needed fields
+    const usersSnapshot = await db.collection('users')
+      .select('username', 'xp', 'level', 'totals')
+      .get();
     const users: UserBackup[] = usersSnapshot.docs.map(doc => ({
       id: doc.id,
       username: doc.data().username,
@@ -103,8 +105,10 @@ export async function POST(request: NextRequest) {
       totals: doc.data().totals || {},
     }));
 
-    // Backup all exercise logs' XP data
-    const logsSnapshot = await db.collection('exercise_logs').get();
+    // Backup all exercise logs' XP data — select only needed fields
+    const logsSnapshot = await db.collection('exercise_logs')
+      .select('userId', 'type', 'amount', 'xpEarned', 'timestamp')
+      .get();
     const logs: LogBackup[] = logsSnapshot.docs.map(doc => ({
       id: doc.id,
       userId: doc.data().userId,

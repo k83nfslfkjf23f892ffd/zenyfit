@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 import {
   BarChart,
   Bar,
@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility, holdTransition, useStickyTooltip } from '@/lib/use-hold-to-reveal';
 
 interface DayData {
   day: string;
@@ -27,9 +28,11 @@ interface ProfileStatsData {
   weeklyActivity?: DayData[];
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function WeeklyActivityWidget() {
+  const { isHolding, handlers, lastTooltipRef } = useHoldToReveal();
+  const stickyProps = useStickyTooltip(lastTooltipRef, isHolding);
   const { firebaseUser } = useAuth();
   const [data, setData] = useState<DayData[]>(() => {
     if (typeof window !== 'undefined') {
@@ -96,8 +99,13 @@ export function WeeklyActivityWidget() {
           <CardTitle className="text-base">Weekly Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="h-[180px] flex items-end gap-3 px-2 pb-6">
+            {[40, 65, 30, 80, 55, 45, 70].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full rounded-t-md bg-border/20 animate-pulse" style={{ height: `${h}%` }} />
+                <div className="h-3 w-6 rounded bg-border/20 animate-pulse" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -125,6 +133,7 @@ export function WeeklyActivityWidget() {
         <CardTitle className="text-base">Weekly Activity</CardTitle>
       </CardHeader>
       <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={data} barCategoryGap="25%">
             <XAxis
@@ -135,14 +144,19 @@ export function WeeklyActivityWidget() {
             />
             <YAxis hide />
             <Tooltip
-              cursor={{ fill: 'rgb(var(--glass) / 0.05)' }}
-              contentStyle={{
-                backgroundColor: 'rgb(var(--surface))',
-                border: '1px solid rgb(var(--border))',
-                borderRadius: '12px',
-                fontSize: '12px',
-                color: 'rgb(var(--foreground))',
+              cursor={false}
+              content={(props) => {
+                const p = stickyProps(props as { active?: boolean; payload?: unknown[]; label?: string });
+                if (!p.active || !p.payload || (p.payload as Array<{ value: number }>).length === 0) return null;
+                const entry = (p.payload as Array<{ value: number }>)[0];
+                return (
+                  <div className="bg-surface rounded-xl px-3 py-2 shadow-lg border border-border text-xs text-foreground">
+                    <p className="text-foreground/40 mb-0.5">{p.label}</p>
+                    <p className="font-medium">{entry.value} workouts</p>
+                  </div>
+                );
               }}
+              wrapperStyle={tooltipVisibility(isHolding)}
             />
             <defs>
               <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -153,10 +167,14 @@ export function WeeklyActivityWidget() {
             <Bar
               dataKey="workouts"
               fill="url(#barGradient)"
+              fillOpacity={isHolding ? 0.3 : 1}
+              activeBar={isHolding ? { fillOpacity: 1 } : false}
               radius={[6, 6, 0, 0]}
+              style={holdTransition}
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

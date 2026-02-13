@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Shuffle, User, Link, Save, Loader2, Undo2, Redo2, Palette, Sparkles, RefreshCw, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getUserAvatar,
+  getAvatarDisplayUrl,
+  getAvatarInitials,
   getRandomFitnessAvatar,
   getAvatarWithNewStyle,
   getAvatarWithNewSeed,
@@ -22,16 +24,17 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerProps) {
-  const initialAvatar = currentAvatar || getUserAvatar(username);
+  const initialAvatar = getAvatarDisplayUrl(currentAvatar, username);
   const [history, setHistory] = useState<string[]>([initialAvatar]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [customUrl, setCustomUrl] = useState(currentAvatar || '');
   const [saving, setSaving] = useState(false);
 
   const previewUrl = history[historyIndex];
-  const hasChanges = previewUrl !== currentAvatar;
+  const hasChanges = previewUrl !== getAvatarDisplayUrl(currentAvatar, username);
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
+  const [imgError, setImgError] = useState(false);
 
   const addToHistory = (url: string) => {
     // Truncate any forward history and add new entry
@@ -39,6 +42,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
     setCustomUrl(url);
+    setImgError(false);
   };
 
   const handleRandomize = () => {
@@ -87,6 +91,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     if (canGoBack) {
       setHistoryIndex(historyIndex - 1);
       setCustomUrl(history[historyIndex - 1]);
+      setImgError(false);
     }
   };
 
@@ -94,6 +99,7 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
     if (canGoForward) {
       setHistoryIndex(historyIndex + 1);
       setCustomUrl(history[historyIndex + 1]);
+      setImgError(false);
     }
   };
 
@@ -111,12 +117,21 @@ export function AvatarPicker({ username, currentAvatar, onSave }: AvatarPickerPr
         {/* Preview */}
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt="Avatar preview"
-              className={`w-32 h-32 rounded-full border-4 ${hasChanges ? 'border-yellow-500' : 'border-primary'}`}
-            />
+            {!imgError ? (
+              <Image
+                src={previewUrl}
+                alt="Avatar preview"
+                width={128}
+                height={128}
+                className={`w-32 h-32 rounded-full border-4 object-cover ${hasChanges ? 'border-yellow-500' : 'border-primary'}`}
+                onError={() => setImgError(true)}
+                unoptimized={!previewUrl.includes('dicebear.com')}
+              />
+            ) : (
+              <div className={`w-32 h-32 rounded-full border-4 bg-primary/20 flex items-center justify-center text-primary font-bold text-3xl ${hasChanges ? 'border-yellow-500' : 'border-primary'}`}>
+                {getAvatarInitials(username)}
+              </div>
+            )}
             {hasChanges && (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-yellow-500 text-yellow-950 px-2 py-0.5 rounded-full font-medium">
                 Unsaved

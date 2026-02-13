@@ -8,17 +8,30 @@
 
 /** Shared cache keys — widgets/pages reading same API use the same key */
 export const CACHE_KEYS = {
-  profileStats: 'zenyfit_profile_stats_v2',
-  trend: 'zenyfit_trend_cache',
-  statsGrid: 'zenyfit_stats_grid_v2',
-  challenges: 'zenyfit_challenges',
-  achievements: 'zenyfit_achievements_v2',
-  rankings: 'zenyfit_rankings_cache',
-  chartData: 'zenyfit_chart_cache',
+  profileStats: 'zenyfit_profile_stats_v3',
+  trend: 'zenyfit_trend_v2',
+  statsGrid: 'zenyfit_stats_grid_v3',
+  challenges: 'zenyfit_challenges_v2',
+  achievements: 'zenyfit_achievements_v3',
+  rankings: 'zenyfit_rankings_v2',
+  chartData: 'zenyfit_chart_v2',
   chartFilters: 'zenyfit_chart_filters',
+  challengeProgress: 'zenyfit_challenge_progress_v1',
 } as const;
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+
+/** Per-key TTLs — longer for data that changes infrequently */
+export const CACHE_TTLS = {
+  profileStats: 10 * 60 * 1000,  // 10 min — only changes on workout log
+  trend: 10 * 60 * 1000,         // 10 min — 7-day data, slow-moving
+  statsGrid: 15 * 60 * 1000,     // 15 min — achievements rarely change
+  achievements: 15 * 60 * 1000,  // 15 min — same as statsGrid
+  rankings: 10 * 60 * 1000,      // 10 min — moderate churn
+  chartData: 10 * 60 * 1000,     // 10 min — leaderboard charts
+  challenges: 5 * 60 * 1000,     // 5 min  — keep fresh for timers
+  challengeProgress: 5 * 60 * 1000, // 5 min — same as challenges
+} as const;
 
 interface CacheWrapper<T> {
   data: T;
@@ -102,6 +115,23 @@ export function setNestedCache<T>(key: string, subKey: string, data: T): void {
     const outer = raw ? JSON.parse(raw) : {};
     outer[subKey] = { data, timestamp: Date.now() };
     localStorage.setItem(key, JSON.stringify(outer));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Invalidate workout-affected caches so the next dashboard visit fetches fresh data.
+ * Call this after logging, undoing, or deleting a workout.
+ */
+export function invalidateWorkoutCaches(): void {
+  try {
+    localStorage.removeItem(CACHE_KEYS.profileStats);
+    localStorage.removeItem(CACHE_KEYS.trend);
+    localStorage.removeItem(CACHE_KEYS.statsGrid);
+    localStorage.removeItem(CACHE_KEYS.rankings);
+    localStorage.removeItem(CACHE_KEYS.chartData);
+    localStorage.removeItem(CACHE_KEYS.challengeProgress);
   } catch {
     // Ignore storage errors
   }

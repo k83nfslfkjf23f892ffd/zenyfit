@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
+import { getCached, setCache } from '@/lib/api-cache';
 
 /**
  * Helper: Verify user is admin
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = rateLimitByUser(adminCheck.decodedToken!, request.nextUrl.pathname, RATE_LIMITS.ADMIN);
     if (rateLimitResponse) return rateLimitResponse;
 
+    // Server cache — admin stats don't need to be real-time
+    const cached = getCached('/api/admin/stats', adminCheck.userId!);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
+
     const { db } = getAdminInstances();
 
     // Get user counts
@@ -62,8 +69,8 @@ export async function GET(request: NextRequest) {
     const workoutsSnapshot = await db.collection('exercise_logs').count().get();
     const totalWorkouts = workoutsSnapshot.data().count;
 
-    // Get total XP across all users
-    const allUsersSnapshot = await db.collection('users').get();
+    // Get total XP across all users — select only xp field to reduce bandwidth
+    const allUsersSnapshot = await db.collection('users').select('xp').get();
     let totalXp = 0;
     allUsersSnapshot.docs.forEach(doc => {
       totalXp += doc.data().xp || 0;
@@ -99,6 +106,7 @@ export async function GET(request: NextRequest) {
 
     const newUsersSnapshot = await db.collection('users')
       .where('createdAt', '>', thirtyDaysAgo)
+      .select('createdAt')
       .get();
 
     // Group new users by day
@@ -109,9 +117,11 @@ export async function GET(request: NextRequest) {
       signupsByDay[date] = (signupsByDay[date] || 0) + 1;
     });
 
-    // Get workout growth data (last 30 days)
+    // Get workout growth data (last 30 days) — select only needed fields, cap at 10k
     const recentWorkoutsSnapshot = await db.collection('exercise_logs')
       .where('timestamp', '>', thirtyDaysAgo)
+      .select('timestamp', 'xpEarned')
+      .limit(10000)
       .get();
 
     const workoutsByDay: { [key: string]: number } = {};
@@ -138,10 +148,12 @@ export async function GET(request: NextRequest) {
       avatar: doc.data().avatar,
     }));
 
-    // Calculate activity stats (users active in last 7 days)
+    // Calculate activity stats (users active in last 7 days) — only need userId
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentLogsSnapshot = await db.collection('exercise_logs')
       .where('timestamp', '>', sevenDaysAgo)
+      .select('userId')
+      .limit(5000)
       .get();
 
     const activeUserIds = new Set<string>();
@@ -151,29 +163,29 @@ export async function GET(request: NextRequest) {
 
     const activeUsersLast7Days = activeUserIds.size;
 
-    return NextResponse.json(
-      {
-        overview: {
-          totalUsers,
-          activeUsers,
-          totalWorkouts,
-          totalXp,
-          totalChallenges,
-          activeChallenges,
-          totalInviteCodes,
-          usedInviteCodes,
-          totalCustomExercises,
-          activeUsersLast7Days,
-        },
-        growth: {
-          signupsByDay,
-          workoutsByDay,
-          xpByDay,
-        },
-        topUsers,
+    const responseData = {
+      overview: {
+        totalUsers,
+        activeUsers,
+        totalWorkouts,
+        totalXp,
+        totalChallenges,
+        activeChallenges,
+        totalInviteCodes,
+        usedInviteCodes,
+        totalCustomExercises,
+        activeUsersLast7Days,
       },
-      { status: 200 }
-    );
+      growth: {
+        signupsByDay,
+        workoutsByDay,
+        xpByDay,
+      },
+      topUsers,
+    };
+
+    setCache('/api/admin/stats', adminCheck.userId!, responseData);
+    return NextResponse.json(responseData, { status: 200 });
   } catch (error) {
     console.error('Error in GET /api/admin/stats:', error);
     return NextResponse.json(

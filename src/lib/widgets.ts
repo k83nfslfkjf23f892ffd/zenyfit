@@ -9,11 +9,6 @@ export interface WidgetDefinition {
 // All available widgets
 export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   {
-    id: 'user-header',
-    name: 'User Header',
-    description: 'Username, level, XP, and progress bar',
-  },
-  {
     id: 'stats-grid',
     name: 'Stats Grid',
     description: 'Workouts, this week, XP, achievements',
@@ -24,9 +19,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Calisthenics distribution pie chart',
   },
   {
-    id: 'weekly-activity',
-    name: 'Weekly Activity',
-    description: 'Bar chart of workouts per day',
+    id: 'streaks',
+    name: 'Workout Streak',
+    description: 'Current and best workout streaks',
   },
   {
     id: 'consistency',
@@ -44,11 +39,6 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'Lifetime totals per exercise',
   },
   {
-    id: 'xp-history',
-    name: 'XP History',
-    description: 'XP progress over time',
-  },
-  {
     id: 'active-challenges',
     name: 'Active Challenges',
     description: 'Current challenge progress',
@@ -58,14 +48,12 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
 // Default widget configuration for new users - all visible
 export const DEFAULT_WIDGET_CONFIG = {
   order: [
-    'user-header',
     'stats-grid',
+    'streaks',
     'exercise-ratio',
-    'weekly-activity',
     'consistency',
     'personal-bests',
     'exercise-totals',
-    'xp-history',
     'active-challenges',
   ],
   hidden: [], // All widgets visible by default
@@ -81,5 +69,15 @@ export function getVisibleWidgets(
   config: { order: string[]; hidden: string[] } | undefined
 ): string[] {
   const effectiveConfig = config || DEFAULT_WIDGET_CONFIG;
-  return effectiveConfig.order.filter((id) => !effectiveConfig.hidden.includes(id));
+  const validIds = WIDGET_DEFINITIONS.map((w) => w.id);
+  return effectiveConfig.order.filter((id) => validIds.includes(id) && !effectiveConfig.hidden.includes(id));
+}
+
+// Get hidden widgets in order
+export function getHiddenWidgets(
+  config: { order: string[]; hidden: string[] } | undefined
+): string[] {
+  const effectiveConfig = config || DEFAULT_WIDGET_CONFIG;
+  const validIds = WIDGET_DEFINITIONS.map((w) => w.id);
+  return effectiveConfig.order.filter((id) => validIds.includes(id) && effectiveConfig.hidden.includes(id));
 }

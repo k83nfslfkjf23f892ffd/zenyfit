@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { EXERCISE_INFO } from '@shared/constants';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface ProfileStatsData {
   personalBests: Record<string, number>;
@@ -13,7 +13,7 @@ interface ProfileStatsData {
   workoutDaysLast30: number;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.profileStats;
 
 export function PersonalBestsWidget() {
   const { firebaseUser } = useAuth();
@@ -70,7 +70,7 @@ export function PersonalBestsWidget() {
     }
   }, [firebaseUser, fetchData]);
 
-  const displayExercises = ['pullups', 'pushups', 'dips', 'running'];
+  const displayExercises = ['pullups', 'pushups', 'dips', 'running', 'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'];
 
   return (
     <Card>
@@ -84,8 +84,13 @@ export function PersonalBestsWidget() {
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-surface border border-border p-3">
+                <div className="h-4 w-20 rounded bg-border/20 animate-pulse" />
+                <div className="h-4 w-14 rounded bg-border/20 animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : Object.keys(personalBests).length > 0 ? (
           Object.entries(personalBests)
@@ -95,7 +100,7 @@ export function PersonalBestsWidget() {
               const label = exerciseInfo?.label || type;
               const unit = exerciseInfo?.unit || 'reps';
               return (
-                <div key={type} className="flex items-center justify-between rounded-lg glass p-3">
+                <div key={type} className="flex items-center justify-between rounded-lg bg-surface border border-border p-3">
                   <span className="text-sm font-medium">{label}</span>
                   <span className="text-sm font-bold gradient-text">
                     {amount} {unit}

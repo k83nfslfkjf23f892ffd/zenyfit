@@ -3,8 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
-
 export default function HomePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -19,10 +17,6 @@ export default function HomePage() {
     }
   }, [user, loading, router]);
 
-  // Always show loading spinner - this page only redirects
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
+  // Splash screen covers this page while loading
+  return null;
 }

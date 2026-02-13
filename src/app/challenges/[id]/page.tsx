@@ -10,8 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
+
+const ChallengeProgressChart = dynamic(
+  () => import('@/components/charts/ChallengeProgressChart').then((mod) => mod.ChallengeProgressChart),
+  { ssr: false }
+);
 
 interface Challenge {
   id: string;
@@ -29,7 +36,7 @@ interface Challenge {
 
 // Cache helpers
 const CACHE_KEY_PREFIX = 'zenyfit_challenge_';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 min — challenges need freshness for timers
 
 function getCachedChallenge(id: string): Challenge | null {
   try {
@@ -121,7 +128,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     } catch (error) {
       console.error('Error fetching challenge:', error);
       if (!getCachedChallenge(challengeId)) {
-        toast.error('An error occurred');
+        toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load challenge');
       }
     } finally {
       setLoadingChallenge(false);
@@ -160,7 +167,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
       }
     } catch (error) {
       console.error('Error joining challenge:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to join challenge');
     } finally {
       setJoining(false);
     }
@@ -188,7 +195,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   };
 
   const handleTouchEnd = () => {
-    if (pullDistance >= 60 && !refreshing) {
+    if (pullDistance >= 40 && !refreshing) {
       handleRefresh();
     }
     setPullDistance(0);
@@ -231,11 +238,11 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
         {(pullDistance > 0 || refreshing) && (
           <div
             className="flex justify-center items-center py-2"
-            style={{ height: refreshing ? 40 : Math.min(pullDistance, 60) }}
+            style={{ height: refreshing ? 40 : Math.min(pullDistance, 50) }}
           >
             <div
               className={`rounded-full border-2 p-1 transition-colors ${
-                pullDistance >= 60 || refreshing
+                pullDistance >= 40 || refreshing
                   ? 'border-primary text-primary'
                   : 'border-foreground/10 text-foreground/30'
               }`}
@@ -278,17 +285,17 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold gradient-text">{EXERCISE_INFO[challenge.type]?.label || challenge.type}</div>
                 <div className="text-xs text-foreground/40 mt-0.5">Exercise</div>
               </div>
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold">
                   {challenge.goal} {EXERCISE_INFO[challenge.type]?.unit || 'reps'}
                 </div>
                 <div className="text-xs text-foreground/40 mt-0.5">Goal</div>
               </div>
-              <div className="text-center glass rounded-xl p-3">
+              <div className="text-center bg-surface border border-border rounded-xl p-3">
                 <div className="text-sm font-bold">
                   {daysRemaining > 0 ? `${daysRemaining}d` : 'Ended'}
                 </div>
@@ -305,6 +312,14 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
           </CardContent>
         </Card>
 
+        {/* Progress Chart */}
+        {challenge.participants.length > 0 && (
+          <ChallengeProgressChart
+            challengeId={challengeId}
+            firebaseUser={firebaseUser}
+          />
+        )}
+
         {/* Participants Leaderboard */}
         <Card>
           <CardHeader className="pb-3">
@@ -319,37 +334,29 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {sortedParticipants.map((participant, index) => {
+            {sortedParticipants.map((participant) => {
               const progressPercent = (participant.progress / challenge.goal) * 100;
               const isCurrentUser = user ? participant.userId === user.id : false;
-              const rank = index + 1;
-
+              const avatarUrl = getAvatarDisplayUrl(participant.avatar, participant.username);
               return (
                 <div
                   key={participant.userId}
                   className={`rounded-xl p-3 ${
                     isCurrentUser
-                      ? 'glass-strong glow-sm'
-                      : 'glass'
+                      ? 'bg-surface/80 border border-border glow-sm'
+                      : 'bg-surface/50 border border-border/50'
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    {/* Rank */}
-                    {rank <= 3 ? (
-                      <Badge variant={rank === 1 ? 'gold' : rank === 2 ? 'silver' : 'bronze'}>
-                        {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
-                      </Badge>
-                    ) : (
-                      <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>
-                    )}
-
                     {/* Avatar */}
-                    <div className={`h-8 w-8 overflow-hidden rounded-full flex-shrink-0 ${rank <= 3 ? 'ring-2 ring-primary/30' : ''}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getAvatarDisplayUrl(participant.avatar, participant.username)}
+                    <div className="h-8 w-8 overflow-hidden rounded-full flex-shrink-0 bg-border/20">
+                      <Image
+                        src={avatarUrl}
                         alt={participant.username}
+                        width={32}
+                        height={32}
                         className="h-full w-full object-cover"
+                        unoptimized={!avatarUrl.includes('dicebear.com')}
                       />
                     </div>
 
@@ -359,7 +366,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
                     </span>
 
                     {/* Score */}
-                    <span className={`font-bold text-sm ${rank <= 3 ? 'gradient-text' : ''}`}>
+                    <span className="font-bold text-sm">
                       {Math.floor(participant.progress)} / {challenge.goal}
                     </span>
                   </div>

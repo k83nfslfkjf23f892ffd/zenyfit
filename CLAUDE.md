@@ -81,6 +81,7 @@ zenyfit/
 │   │   └── [page]/       # Page components
 │   ├── components/       # React components
 │   │   ├── ui/           # shadcn/ui components
+│   │   ├── widgets/      # Dashboard widgets (10 customizable)
 │   │   ├── admin/        # Admin panel components
 │   │   ├── charts/       # Recharts data visualization
 │   │   └── animations/   # Framer Motion animations
@@ -194,7 +195,7 @@ Two-layer caching to minimize Firestore reads:
 ## Database Schema (Firestore)
 
 ### Collections
-1. **`users`**: User profiles (id, username, avatar, level, xp, totals, isAdmin, isBanned, theme, invitedBy, createdAt)
+1. **`users`**: User profiles (id, username, avatar, level, xp, totals, isAdmin, isBanned, theme, invitedBy, dashboardWidgets, createdAt)
 2. **`exercise_logs`**: Workout records (userId, type, amount, timestamp, xpEarned, synced, isCustom)
 3. **`custom_exercises`**: User-defined exercises (userId, name, unit, quickActions, createdAt)
 4. **`challenges`**: Competition events (title, description, type, goal, dates, participants, participantIds, isPublic, colors, createdBy)

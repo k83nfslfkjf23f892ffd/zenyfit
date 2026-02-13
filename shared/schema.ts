@@ -39,6 +39,8 @@ export const EXERCISE_TYPES = [
   'archer_pushups', 'onearm_pushups', 'pullups', 'assisted_pullups', 'chinups',
   'wide_pullups', 'lsit_pullups', 'australian_pullups', 'dips', 'bench_dips',
   'ring_dips', 'muscleups',
+  // Bar Hangs
+  'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang',
   // Cardio
   'running', 'walking', 'swimming', 'sprinting',
   // Team Sports
@@ -70,6 +72,10 @@ export const userSchema = z.object({
   theme: z.string().optional(),
   quickAddPresets: z.record(z.string(), z.array(z.number().positive()).max(8)).optional(),
   dashboardWidgets: dashboardWidgetsSchema.optional(),
+  currentStreak: z.number().int().min(0).optional(),
+  longestStreak: z.number().int().min(0).optional(),
+  lastWorkoutDate: z.string().optional(), // YYYY-MM-DD
+  totalWorkoutSets: z.number().int().min(0).optional(),
 });
 
 // ============================================================================

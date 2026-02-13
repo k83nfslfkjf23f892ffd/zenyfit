@@ -1,17 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { Loader2, Database, RefreshCw, RotateCcw } from 'lucide-react';
+import { Loader2, Database, RefreshCw, RotateCcw, BarChart3, Trash2 } from 'lucide-react';
+
+interface RouteMetric {
+  route: string;
+  reads: number;
+  writes: number;
+  calls: number;
+  cacheHits: number;
+}
+
+interface UserMetric {
+  userId: string;
+  reads: number;
+  writes: number;
+  calls: number;
+  cacheHits: number;
+}
+
+interface MetricsData {
+  startedAt: number;
+  uptimeMs: number;
+  totals: {
+    reads: number;
+    writes: number;
+    calls: number;
+    cacheHits: number;
+  };
+  routes: RouteMetric[];
+  users: UserMetric[];
+}
 
 export function SystemHealthTab() {
   const { firebaseUser } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<Record<string, unknown> | null>(null);
   const [backups, setBackups] = useState<Array<{ id: string; createdAt: number; summary: { totalUsers: number; totalXp: number } }>>([]);
+  const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const callApi = async (endpoint: string, method = 'POST') => {
     const token = await firebaseUser?.getIdToken();
@@ -26,6 +57,37 @@ export function SystemHealthTab() {
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
   };
+
+  const fetchMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    try {
+      const data = await callApi('/api/admin/metrics', 'GET');
+      setMetrics(data);
+    } catch {
+      // Silently fail on initial load
+    } finally {
+      setMetricsLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser]);
+
+  const resetMetrics = async () => {
+    setLoading('resetMetrics');
+    try {
+      await callApi('/api/admin/metrics', 'POST');
+      toast.success('Metrics reset');
+      fetchMetrics();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reset');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Fetch metrics on mount
+  useEffect(() => {
+    if (firebaseUser) fetchMetrics();
+  }, [firebaseUser, fetchMetrics]);
 
   const handleBackup = async () => {
     setLoading('backup');
@@ -143,76 +205,126 @@ export function SystemHealthTab() {
         </CardContent>
       </Card>
 
+      {/* Firestore Metrics */}
       <Card>
         <CardHeader>
-          <CardTitle>System Health</CardTitle>
-          <CardDescription>Monitor system performance and errors</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Status Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <p className="font-semibold">API Status</p>
-                </div>
-                <p className="text-2xl font-bold">Operational</p>
-                <p className="text-sm text-muted-foreground mt-1">All endpoints responding</p>
-              </div>
-
-              <div className="p-4 border rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <p className="font-semibold">Database</p>
-                </div>
-                <p className="text-2xl font-bold">Connected</p>
-                <p className="text-sm text-muted-foreground mt-1">Firestore operational</p>
-              </div>
-
-              <div className="p-4 border rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <p className="font-semibold">Authentication</p>
-                </div>
-                <p className="text-2xl font-bold">Active</p>
-                <p className="text-sm text-muted-foreground mt-1">Firebase Auth working</p>
-              </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Firestore Metrics
+              </CardTitle>
+              <CardDescription>
+                Reads, writes, and cache hits since last reset
+              </CardDescription>
             </div>
-
-            {/* Placeholder Notice */}
-            <div className="p-8 text-center bg-muted/50 rounded-lg">
-              <h3 className="font-semibold mb-2">System Health Monitoring</h3>
-              <p className="text-muted-foreground mb-4">
-                Full system health monitoring will be implemented in a future phase.
-              </p>
-              <div className="text-left max-w-2xl mx-auto space-y-2 text-sm">
-                <p className="font-medium">Planned features:</p>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-4">
-                  <li>Recent API errors and failed requests</li>
-                  <li>Offline sync queue status across users</li>
-                  <li>Database performance metrics (read/write counts)</li>
-                  <li>API response time tracking</li>
-                  <li>User session analytics</li>
-                  <li>Error rate monitoring with alerts</li>
-                </ul>
-                <p className="text-muted-foreground mt-4">
-                  Currently, system logs can be viewed in your hosting platform&apos;s dashboard (Vercel)
-                  and Firebase Console for detailed monitoring.
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-3">Quick Actions</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>• View Firebase Console: Check database usage and performance</p>
-                <p>• View Vercel Dashboard: Monitor API function logs and errors</p>
-                <p>• Check Firestore Indexes: Ensure query optimization is working</p>
-              </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={fetchMetrics} disabled={metricsLoading}>
+                {metricsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              </Button>
+              <Button size="sm" variant="outline" onClick={resetMetrics} disabled={!!loading}>
+                {loading === 'resetMetrics' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+              </Button>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          {!metrics ? (
+            <div className="flex items-center justify-center py-8">
+              {metricsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <p className="text-sm text-muted-foreground">No metrics data available</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Totals */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 border rounded-lg text-center">
+                  <p className="text-2xl font-bold">{metrics.totals.reads.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Reads</p>
+                </div>
+                <div className="p-3 border rounded-lg text-center">
+                  <p className="text-2xl font-bold">{metrics.totals.writes.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Writes</p>
+                </div>
+                <div className="p-3 border rounded-lg text-center">
+                  <p className="text-2xl font-bold">{metrics.totals.calls.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">API Calls</p>
+                </div>
+                <div className="p-3 border rounded-lg text-center">
+                  <p className="text-2xl font-bold">{metrics.totals.cacheHits.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Cache Hits</p>
+                </div>
+              </div>
+
+              {/* Per-route breakdown */}
+              {metrics.routes.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 text-left">
+                        <th className="px-3 py-2 font-medium">Route</th>
+                        <th className="px-3 py-2 font-medium text-right">Reads</th>
+                        <th className="px-3 py-2 font-medium text-right">Writes</th>
+                        <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Calls</th>
+                        <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Cache</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metrics.routes.map((r) => (
+                        <tr key={r.route} className="border-t border-muted/30">
+                          <td className="px-3 py-2 font-mono text-xs">{r.route}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.reads.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.writes.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{r.calls.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{r.cacheHits.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Per-user breakdown */}
+              {metrics.users && metrics.users.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Per User</p>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 text-left">
+                          <th className="px-3 py-2 font-medium">User ID</th>
+                          <th className="px-3 py-2 font-medium text-right">Reads</th>
+                          <th className="px-3 py-2 font-medium text-right">Writes</th>
+                          <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Calls</th>
+                          <th className="px-3 py-2 font-medium text-right hidden sm:table-cell">Cache</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.users.map((u) => (
+                          <tr key={u.userId} className="border-t border-muted/30">
+                            <td className="px-3 py-2 font-mono text-xs" title={u.userId}>
+                              {u.userId.length > 12 ? `${u.userId.slice(0, 6)}...${u.userId.slice(-4)}` : u.userId}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{u.reads.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{u.writes.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{u.calls.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell">{u.cacheHits.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Metrics are persisted in Firestore. Use the reset button to start fresh. Sorted by reads (heaviest first).
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

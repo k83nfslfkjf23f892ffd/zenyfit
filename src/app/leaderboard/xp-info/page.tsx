@@ -66,6 +66,20 @@ const EXERCISE_DETAILS: Record<string, { reason: string; example: { amount: numb
     example: { amount: 15, unit: 'reps' },
   },
 
+  // Bar Hangs
+  passive_dead_hang: {
+    reason: 'Pure grip endurance with relaxed shoulders. Minimal active muscular demand beyond forearm flexors. Lowest difficulty of all bar exercises.',
+    example: { amount: 60, unit: 'sec' },
+  },
+  active_dead_hang: {
+    reason: 'Scapular engagement (shoulders pulled down and back) while hanging. Requires active recruitment of lats and lower traps.',
+    example: { amount: 45, unit: 'sec' },
+  },
+  flexed_arm_hang: {
+    reason: 'Holding at the top of a pull-up position. Sustained isometric contraction of biceps, lats, and upper back. Most people can only hold 15-30 seconds.',
+    example: { amount: 20, unit: 'sec' },
+  },
+
   // Dip variations
   dips: {
     reason: 'Moves ~95% body weight through full range of motion. Excellent for chest and triceps.',
@@ -166,6 +180,7 @@ export default function XPInfoPage() {
   const pushupVariations = ['pushups', 'knee_pushups', 'incline_pushups', 'decline_pushups', 'diamond_pushups', 'archer_pushups', 'onearm_pushups'];
   const pullupVariations = ['australian_pullups', 'assisted_pullups', 'chinups', 'pullups', 'wide_pullups', 'lsit_pullups'];
   const dipVariations = ['bench_dips', 'dips', 'ring_dips'];
+  const hangVariations = ['passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'];
   const advanced = ['muscleups'];
   const cardio = ['walking', 'running', 'swimming', 'sprinting'];
   const teamSports = ['volleyball', 'basketball', 'soccer'];
@@ -254,6 +269,25 @@ export default function XPInfoPage() {
                 xpRate={XP_RATES[type]}
                 details={EXERCISE_DETAILS[type]}
                 unit="rep"
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Bar Hangs */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Bar Hangs</CardTitle>
+            <p className="text-xs text-foreground/50">Isometric holds based on time under tension</p>
+          </CardHeader>
+          <CardContent>
+            {hangVariations.map(type => (
+              <ExerciseRow
+                key={type}
+                type={type}
+                xpRate={XP_RATES[type]}
+                details={EXERCISE_DETAILS[type]}
+                unit="sec"
               />
             ))}
           </CardContent>

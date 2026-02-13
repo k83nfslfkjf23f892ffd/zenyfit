@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             An unexpected error occurred. Try refreshing the page or going back.
           </p>
           {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre className="text-xs text-left glass p-3 rounded-md mb-4 max-w-full overflow-auto">
+            <pre className="text-xs text-left bg-surface border border-border p-3 rounded-md mb-4 max-w-full overflow-auto">
               {this.state.error.message}
             </pre>
           )}

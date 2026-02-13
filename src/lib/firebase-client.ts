@@ -7,18 +7,9 @@ let firebaseAuth: Auth | null = null;
 let firebaseDb: Firestore | null = null;
 let firebaseInitialized = false;
 
-interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-}
-
 /**
  * Initialize Firebase Client SDK (singleton pattern)
- * Fetches config from /api/config endpoint to keep secrets server-side
+ * Config is inlined at build time via env vars — no network fetch needed
  */
 export async function initializeFirebase() {
   if (firebaseInitialized) {
@@ -30,19 +21,20 @@ export async function initializeFirebase() {
   }
 
   try {
-    // Fetch Firebase config from API endpoint
-    const response = await fetch('/api/config');
-    if (!response.ok) {
-      throw new Error('Failed to fetch Firebase config');
-    }
-    const config: FirebaseConfig = await response.json();
+    const config = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
 
     // Check if already initialized
     const existingApps = getApps();
     if (existingApps.length > 0) {
       firebaseApp = existingApps[0];
     } else {
-      // Initialize Firebase
       firebaseApp = initializeApp(config);
     }
 
@@ -73,22 +65,18 @@ export async function initializeFirebase() {
       }
     }
 
-    // Set persistence AFTER emulator connection
-    await setPersistence(firebaseAuth, browserLocalPersistence);
-
-    // Enable offline persistence (wrapped in try-catch as it can fail in some environments)
-    try {
-      await enableIndexedDbPersistence(firebaseDb);
-    } catch (err: unknown) {
-      const firestoreError = err as { code?: string };
-      if (firestoreError.code === 'failed-precondition') {
-        // Multiple tabs open, persistence can only be enabled in one tab at a time
-        console.warn('Firestore persistence failed: Multiple tabs open');
-      } else if (firestoreError.code === 'unimplemented') {
-        // The current browser doesn't support persistence
-        console.warn('Firestore persistence not supported in this browser');
-      }
-    }
+    // Set persistence and enable offline support in parallel
+    await Promise.all([
+      setPersistence(firebaseAuth, browserLocalPersistence),
+      enableIndexedDbPersistence(firebaseDb).catch((err: unknown) => {
+        const firestoreError = err as { code?: string };
+        if (firestoreError.code === 'failed-precondition') {
+          console.warn('Firestore persistence failed: Multiple tabs open');
+        } else if (firestoreError.code === 'unimplemented') {
+          console.warn('Firestore persistence not supported in this browser');
+        }
+      }),
+    ]);
 
     firebaseInitialized = true;
 

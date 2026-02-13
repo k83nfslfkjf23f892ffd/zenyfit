@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminInstances, verifyAuthToken } from '@/lib/firebase-admin';
 import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { exerciseLogSchema } from '@shared/schema';
-import { XP_RATES, calculateLevel } from '@shared/constants';
+import { XP_RATES, ESTIMATED_SECONDS_PER_UNIT, calculateLevel } from '@shared/constants';
+import { trackReads, trackWrites } from '@/lib/firestore-metrics';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * POST /api/workouts
@@ -33,10 +35,17 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json();
+
+    // Allow offline-synced workouts to provide their original timestamp
+    const now = Date.now();
+    const loggedAt = typeof body.loggedAt === 'number' && body.loggedAt > 0 && body.loggedAt <= now
+      ? body.loggedAt
+      : now;
+
     const validation = exerciseLogSchema.safeParse({
       ...body,
       userId,
-      timestamp: Date.now(),
+      timestamp: loggedAt,
     });
 
     if (!validation.success) {
@@ -64,6 +73,7 @@ export async function POST(request: NextRequest) {
         .collection('custom_exercises')
         .doc(customExerciseId)
         .get();
+      trackReads('workouts', 1, userId);
 
       if (!customExerciseDoc.exists) {
         return NextResponse.json(
@@ -93,6 +103,7 @@ export async function POST(request: NextRequest) {
     // Get current user data
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
+    trackReads('workouts', 1, userId);
 
     if (!userDoc.exists) {
       return NextResponse.json(
@@ -113,8 +124,14 @@ export async function POST(request: NextRequest) {
     const newXp = userData.xp + totalXpEarned;
     const newLevel = calculateLevel(newXp);
 
+    // Update personal bests if this set amount is a new record
+    const personalBests = userData.personalBests || {};
+    const newPersonalBests = type !== 'custom' && amount > (personalBests[type] || 0)
+      ? { ...personalBests, [type]: amount }
+      : personalBests;
+
     // Create exercise logs - one per set with slightly different timestamps
-    const baseTimestamp = Date.now();
+    const baseTimestamp = loggedAt;
     const logRefs: FirebaseFirestore.DocumentReference[] = [];
     const logDataList: Record<string, unknown>[] = [];
 
@@ -150,16 +167,68 @@ export async function POST(request: NextRequest) {
       batch.set(logRefs[i], logDataList[i]);
     }
 
+    // Calculate streak update — use the workout's actual date (may differ for offline syncs)
+    const workoutDate = new Date(loggedAt).toISOString().split('T')[0];
+    const lastWorkoutDate: string | undefined = userData.lastWorkoutDate;
+    let currentStreak: number = userData.currentStreak || 0;
+    let longestStreak: number = userData.longestStreak || 0;
+
+    if (lastWorkoutDate !== workoutDate) {
+      // Check if the day before the workout date
+      const dayBefore = new Date(loggedAt);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayBeforeDate = dayBefore.toISOString().split('T')[0];
+
+      if (lastWorkoutDate === dayBeforeDate) {
+        currentStreak += 1;
+      } else {
+        currentStreak = 1;
+      }
+      if (currentStreak > longestStreak) {
+        longestStreak = currentStreak;
+      }
+    }
+
     batch.update(userRef, {
       totals: newTotals,
       xp: newXp,
       level: newLevel,
+      personalBests: newPersonalBests,
+      currentStreak,
+      longestStreak,
+      lastWorkoutDate: workoutDate,
+      totalWorkoutSets: FieldValue.increment(sets),
     });
 
-    await batch.commit();
+    // Pre-aggregate monthly stats (personal + community)
+    const workoutMonth = workoutDate.slice(0, 7); // "YYYY-MM"
+    const secsPerUnit = ESTIMATED_SECONDS_PER_UNIT[type] || 0;
 
-    // Check for active challenges that match this exercise type (non-blocking)
-    // If this fails, workout is still logged successfully
+    // Personal monthly stats
+    const monthlyStatsRef = db.collection('users').doc(userId).collection('monthlyStats').doc(workoutMonth);
+    batch.set(monthlyStatsRef, {
+      [`activityMap.${workoutDate}`]: FieldValue.increment(sets),
+      totalWorkouts: FieldValue.increment(sets),
+      estimatedExerciseSeconds: FieldValue.increment(sets * amount * secsPerUnit),
+      [`exerciseByDay.${workoutDate}.${type}`]: FieldValue.increment(totalAmount),
+      [`xpByDay.${workoutDate}`]: FieldValue.increment(totalXpEarned),
+    }, { merge: true });
+
+    // Community-wide monthly stats
+    const communityStatsRef = db.doc(`_system/communityStats_${workoutMonth}`);
+    batch.set(communityStatsRef, {
+      [`exerciseByDay.${workoutDate}.${type}`]: FieldValue.increment(totalAmount),
+      [`workoutsByDay.${workoutDate}`]: FieldValue.increment(sets),
+      [`xpByDay.${workoutDate}`]: FieldValue.increment(totalXpEarned),
+      totalXp: FieldValue.increment(totalXpEarned),
+    }, { merge: true });
+
+    await batch.commit();
+    trackWrites('workouts', sets + 1, userId); // sets exercise_log docs + 1 user update
+
+    // Check for active challenges that match this exercise type
+    // If this fails, workout is still logged — we return a warning to the client
+    let challengeUpdateFailed = false;
     try {
       const now = Date.now();
       const challengesSnapshot = await db
@@ -167,6 +236,7 @@ export async function POST(request: NextRequest) {
         .where('participantIds', 'array-contains', userId)
         .where('endDate', '>', now)
         .get();
+      trackReads('workouts', challengesSnapshot.docs.length, userId);
 
       // Update matching challenges
       const challengeUpdates: Promise<unknown>[] = [];
@@ -197,9 +267,35 @@ export async function POST(request: NextRequest) {
 
       // Wait for all challenge updates to complete
       await Promise.all(challengeUpdates);
+      if (challengeUpdates.length > 0) {
+        trackWrites('workouts', challengeUpdates.length, userId);
+      }
     } catch (challengeError) {
-      // Log but don't fail the workout
-      console.error('Error updating challenges (workout still logged):', challengeError);
+      // Log but don't fail the workout — retry once
+      console.error('Challenge update failed, retrying once:', challengeError);
+      try {
+        const retrySnapshot = await db
+          .collection('challenges')
+          .where('participantIds', 'array-contains', userId)
+          .where('endDate', '>', Date.now())
+          .where('type', '==', type)
+          .get();
+        trackReads('workouts', retrySnapshot.docs.length, userId);
+
+        for (const challengeDoc of retrySnapshot.docs) {
+          const challengeData = challengeDoc.data();
+          const participants = challengeData.participants || [];
+          const idx = participants.findIndex((p: { userId: string }) => p.userId === userId);
+          if (idx !== -1) {
+            participants[idx].progress = (participants[idx].progress || 0) + totalAmount;
+            await challengeDoc.ref.update({ participants });
+            trackWrites('workouts', 1, userId);
+          }
+        }
+      } catch (retryError) {
+        console.error('Challenge update retry also failed:', retryError);
+        challengeUpdateFailed = true;
+      }
     }
 
     return NextResponse.json(
@@ -215,6 +311,7 @@ export async function POST(request: NextRequest) {
         newXp,
         newLevel,
         leveledUp: newLevel > userData.level,
+        ...(challengeUpdateFailed && { warning: 'Challenge progress may not have updated. Pull to refresh your challenge.' }),
       },
       { status: 201 }
     );
@@ -273,6 +370,7 @@ export async function GET(request: NextRequest) {
 
     // Apply pagination
     const snapshot = await query.limit(limit).offset(offset).get();
+    trackReads('workouts', snapshot.docs.length, userId);
 
     // Get total count for pagination info
     const countQuery = db
@@ -280,6 +378,7 @@ export async function GET(request: NextRequest) {
       .where('userId', '==', userId);
 
     const countSnapshot = await countQuery.count().get();
+    trackReads('workouts', 1, userId); // count aggregation = 1 read
     const total = countSnapshot.data().count;
 
     // Format results

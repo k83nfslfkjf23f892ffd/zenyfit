@@ -7,12 +7,13 @@ import { useCelebration } from '@/lib/celebration-context';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
-import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, CALISTHENICS_BASE_TYPES } from '@shared/constants';
+import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
+import { invalidateWorkoutCaches } from '@/lib/client-cache';
+import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -78,14 +79,6 @@ function getTimeAgo(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
-// Exercise icons
-const EXERCISE_ICONS: Record<string, React.ReactNode> = {
-  pullups: <ArrowUp className="h-5 w-5" />,
-  pushups: <Minus className="h-5 w-5 rotate-90" />,
-  dips: <Circle className="h-5 w-5" />,
-  muscleups: <ArrowUp className="h-5 w-5" />,
-  running: <span className="text-lg">🏃</span>,
-};
 
 export default function LogPage() {
   const router = useRouter();
@@ -154,10 +147,12 @@ export default function LogPage() {
   const [workoutToDelete, setWorkoutToDelete] = useState<RecentWorkout | null>(null);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTouchStartRef = useRef<{ x: number; y: number } | null>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if current selection is calisthenics
   const isCalisthenics = selectedBaseType in CALISTHENICS_BASE_TYPES;
+  const isHangType = selectedBaseType === 'hangs';
 
   // Get the actual exercise type to log
   const getActiveExercise = (): ExerciseType => {
@@ -263,7 +258,11 @@ export default function LogPage() {
       if (response.ok) {
         const data = await response.json();
         const workouts = data.logs || [];
-        setRecentWorkouts(workouts);
+        // Preserve any offline-queued entries that haven't synced yet
+        setRecentWorkouts(prev => {
+          const offlineEntries = prev.filter(w => w.id.startsWith('offline_'));
+          return [...offlineEntries, ...workouts];
+        });
         setCache(STORAGE_KEYS.recentWorkouts, workouts);
       }
     } catch (error) {
@@ -284,38 +283,105 @@ export default function LogPage() {
     }
   }, [user, firebaseUser, fetchRecentWorkouts]);
 
+  // Load pending offline workouts on mount and merge into recent logs
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPending() {
+      try {
+        const pending = await getPendingWorkouts();
+        if (cancelled || pending.length === 0) return;
+        const offlineEntries: RecentWorkout[] = pending.map(pw => {
+          const total = pw.amount * pw.sets;
+          const xpRate = XP_RATES[pw.type as keyof typeof XP_RATES] || 0;
+          return {
+            id: pw.id,
+            type: pw.type,
+            amount: total,
+            xpEarned: Math.floor(total * xpRate),
+            timestamp: pw.queuedAt,
+          };
+        });
+        setRecentWorkouts(prev => {
+          // Avoid duplicates — remove any existing offline entries, then prepend fresh ones
+          const withoutOffline = prev.filter(w => !w.id.startsWith('offline_'));
+          return [...offlineEntries, ...withoutOffline];
+        });
+      } catch {
+        // IndexedDB unavailable — ignore
+      }
+    }
+
+    loadPending();
+
+    // Subscribe to pending count changes (sync completion)
+    const unsubscribe = onPendingCountChange((count) => {
+      if (count === 0) {
+        // All offline workouts synced — remove offline entries and refresh from API
+        setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
+        fetchRecentWorkouts(true);
+      } else {
+        // Re-load pending to update the list (e.g. partial sync)
+        loadPending();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [fetchRecentWorkouts]);
+
   // Delete a workout (called after confirmation)
   const handleConfirmDelete = async () => {
     if (!workoutToDelete || deletingId) return;
 
+    const isOffline = workoutToDelete.id.startsWith('offline_');
     setDeletingId(workoutToDelete.id);
+
     try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
+      if (isOffline) {
+        // Remove from IndexedDB queue
+        await removePendingWorkout(workoutToDelete.id);
+        // Update localStorage BEFORE React state to prevent race with onSnapshot-triggered refetch
+        const cachedOffline = getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+        setCache(STORAGE_KEYS.recentWorkouts, cachedOffline.filter(w => w.id !== workoutToDelete.id));
+        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
+        toast.success('Deleted offline workout');
+      } else {
+        const token = await firebaseUser?.getIdToken();
+        if (!token) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const response = await fetch(`/api/workouts/${workoutToDelete.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          toast.error(data.error || 'Failed to delete');
+          return;
+        }
+
+        // Update localStorage BEFORE React state to prevent race with onSnapshot-triggered refetch
+        const cached = getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+        setCache(STORAGE_KEYS.recentWorkouts, cached.filter(w => w.id !== workoutToDelete.id));
+        setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
+        setSessionTotal(prev => Math.max(0, prev - workoutToDelete.amount));
+        invalidateWorkoutCaches();
+        toast.success(`Deleted (-${data.xpDeducted} XP)`);
       }
 
-      const response = await fetch(`/api/workouts/${workoutToDelete.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to delete');
-        return;
-      }
-
-      // Remove from list
-      setRecentWorkouts(prev => prev.filter(w => w.id !== workoutToDelete.id));
-      toast.success(`Deleted (-${data.xpDeducted} XP)`);
       setWorkoutToDelete(null);
       setDeleteMode(false);
     } catch (error) {
       console.error('Error deleting workout:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to delete workout');
     } finally {
       setDeletingId(null);
     }
@@ -337,6 +403,47 @@ export default function LogPage() {
     const activeExercise = getActiveExercise();
 
     setLogging(true);
+
+    // Queue offline immediately if no network — avoids getIdToken() failure on expired tokens
+    if (!navigator.onLine) {
+      try {
+        await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
+        const totalAmount = logAmount * logSets;
+        setSessionTotal(prev => prev + totalAmount);
+        setCustomAmount('');
+
+        const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
+        const xpEarned = Math.floor(totalAmount * xpRate);
+        const offlineId = `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const offlineEntry: RecentWorkout = {
+          id: offlineId,
+          type: activeExercise,
+          amount: totalAmount,
+          xpEarned,
+          timestamp: Date.now(),
+        };
+        setRecentWorkouts(prev => [offlineEntry, ...prev]);
+
+        // Same celebration + undo as online logging
+        const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+        showWorkoutComplete(xpEarned, exerciseName, totalAmount);
+
+        setLastWorkout({
+          id: offlineId,
+          type: activeExercise,
+          amount: logAmount,
+          xpEarned,
+        });
+        if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+        undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 20000);
+      } catch (queueError) {
+        console.error('Failed to queue offline workout:', queueError);
+        toast.error('Failed to save workout');
+      } finally {
+        setLogging(false);
+      }
+      return;
+    }
 
     try {
       const token = await firebaseUser?.getIdToken();
@@ -371,6 +478,11 @@ export default function LogPage() {
       const totalAmount = data.totalAmount || logAmount;
       setSessionTotal(prev => prev + totalAmount);
 
+      // Warn if challenge progress failed to update
+      if (data.warning) {
+        toast.warning(data.warning);
+      }
+
       // Show celebration with total XP and sets info
       const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
       showWorkoutComplete(data.xpEarned, exerciseName, totalAmount);
@@ -388,18 +500,58 @@ export default function LogPage() {
         clearTimeout(undoTimeoutRef.current);
       }
 
-      // Auto-dismiss undo after 10 seconds
+      // Auto-dismiss undo after 20 seconds
       undoTimeoutRef.current = setTimeout(() => {
         setLastWorkout(null);
       }, 10000);
 
       setCustomAmount('');
 
+      // Invalidate dashboard caches so next visit fetches fresh data
+      invalidateWorkoutCaches();
+
       // Refresh recent workouts
       fetchRecentWorkouts();
     } catch (error) {
-      console.error('Error logging workout:', error);
-      toast.error('An error occurred');
+      // Detect network errors — queue for offline sync
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        try {
+          await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
+          const totalAmount = logAmount * logSets;
+          setSessionTotal(prev => prev + totalAmount);
+          setCustomAmount('');
+
+          const xpRate = XP_RATES[activeExercise as keyof typeof XP_RATES] || 0;
+          const xpEarned = Math.floor(totalAmount * xpRate);
+          const offlineId = `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          const offlineEntry: RecentWorkout = {
+            id: offlineId,
+            type: activeExercise,
+            amount: totalAmount,
+            xpEarned,
+            timestamp: Date.now(),
+          };
+          setRecentWorkouts(prev => [offlineEntry, ...prev]);
+
+          const exerciseName = EXERCISE_INFO[activeExercise]?.label || activeExercise;
+          showWorkoutComplete(xpEarned, exerciseName, totalAmount);
+
+          setLastWorkout({
+            id: offlineId,
+            type: activeExercise,
+            amount: logAmount,
+            xpEarned,
+          });
+          if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+          undoTimeoutRef.current = setTimeout(() => setLastWorkout(null), 20000);
+        } catch (queueError) {
+          console.error('Failed to queue offline workout:', queueError);
+          toast.error('Failed to save workout');
+        }
+      } else {
+        console.error('Error logging workout:', error);
+        toast.error('Something went wrong — please try again');
+      }
     } finally {
       setLogging(false);
     }
@@ -428,12 +580,32 @@ export default function LogPage() {
   // Long press handlers for sets x reps
   const handleLongPressStart = (preset: number) => {
     longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
       setReps(preset.toString());
       setSetsRepsModal({ preset, open: true });
     }, 500);
   };
 
+  const handleLongPressTouchStart = (preset: number, e: React.TouchEvent) => {
+    longPressTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    handleLongPressStart(preset);
+  };
+
+  const handleLongPressTouchMove = (e: React.TouchEvent) => {
+    // Only cancel if finger moves more than 10px — prevents scroll gestures from killing long-press
+    if (longPressTouchStartRef.current && longPressTimerRef.current) {
+      const dx = e.touches[0].clientX - longPressTouchStartRef.current.x;
+      const dy = e.touches[0].clientY - longPressTouchStartRef.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        longPressTouchStartRef.current = null;
+      }
+    }
+  };
+
   const handleLongPressEnd = () => {
+    longPressTouchStartRef.current = null;
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -458,37 +630,53 @@ export default function LogPage() {
   const handleUndo = async () => {
     if (!lastWorkout || undoing) return;
 
+    const isOffline = lastWorkout.id.startsWith('offline_');
+
     setUndoing(true);
     try {
-      const token = await firebaseUser?.getIdToken();
-      if (!token) {
-        toast.error('Not authenticated');
-        return;
+      if (isOffline) {
+        await removePendingWorkout(lastWorkout.id);
+        // Update localStorage BEFORE React state to prevent race with onSnapshot-triggered refetch
+        const cachedOffline = getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+        setCache(STORAGE_KEYS.recentWorkouts, cachedOffline.filter(w => w.id !== lastWorkout.id));
+        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
+        setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
+        toast.success('Undone');
+      } else {
+        const token = await firebaseUser?.getIdToken();
+        if (!token) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const response = await fetch(`/api/workouts/${lastWorkout.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          toast.error(data.error || 'Failed to undo');
+          return;
+        }
+
+        // Update localStorage BEFORE React state to prevent race with onSnapshot-triggered refetch
+        const cached = getCached<RecentWorkout[]>(STORAGE_KEYS.recentWorkouts) || [];
+        setCache(STORAGE_KEYS.recentWorkouts, cached.filter(w => w.id !== lastWorkout.id));
+        setRecentWorkouts(prev => prev.filter(w => w.id !== lastWorkout.id));
+        setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
+        toast.success(`Undone (-${data.xpDeducted} XP)`);
+        invalidateWorkoutCaches();
       }
 
-      const response = await fetch(`/api/workouts/${lastWorkout.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to undo');
-        return;
-      }
-
-      // Update session total
-      setSessionTotal(prev => Math.max(0, prev - lastWorkout.amount));
-
-      toast.success(`Undone (-${data.xpDeducted} XP)`);
       setLastWorkout(null);
       if (undoTimeoutRef.current) {
         clearTimeout(undoTimeoutRef.current);
       }
     } catch (error) {
       console.error('Error undoing workout:', error);
-      toast.error('An error occurred');
+      toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to undo workout');
     } finally {
       setUndoing(false);
     }
@@ -505,13 +693,7 @@ export default function LogPage() {
 
   // Show minimal loading while user is being fetched
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   // Main exercise types for quick selection (icon only)
@@ -519,6 +701,7 @@ export default function LogPage() {
     { key: 'pullups', icon: <ArrowUp className="h-5 w-5" /> },
     { key: 'pushups', icon: <Minus className="h-5 w-5" /> },
     { key: 'dips', icon: <Circle className="h-5 w-5" /> },
+    { key: 'hangs', icon: <span className="text-lg">✊</span> },
   ];
 
   return (
@@ -533,7 +716,7 @@ export default function LogPage() {
               className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
                 selectedBaseType === ex.key
                   ? 'gradient-bg text-white glow-sm'
-                  : 'glass text-foreground/60'
+                  : 'bg-surface border border-border text-foreground/60'
               }`}
             >
               {ex.icon}
@@ -544,7 +727,7 @@ export default function LogPage() {
             className={`h-12 flex-1 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97] ${
               selectedBaseType === 'running'
                 ? 'gradient-bg text-white glow-sm'
-                : 'glass text-foreground/60'
+                : 'bg-surface border border-border text-foreground/60'
             }`}
           >
             <span className="text-lg">🏃</span>
@@ -556,35 +739,30 @@ export default function LogPage() {
           <CardContent className="p-0">
             {/* Card Header */}
             <div className="px-4 py-2 border-b border-border/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg gradient-bg-subtle flex items-center justify-center text-primary">
-                    {EXERCISE_ICONS[selectedBaseType] || <ArrowUp className="h-4 w-4" />}
-                  </div>
-                  {/* Exercise name with variant dropdown */}
-                  {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
-                    <select
-                      value={selectedVariation}
-                      onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                      className="font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
-                    >
-                      {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                        <option key={variation} value={variation}>
-                          {EXERCISE_INFO[variation]?.label || variation}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="font-semibold">{exerciseLabel}</div>
-                  )}
-                </div>
+              <div className="flex items-center justify-between gap-2">
+                {/* Exercise name with variant dropdown */}
+                {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
+                  <select
+                    value={selectedVariation}
+                    onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
+                    className="flex-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
+                  >
+                    {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                      <option key={variation} value={variation}>
+                        {EXERCISE_INFO[variation]?.label || variation}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex-1 font-semibold">{exerciseLabel}</div>
+                )}
                 {lastWorkout && (
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleUndo}
                     disabled={undoing}
-                    className="text-foreground/40 h-8 w-8"
+                    className="text-foreground/40 h-8 w-8 shrink-0"
                   >
                     {undoing ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -603,6 +781,9 @@ export default function LogPage() {
               </div>
               <div className="text-sm text-foreground/50 mt-1">
                 {getUnitLabel()}
+                {isHangType && sessionTotal >= 60 && (
+                  <span className="text-foreground/30 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
+                )}
                 {activeXpRate > 0 && (
                   <span className="text-primary ml-2 font-medium">
                     +{Math.round(sessionTotal * activeXpRate)} XP
@@ -632,15 +813,14 @@ export default function LogPage() {
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="Custom"
-                  className="flex-1 h-10 text-base"
+                  className="flex-1 h-12 text-lg"
                 />
                 <Button
                   onClick={handleCustomSubmit}
                   disabled={logging || !customAmount}
-                  size="icon"
-                  className="h-10 w-10"
+                  className="h-12 px-5"
                 >
-                  {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log'}
                 </Button>
               </div>
             </div>
@@ -654,63 +834,76 @@ export default function LogPage() {
               {/* Calisthenics 3-row layout */}
               {isCalisthenics ? (
                 <div className="space-y-2.5">
-                  {/* Row 1: 1, 3, 5, 7 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row1.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
-                  {/* Row 2: 10, 15, 20, 25 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row2.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
-                  {/* Row 3: 30, 50, 70, 100 */}
-                  <div className="grid grid-cols-4 gap-2.5">
-                    {CALISTHENICS_PRESETS.row3.map((preset) => (
-                      <Button
-                        key={preset}
-                        type="button"
-                        className="h-12 text-base font-semibold rounded-xl"
-                        onClick={() => handleQuickAdd(preset)}
-                        onMouseDown={() => handleLongPressStart(preset)}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
-                        onTouchStart={() => handleLongPressStart(preset)}
-                        onTouchEnd={handleLongPressEnd}
-                        disabled={logging}
-                      >
-                        +{preset}
-                      </Button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const presets = isHangType ? HANG_PRESETS : CALISTHENICS_PRESETS;
+                    return (
+                      <>
+                        {/* Row 1 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row1.map((preset) => (
+                            <Button
+                              key={preset}
+                              type="button"
+                              variant="secondary"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
+                              onClick={() => handleQuickAdd(preset)}
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                        {/* Row 2 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row2.map((preset) => (
+                            <Button
+                              key={preset}
+                              type="button"
+                              variant="secondary"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
+                              onClick={() => handleQuickAdd(preset)}
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                        {/* Row 3 */}
+                        <div className="grid grid-cols-4 gap-2.5">
+                          {presets.row3.map((preset) => (
+                            <Button
+                              key={preset}
+                              type="button"
+                              variant="secondary"
+                              className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
+                              onClick={() => handleQuickAdd(preset)}
+                              onMouseDown={() => handleLongPressStart(preset)}
+                              onMouseUp={handleLongPressEnd}
+                              onMouseLeave={handleLongPressEnd}
+                              onTouchStart={(e) => handleLongPressTouchStart(preset, e)}
+                              onTouchEnd={handleLongPressEnd}
+                              onTouchMove={handleLongPressTouchMove}
+                              disabled={logging}
+                            >
+                              +{preset}{isHangType ? 's' : ''}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Non-calisthenics: cardio/team sports presets */
@@ -723,7 +916,8 @@ export default function LogPage() {
                     <Button
                       key={preset}
                       type="button"
-                      className="h-12 text-base font-semibold rounded-xl"
+                      variant="secondary"
+                      className="h-12 text-base font-semibold rounded-xl bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20"
                       onClick={() => handleQuickAdd(preset)}
                       disabled={logging}
                     >
@@ -787,19 +981,31 @@ export default function LogPage() {
                   const exerciseLabel = EXERCISE_INFO[workout.type]?.label || workout.type;
                   const unit = EXERCISE_INFO[workout.type]?.unit || 'reps';
                   const timeAgo = getTimeAgo(workout.timestamp);
+                  const isOffline = workout.id.startsWith('offline_');
 
                   return (
                     <div
                       key={workout.id}
                       onClick={deleteMode ? () => setWorkoutToDelete(workout) : undefined}
-                      className={`flex items-center justify-between rounded-xl glass p-3 transition-all duration-200 ${
+                      className={`flex items-center justify-between rounded-xl p-3 transition-all duration-200 ${
+                        isOffline
+                          ? 'bg-orange-500/5 border-2 border-dashed border-orange-400/60'
+                          : 'bg-surface border border-border'
+                      } ${
                         deleteMode ? 'cursor-pointer hover:border-destructive active:scale-[0.98]' : ''
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="text-sm font-medium">{exerciseLabel}</div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {exerciseLabel}
+                          {isOffline && (
+                            <span className="text-[10px] font-normal text-orange-500/80 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
+                              Pending sync
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit} • +{workout.xpEarned} XP • {timeAgo}
+                          {workout.amount} {unit}{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
                         </div>
                       </div>
                       {deleteMode && (
@@ -814,47 +1020,41 @@ export default function LogPage() {
         </Card>
       </div>
 
-      {/* Sets x Reps Modal */}
+      {/* Sets Modal */}
       {setsRepsModal?.open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={() => setSetsRepsModal(null)}
         >
           <div
-            className="glass-strong rounded-2xl p-6 mx-4 max-w-sm w-full"
+            className="bg-surface border border-border rounded-2xl p-6 mx-4 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold mb-4">Log Sets</h3>
+            <h3 className="text-lg font-semibold">Log Sets</h3>
+            <p className="text-sm text-foreground/50 mb-5">
+              {reps} {getUnitLabel()} per set
+            </p>
 
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">Sets</Label>
-                <Input
-                  type="number"
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  className="w-20 text-center text-xl font-bold"
-                  min="1"
-                />
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-xl text-lg"
+                onClick={() => setSets(String(Math.max(1, (parseInt(sets) || 1) - 1)))}
+              >
+                <Minus className="h-5 w-5" />
+              </Button>
+              <div className="text-4xl font-bold w-16 text-center gradient-text">
+                {parseInt(sets) || 1}
               </div>
-              <span className="text-2xl font-bold text-foreground/30 mt-5">×</span>
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">{getUnitLabel()}</Label>
-                <Input
-                  type="number"
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  className="w-20 text-center text-xl font-bold"
-                  min="1"
-                />
-              </div>
-              <span className="text-2xl font-bold text-foreground/40 mt-5">=</span>
-              <div className="text-center">
-                <Label className="text-xs text-foreground/50">Total</Label>
-                <div className="w-20 h-10 flex items-center justify-center text-xl font-bold gradient-text">
-                  {(parseInt(sets) || 0) * (parseFloat(reps) || 0)}
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-xl text-lg"
+                onClick={() => setSets(String((parseInt(sets) || 1) + 1))}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
             </div>
 
             <div className="flex gap-3">
@@ -871,7 +1071,7 @@ export default function LogPage() {
                 disabled={logging}
               >
                 {logging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Log {(parseInt(sets) || 0) * (parseFloat(reps) || 0)} {getUnitLabel()}
+                Log {parseInt(sets) || 1} × {reps} {getUnitLabel()}
               </Button>
             </div>
           </div>
@@ -885,7 +1085,7 @@ export default function LogPage() {
           onClick={() => setWorkoutToDelete(null)}
         >
           <div
-            className="glass-strong rounded-2xl p-5 max-w-sm w-full"
+            className="bg-surface border border-border rounded-2xl p-5 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
@@ -893,18 +1093,20 @@ export default function LogPage() {
               Are you sure you want to delete this workout?
             </p>
 
-            <div className="rounded-xl glass p-3 mb-4">
+            <div className="rounded-xl bg-surface/50 border border-border/50 p-3 mb-4">
               <div className="font-medium">
                 {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>
               <div className="text-sm text-foreground/50">
-                {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'} • +{workoutToDelete.xpEarned} XP
+                {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'}{workoutToDelete.xpEarned > 0 ? ` • +${workoutToDelete.xpEarned} XP` : ''}
               </div>
             </div>
 
-            <p className="text-xs text-destructive mb-4">
-              This will deduct {workoutToDelete.xpEarned} XP from your total.
-            </p>
+            {!workoutToDelete.id.startsWith('offline_') && workoutToDelete.xpEarned > 0 && (
+              <p className="text-xs text-destructive mb-4">
+                This will deduct {workoutToDelete.xpEarned} XP from your total.
+              </p>
+            )}
 
             <div className="flex gap-3">
               <Button

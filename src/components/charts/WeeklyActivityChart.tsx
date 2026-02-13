@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useHoldToReveal, tooltipVisibility, holdTransition } from '@/lib/use-hold-to-reveal';
 
 interface WeeklyActivityData {
   day: string;
@@ -29,6 +30,7 @@ export function WeeklyActivityChart({
   title = 'Weekly Activity',
   description = 'Your workout activity this week',
 }: WeeklyActivityChartProps) {
+  const { isHolding, handlers } = useHoldToReveal();
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -52,6 +54,7 @@ export function WeeklyActivityChart({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
+        <div {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -71,22 +74,31 @@ export function WeeklyActivityChart({
                 borderRadius: '8px',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              wrapperStyle={tooltipVisibility(isHolding)}
+              cursor={false}
             />
             <Legend />
             <Bar
               dataKey="workouts"
               fill="hsl(var(--primary))"
+              fillOpacity={isHolding ? 0.3 : 1}
+              activeBar={isHolding ? { fillOpacity: 1 } : false}
               radius={[8, 8, 0, 0]}
               name="Workouts"
+              style={holdTransition}
             />
             <Bar
               dataKey="xp"
               fill="hsl(var(--chart-2))"
+              fillOpacity={isHolding ? 0.3 : 1}
+              activeBar={isHolding ? { fillOpacity: 1 } : false}
               radius={[8, 8, 0, 0]}
               name="XP Earned"
+              style={holdTransition}
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

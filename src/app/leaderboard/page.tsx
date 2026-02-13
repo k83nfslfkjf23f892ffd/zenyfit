@@ -3,17 +3,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import Image from 'next/image';
 import { getAvatarDisplayUrl } from '@/lib/avatar';
 import { EXERCISE_INFO } from '@shared/constants';
-import { listContainerVariants, listItemVariants } from '@/lib/animations';
-import { getNestedCache, setNestedCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getNestedCache, setNestedCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 const LeaderboardCharts = dynamic(
   () =>
@@ -35,14 +33,8 @@ interface Ranking {
   score: number;
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = CACHE_TTLS.rankings;
 
-const rankBadge = (rank: number) => {
-  if (rank === 1) return <Badge variant="gold">1st</Badge>;
-  if (rank === 2) return <Badge variant="silver">2nd</Badge>;
-  if (rank === 3) return <Badge variant="bronze">3rd</Badge>;
-  return <span className="text-sm font-bold text-foreground/40 w-8 text-center">{rank}</span>;
-};
 
 export default function LeaderboardPage() {
   const router = useRouter();
@@ -122,7 +114,7 @@ export default function LeaderboardPage() {
       } catch (error) {
         console.error(error);
         if (!getNestedCache<Ranking[]>(CACHE_KEYS.rankings, type, CACHE_TTL)) {
-          toast.error('An error occurred');
+          toast.error(error instanceof TypeError ? 'Network error — check your connection' : 'Failed to load leaderboard');
         }
       } finally {
         setLoadingRankings(false);
@@ -190,43 +182,47 @@ export default function LeaderboardPage() {
 
           <TabsContent value={activeTab}>
             {loadingRankings ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl p-3 bg-surface/50 border border-border/50">
+                    <div className="h-10 w-10 rounded-full bg-border/20 animate-pulse" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-4 w-24 rounded bg-border/20 animate-pulse" />
+                      <div className="h-3 w-12 rounded bg-border/20 animate-pulse" />
+                    </div>
+                    <div className="text-right space-y-1.5">
+                      <div className="h-4 w-16 rounded bg-border/20 animate-pulse" />
+                      <div className="h-3 w-8 rounded bg-border/20 animate-pulse ml-auto" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : rankings.length === 0 ? (
               <p className="py-12 text-center text-sm text-foreground/40">
                 No rankings yet
               </p>
             ) : (
-              <motion.div
-                className="space-y-2"
-                variants={listContainerVariants}
-                initial="hidden"
-                animate="visible"
-                key={activeTab}
-              >
+              <div className="space-y-2">
                 {rankings.map((ranking) => {
                   const isCurrentUser = user ? ranking.id === user.id : false;
                   const avatarUrl = getAvatarDisplayUrl(ranking.avatar, ranking.username);
-                  const isTop3 = ranking.rank <= 3;
                   return (
-                    <motion.div
+                    <div
                       key={ranking.id}
-                      variants={listItemVariants}
-                      className={`flex items-center gap-3 rounded-xl p-3 transition-all duration-200 ${
+                      className={`flex items-center gap-3 rounded-xl p-3 ${
                         isCurrentUser
-                          ? 'glass-strong glow-sm'
-                          : 'glass'
+                          ? 'bg-surface/80 border border-border glow-sm'
+                          : 'bg-surface/50 border border-border/50'
                       }`}
                     >
-                      {rankBadge(ranking.rank)}
-
-                      <div className={`h-10 w-10 overflow-hidden rounded-full ${isTop3 ? 'ring-2 ring-primary/30' : ''}`}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                      <div className="h-10 w-10 overflow-hidden rounded-full bg-border/20">
+                        <Image
                           src={avatarUrl}
                           alt={ranking.username}
+                          width={40}
+                          height={40}
                           className="h-full w-full object-cover"
+                          unoptimized={!avatarUrl.includes('dicebear.com')}
                         />
                       </div>
 
@@ -240,17 +236,17 @@ export default function LeaderboardPage() {
                       </div>
 
                       <div className="text-right">
-                        <div className={`font-bold text-sm ${isTop3 ? 'gradient-text' : ''}`}>
+                        <div className="font-bold text-sm">
                           {Math.floor(ranking.score).toLocaleString()}
                         </div>
                         <div className="text-xs text-foreground/40">
                           {getScoreLabel(activeTab)}
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </motion.div>
+              </div>
             )}
           </TabsContent>
         </Tabs>

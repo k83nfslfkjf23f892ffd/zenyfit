@@ -12,12 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProgressRing } from '@/components/ui/progress';
 import { Settings, Award, Activity, Calendar, TrendingUp, Loader2, Trophy, Flame } from 'lucide-react';
-import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel } from '@shared/constants';
+import { EXERCISE_INFO, getXPInCurrentLevel, getXPNeededForNextLevel, formatSecondsAsMinutes } from '@shared/constants';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { listContainerVariants, listItemVariants } from '@/lib/animations';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
-
-const CACHE_TTL = 5 * 60 * 1000;
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Stats {
   totalWorkouts: number;
@@ -42,12 +40,12 @@ interface ProfileStats {
   workoutDaysLast30: number;
 }
 
-function buildStatsFromCache(): Stats | null {
-  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+function buildStatsFromCache(userTotalSets: number): Stats | null {
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
   if (!trend && !achievements) return null;
   return {
-    totalWorkouts: trend?.data.totalWorkouts || 0,
+    totalWorkouts: userTotalSets,
     thisWeekWorkouts: trend?.data.totalWorkouts || 0,
     totalXP: trend?.data.totalXp || 0,
     thisWeekXP: trend?.data.totalXp || 0,
@@ -66,29 +64,30 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, firebaseUser } = useAuth();
 
+  const userTotalSets = user?.totalWorkoutSets ?? 0;
   const [stats, setStats] = useState<Stats>(() => {
     if (typeof window !== 'undefined') {
-      return buildStatsFromCache() || {
-        totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0,
+      return buildStatsFromCache(userTotalSets) || {
+        totalWorkouts: userTotalSets, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0,
       };
     }
-    return { totalWorkouts: 0, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0 };
+    return { totalWorkouts: userTotalSets, thisWeekWorkouts: 0, totalXP: 0, thisWeekXP: 0, achievementsCount: 0 };
   });
   const [loadingStats, setLoadingStats] = useState(() => {
-    if (typeof window !== 'undefined') return !buildStatsFromCache();
+    if (typeof window !== 'undefined') return !buildStatsFromCache(userTotalSets);
     return true;
   });
   const [updating, setUpdating] = useState(false);
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(() => {
     if (typeof window !== 'undefined') {
-      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
       if (cached) return cached.data;
     }
     return null;
   });
   const [loadingProfileStats, setLoadingProfileStats] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      return !getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
     }
     return true;
   });
@@ -99,11 +98,11 @@ export default function ProfilePage() {
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
       if (trendCache || achievementsCache) {
-        const cached = buildStatsFromCache();
+        const cached = buildStatsFromCache(userTotalSets);
         if (cached) {
           setStats(cached);
           setLoadingStats(false);
@@ -144,7 +143,7 @@ export default function ProfilePage() {
       }
 
       const newStats = {
-        totalWorkouts: trendData.totalWorkouts || 0,
+        totalWorkouts: userTotalSets,
         thisWeekWorkouts: trendData.totalWorkouts || 0,
         totalXP: trendData.totalXp || 0,
         thisWeekXP: trendData.totalXp || 0,
@@ -158,7 +157,7 @@ export default function ProfilePage() {
       setLoadingStats(false);
       setUpdating(false);
     }
-  }, [firebaseUser, user?.id]);
+  }, [firebaseUser, user?.id, userTotalSets]);
 
   useEffect(() => {
     if (user && firebaseUser) fetchStats();
@@ -166,7 +165,7 @@ export default function ProfilePage() {
 
   const fetchProfileStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTL);
+      const cached = getCache<ProfileStats>(CACHE_KEYS.profileStats, CACHE_TTLS.profileStats);
       if (cached) {
         setProfileStats(cached.data);
         setLoadingProfileStats(false);
@@ -204,13 +203,7 @@ export default function ProfilePage() {
   if (!loading && !user) return null;
 
   if (!user) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-        </div>
-      </AppLayout>
-    );
+    return null;
   }
 
   const xpInLevel = getXPInCurrentLevel(user.xp, user.level);
@@ -302,8 +295,12 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             {loadingProfileStats ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-9 w-16 rounded bg-border/20 animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-border/20 animate-pulse" />
+                </div>
+                <div className="h-2 w-full rounded-full bg-border/20 animate-pulse" />
               </div>
             ) : profileStats ? (
               <div className="space-y-3">
@@ -335,18 +332,23 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {loadingProfileStats ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
+                    <div className="h-4 w-20 rounded bg-border/20 animate-pulse" />
+                    <div className="h-4 w-14 rounded bg-border/20 animate-pulse" />
+                  </div>
+                ))}
               </div>
             ) : profileStats && Object.keys(profileStats.personalBests).length > 0 ? (
               Object.entries(profileStats.personalBests)
-                .filter(([type]) => ['pullups', 'pushups', 'dips', 'running'].includes(type))
+                .filter(([type]) => ['pullups', 'pushups', 'dips', 'running', 'passive_dead_hang', 'active_dead_hang', 'flexed_arm_hang'].includes(type))
                 .map(([type, amount]) => {
                   const exerciseInfo = EXERCISE_INFO[type];
                   const label = exerciseInfo?.label || type;
                   const unit = exerciseInfo?.unit || 'reps';
                   return (
-                    <div key={type} className="flex items-center justify-between rounded-xl glass p-3">
+                    <div key={type} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
                       <span className="text-sm font-medium">{label}</span>
                       <span className="text-sm font-bold gradient-text">{amount} {unit}</span>
                     </div>
@@ -372,9 +374,10 @@ export default function ProfilePage() {
               { label: 'Pull-ups', value: user.totals.pullups, unit: '' },
               { label: 'Push-ups', value: user.totals.pushups, unit: '' },
               { label: 'Dips', value: user.totals.dips, unit: '' },
+              { label: 'Hangs', value: formatSecondsAsMinutes((user.totals.passive_dead_hang || 0) + (user.totals.active_dead_hang || 0) + (user.totals.flexed_arm_hang || 0)), unit: '' },
               { label: 'Running', value: user.totals.running, unit: ' km' },
             ].map(({ label, value, unit }) => (
-              <div key={label} className="flex items-center justify-between rounded-xl glass p-3">
+              <div key={label} className="flex items-center justify-between rounded-xl bg-surface border border-border p-3">
                 <span className="text-sm text-foreground/70">{label}</span>
                 <span className="text-sm font-bold">{value}{unit}</span>
               </div>

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Activity, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
-import { getCache, setLocalCache, CACHE_KEYS } from '@/lib/client-cache';
+import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
 
 interface Stats {
   totalWorkouts: number;
@@ -23,16 +23,14 @@ interface AchievementsData {
   unlockedAchievements: string[];
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
-
-function buildStatsFromCache(): Stats | null {
-  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+function buildStatsFromCache(userTotalSets?: number): Stats | null {
+  const trend = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+  const achievements = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
   if (!trend && !achievements) return null;
 
   return {
-    totalWorkouts: trend?.data.totalWorkouts || 0,
+    totalWorkouts: userTotalSets ?? 0,
     thisWeekWorkouts: trend?.data.totalWorkouts || 0,
     thisWeekXP: trend?.data.totalXp || 0,
     achievementsCount: achievements?.data.unlockedAchievements?.length || 0,
@@ -48,31 +46,32 @@ const statCards = [
 
 export function StatsGridWidget() {
   const { user, firebaseUser } = useAuth();
+  const userTotalSets = user?.totalWorkoutSets ?? 0;
   const [stats, setStats] = useState<Stats>(() => {
     if (typeof window !== 'undefined') {
-      return buildStatsFromCache() || {
-        totalWorkouts: 0,
+      return buildStatsFromCache(userTotalSets) || {
+        totalWorkouts: userTotalSets,
         thisWeekWorkouts: 0,
         thisWeekXP: 0,
         achievementsCount: 0,
       };
     }
-    return { totalWorkouts: 0, thisWeekWorkouts: 0, thisWeekXP: 0, achievementsCount: 0 };
+    return { totalWorkouts: userTotalSets, thisWeekWorkouts: 0, thisWeekXP: 0, achievementsCount: 0 };
   });
   const [loading, setLoading] = useState(() => {
     if (typeof window !== 'undefined') {
-      return !buildStatsFromCache();
+      return !buildStatsFromCache(userTotalSets);
     }
     return true;
   });
 
   const fetchStats = useCallback(async (skipCache = false) => {
     if (!skipCache) {
-      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTL);
-      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTL);
+      const trendCache = getCache<TrendData>(CACHE_KEYS.trend, CACHE_TTLS.trend);
+      const achievementsCache = getCache<AchievementsData>(CACHE_KEYS.statsGrid, CACHE_TTLS.statsGrid);
 
       if (trendCache || achievementsCache) {
-        const cached = buildStatsFromCache();
+        const cached = buildStatsFromCache(userTotalSets);
         if (cached) {
           setStats(cached);
           setLoading(false);
@@ -115,7 +114,7 @@ export function StatsGridWidget() {
       }
 
       const newStats = {
-        totalWorkouts: trendData.totalWorkouts || 0,
+        totalWorkouts: userTotalSets,
         thisWeekWorkouts: trendData.totalWorkouts || 0,
         thisWeekXP: trendData.totalXp || 0,
         achievementsCount,
@@ -127,7 +126,7 @@ export function StatsGridWidget() {
     } finally {
       setLoading(false);
     }
-  }, [firebaseUser, user?.id]);
+  }, [firebaseUser, user?.id, userTotalSets]);
 
   useEffect(() => {
     if (user && firebaseUser) {
