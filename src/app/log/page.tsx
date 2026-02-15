@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil, ChevronDown } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
@@ -742,17 +742,20 @@ export default function LogPage() {
               <div className="flex items-center justify-between gap-2">
                 {/* Exercise name with variant dropdown */}
                 {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
-                  <select
-                    value={selectedVariation}
-                    onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                    className="flex-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
-                  >
-                    {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                      <option key={variation} value={variation}>
-                        {EXERCISE_INFO[variation]?.label || variation}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1">
+                    <select
+                      value={selectedVariation}
+                      onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
+                      className="w-full font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none transition-all duration-200"
+                    >
+                      {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                        <option key={variation} value={variation}>
+                          {EXERCISE_INFO[variation]?.label || variation}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/60 pointer-events-none" />
+                  </div>
                 ) : (
                   <div className="flex-1 font-semibold">{exerciseLabel}</div>
                 )}
@@ -779,10 +782,10 @@ export default function LogPage() {
               <div className="text-5xl font-bold tracking-tight gradient-text">
                 {sessionTotal}
               </div>
-              <div className="text-sm text-foreground/50 mt-1">
+              <div className="text-sm text-foreground/60 mt-1">
                 {getUnitLabel()}
                 {isHangType && sessionTotal >= 60 && (
-                  <span className="text-foreground/30 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
+                  <span className="text-foreground/40 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
                 )}
                 {activeXpRate > 0 && (
                   <span className="text-primary ml-2 font-medium">
@@ -797,7 +800,7 @@ export default function LogPage() {
                     setSessionTotal(0);
                     toast.success('Session cleared');
                   }}
-                  className="mt-1 text-xs text-foreground/30 hover:text-foreground/60 transition-colors"
+                  className="mt-1 text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
                 >
                   Clear session
                 </button>
@@ -927,7 +930,7 @@ export default function LogPage() {
                 </div>
               )}
 
-              <p className="text-xs text-foreground/30 mt-2 text-center">
+              <p className="text-xs text-foreground/40 mt-2 text-center">
                 Tap to log • Long press for sets
               </p>
             </div>
@@ -964,7 +967,7 @@ export default function LogPage() {
             </div>
             {loadingRecent ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/25" />
               </div>
             ) : recentWorkouts.length === 0 ? (
               <p className="text-sm text-foreground/40 text-center py-6">
@@ -1009,7 +1012,7 @@ export default function LogPage() {
                         </div>
                       </div>
                       {deleteMode && (
-                        <Trash2 className="h-4 w-4 text-foreground/30" />
+                        <Trash2 className="h-4 w-4 text-foreground/25" />
                       )}
                     </div>
                   );
@@ -1031,7 +1034,7 @@ export default function LogPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold">Log Sets</h3>
-            <p className="text-sm text-foreground/50 mb-5">
+            <p className="text-sm text-foreground/60 mb-5">
               {reps} {getUnitLabel()} per set
             </p>
 
@@ -1089,7 +1092,7 @@ export default function LogPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
-            <p className="text-sm text-foreground/50 mb-4">
+            <p className="text-sm text-foreground/60 mb-4">
               Are you sure you want to delete this workout?
             </p>
 
@@ -1097,7 +1100,7 @@ export default function LogPage() {
               <div className="font-medium">
                 {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>
-              <div className="text-sm text-foreground/50">
+              <div className="text-sm text-foreground/60">
                 {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'}{workoutToDelete.xpEarned > 0 ? ` • +${workoutToDelete.xpEarned} XP` : ''}
               </div>
             </div>

@@ -465,8 +465,80 @@
 
 ---
 
+## AUDIT FINDINGS (v2.8.1)
+
+*From comprehensive codebase audit. Items fixed in v2.8.1 marked with ~~strikethrough~~.*
+
+### ~~Race Condition: Challenge Join~~ (Fixed v2.8.1)
+- **Location:** `src/app/api/challenges/[id]/join/route.ts`
+- **Problem:** Non-atomic array spread to add participant. Concurrent joins could overwrite each other.
+- **Fix:** Wrapped in `db.runTransaction()` — read + duplicate check + update all happen atomically.
+
+### ~~Race Condition: Challenge Progress Updates~~ (Fixed v2.8.1)
+- **Location:** `src/app/api/workouts/route.ts`, `src/app/api/workouts/[id]/route.ts`
+- **Problem:** Read-modify-write on participants array without transaction. Concurrent workouts overwrote each other's progress.
+- **Fix:** Each challenge progress update now uses `db.runTransaction()`. Removed manual retry block (transactions have built-in retries).
+
+### ~~Firestore Metrics Overhead~~ (Fixed v2.8.1)
+- **Location:** `src/lib/firestore-metrics.ts`
+- **Problem:** `trackReads/trackWrites/trackCacheHit` fired on every API call, adding ~2000 extra Firestore writes/day.
+- **Fix:** Gated behind `ENABLE_FIRESTORE_METRICS=true` env var. Disabled by default in production.
+
+### ~~Small Touch Targets in Settings~~ (Fixed v2.8.1)
+- **Location:** `src/app/profile/settings/page.tsx`
+- **Problem:** QR/Copy/Share buttons were `h-7` (28px), below 44px minimum.
+- **Fix:** Changed to `h-9` with slightly larger icons.
+
+### ~~QR Code Theme Border~~ (Fixed v2.8.1)
+- **Location:** `src/app/profile/settings/page.tsx`
+- **Problem:** QR container had `bg-white` with no border, jarring in dark themes.
+- **Fix:** Added `border border-border` for theme-aware boundary.
+
+### ~~Select Dropdown Arrow Not Theme-Aware~~ (Fixed v2.8.1)
+- **Location:** `src/app/log/page.tsx`
+- **Problem:** Hardcoded `stroke="#888"` in SVG data URL. Arrow invisible in dark themes.
+- **Fix:** Replaced with `ChevronDown` lucide icon that inherits `text-foreground`.
+
+### ~~Text Opacity Inconsistency (Partial)~~ (Fixed v2.8.1)
+- **Location:** `src/app/log/page.tsx`, `src/app/profile/settings/page.tsx`
+- **Problem:** Mix of `/30`, `/40`, `/50`, `/60` opacities with no system.
+- **Fix:** Standardized in these 2 files: secondary `/60`, tertiary `/40`, disabled `/25`. Full codebase sweep deferred.
+
+### Streak Timezone Limitation
+- **Status:** Open (documented with TODO)
+- **Location:** `src/app/api/workouts/[id]/route.ts`
+- **Problem:** Streak dates use UTC which may differ from user's local day. A user in PST logging at 11 PM sees their workout counted as the next day.
+- **Fix:** Requires storing user timezone preference. See TODO in code.
+
+### Stale Avatars in Challenge Documents
+- **Status:** Open
+- **Location:** `src/app/api/challenges/[id]/route.ts`
+- **Problem:** Challenge stores avatar at join time. If user changes avatar, old one shows in challenges.
+- **Fix:** Already resolved at read time (avatars fetched fresh), but stale data persists in Firestore.
+
+### Missing Transaction: Admin XP Recalculation
+- **Status:** Open
+- **Location:** `src/app/api/admin/recalculate-xp/route.ts`
+- **Problem:** Updates user XP and logs in a loop without atomic transaction. Process crash mid-loop causes inconsistency.
+- **Fix:** Use batch writes or transactions per user.
+
+### Admin Stats Expensive Queries
+- **Status:** Open
+- **Location:** `src/app/api/admin/stats/route.ts`
+- **Problem:** Scans 15,000+ documents (10K recent workouts + 5K for active users) per admin stats request.
+- **Fix:** Use pre-aggregated counters instead of scanning all documents.
+
+### Challenge Update Latency on Workout Log
+- **Status:** Open
+- **Location:** `src/app/api/workouts/route.ts`
+- **Problem:** After logging a workout, queries and updates all matching active challenges. If user is in 10 challenges, adds 500ms-2s latency.
+- **Fix:** Move challenge updates to background/async processing.
+
+---
+
 ## RECENTLY COMPLETED
 
+- v2.8.1: Race condition fixes (challenge join + progress updates use Firestore transactions), metrics gated behind env var, UI polish (touch targets, QR border, themed dropdown arrow, opacity standardization)
 - v2.4.5: Dashboard widget customization fixes — hidden widgets no longer show on dashboard, new widgets added to visible area (before hidden section), drag-and-drop between visible/hidden zones updates visibility
 - v2.4.5: Revolut-style chart highlight, pre-aggregate exercise breakdowns + community stats, server cache for leaderboard/stats
 - v2.4.0: Workout Streaks — current/longest streak tracking, auto-update on log/delete, migration for existing users, new StreaksWidget on dashboard

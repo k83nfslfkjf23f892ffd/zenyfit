@@ -238,64 +238,39 @@ export async function POST(request: NextRequest) {
         .get();
       trackReads('workouts', challengesSnapshot.docs.length, userId);
 
-      // Update matching challenges
-      const challengeUpdates: Promise<unknown>[] = [];
+      // Update matching challenges using transactions to prevent race conditions
+      const challengeUpdates: Promise<void>[] = [];
 
       for (const challengeDoc of challengesSnapshot.docs) {
         const challengeData = challengeDoc.data();
 
-        // Check if challenge type matches the exercise type
         if (challengeData.type === type) {
-          // Update participant's progress
-          const participants = challengeData.participants || [];
-          const participantIndex = participants.findIndex(
-            (p: { userId: string }) => p.userId === userId
+          challengeUpdates.push(
+            db.runTransaction(async (transaction) => {
+              const freshDoc = await transaction.get(challengeDoc.ref);
+              if (!freshDoc.exists) return;
+              const freshData = freshDoc.data()!;
+              const participants = freshData.participants || [];
+              const idx = participants.findIndex(
+                (p: { userId: string }) => p.userId === userId
+              );
+              if (idx !== -1) {
+                participants[idx].progress =
+                  (participants[idx].progress || 0) + totalAmount;
+                transaction.update(challengeDoc.ref, { participants });
+              }
+            })
           );
-
-          if (participantIndex !== -1) {
-            participants[participantIndex].progress =
-              (participants[participantIndex].progress || 0) + totalAmount;
-
-            challengeUpdates.push(
-              challengeDoc.ref.update({
-                participants,
-              })
-            );
-          }
         }
       }
 
-      // Wait for all challenge updates to complete
       await Promise.all(challengeUpdates);
       if (challengeUpdates.length > 0) {
         trackWrites('workouts', challengeUpdates.length, userId);
       }
     } catch (challengeError) {
-      // Log but don't fail the workout — retry once
-      console.error('Challenge update failed, retrying once:', challengeError);
-      try {
-        const retrySnapshot = await db
-          .collection('challenges')
-          .where('participantIds', 'array-contains', userId)
-          .where('endDate', '>', Date.now())
-          .where('type', '==', type)
-          .get();
-        trackReads('workouts', retrySnapshot.docs.length, userId);
-
-        for (const challengeDoc of retrySnapshot.docs) {
-          const challengeData = challengeDoc.data();
-          const participants = challengeData.participants || [];
-          const idx = participants.findIndex((p: { userId: string }) => p.userId === userId);
-          if (idx !== -1) {
-            participants[idx].progress = (participants[idx].progress || 0) + totalAmount;
-            await challengeDoc.ref.update({ participants });
-            trackWrites('workouts', 1, userId);
-          }
-        }
-      } catch (retryError) {
-        console.error('Challenge update retry also failed:', retryError);
-        challengeUpdateFailed = true;
-      }
+      console.error('Challenge update failed:', challengeError);
+      challengeUpdateFailed = true;
     }
 
     return NextResponse.json(
