@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { getCache, setLocalCache, CACHE_KEYS, CACHE_TTLS } from '@/lib/client-cache';
@@ -29,7 +29,7 @@ interface ProfileStatsData {
 
 const CACHE_TTL = CACHE_TTLS.profileStats;
 
-export function WeeklyActivityWidget() {
+export const WeeklyActivityWidget = memo(function WeeklyActivityWidget() {
   const { isHolding, handlers, lastTooltipRef } = useHoldToReveal();
   const stickyProps = useStickyTooltip(lastTooltipRef, isHolding);
   const { firebaseUser } = useAuth();
@@ -177,4 +177,4 @@ export function WeeklyActivityWidget() {
       </CardContent>
     </Card>
   );
-}
+});

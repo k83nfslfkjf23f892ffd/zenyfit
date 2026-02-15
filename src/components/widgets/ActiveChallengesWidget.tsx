@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -29,7 +29,7 @@ interface ChallengesResponse {
 
 const CACHE_TTL = CACHE_TTLS.challenges;
 
-export function ActiveChallengesWidget() {
+export const ActiveChallengesWidget = memo(function ActiveChallengesWidget() {
   const { user, firebaseUser } = useAuth();
 
   const extractChallenges = useCallback((data: ChallengesResponse): Challenge[] => {
@@ -161,4 +161,4 @@ export function ActiveChallengesWidget() {
       </CardContent>
     </Card>
   );
-}
+});
