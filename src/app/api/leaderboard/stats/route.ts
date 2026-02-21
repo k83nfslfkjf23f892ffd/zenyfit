@@ -186,12 +186,16 @@ export async function GET(request: NextRequest) {
 
     // Server cache — community data shared across users, personal per-user
     // Include tzOffset in cache key so different timezones don't share cached data
+    // Skip caching for daily range: data changes throughout the day as users log workouts,
+    // and in-memory cache isn't shared across Vercel instances so invalidation is unreliable.
     const cacheUser = scope === 'community' ? '_community' : userId;
     const cacheParams = `${scope}_${range}_tz${tzOffsetMinutes}`;
-    const cached = getCached('/api/leaderboard/stats', cacheUser, cacheParams);
-    if (cached) {
-      trackCacheHit('leaderboard/stats', userId);
-      return NextResponse.json(cached, { status: 200 });
+    if (range !== 'daily') {
+      const cached = getCached('/api/leaderboard/stats', cacheUser, cacheParams);
+      if (cached) {
+        trackCacheHit('leaderboard/stats', userId);
+        return NextResponse.json(cached, { status: 200 });
+      }
     }
 
     const { db } = getAdminInstances();
@@ -289,7 +293,9 @@ export async function GET(request: NextRequest) {
     }
 
     const responseData = formatResponse(agg, periodKeys, scope, range);
-    setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);
+    if (range !== 'daily') {
+      setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);
+    }
     return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
