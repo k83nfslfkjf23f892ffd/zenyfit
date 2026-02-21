@@ -52,23 +52,24 @@ function generatePeriodKeys(dateFormat: string, numPeriods: number, now: Date, t
   } else {
     for (let i = 0; i < numPeriods; i++) {
       const time = now.getTime() - (numPeriods - 1 - i) * 24 * 60 * 60 * 1000;
-      // Convert to local date using tzOffset
-      const localDate = new Date(time + tzOffsetMinutes * 60 * 1000);
-      periodKeys.push(localDate.toISOString().split('T')[0]);
+      // Use UTC date — exerciseByDay in pre-aggregated Firestore docs is keyed by UTC date.
+      // If we used local dates here, they'd mismatch the UTC keys and skip data entirely.
+      periodKeys.push(new Date(time).toISOString().split('T')[0]);
     }
   }
   return periodKeys;
 }
 
 function getPeriodKey(timestamp: number, dateFormat: string, tzOffsetMinutes: number): string {
-  // Shift timestamp to local time before extracting hour/date
-  const localDate = new Date(timestamp + tzOffsetMinutes * 60 * 1000);
   if (dateFormat === 'halfhour') {
+    // Daily: shift to local time so the half-hour label matches the user's clock
+    const localDate = new Date(timestamp + tzOffsetMinutes * 60 * 1000);
     const hour = localDate.getUTCHours();
     const minute = localDate.getUTCMinutes() < 30 ? '00' : '30';
     return `${hour}:${minute}`;
   }
-  return localDate.toISOString().split('T')[0];
+  // Weekly/monthly: use UTC date to match exerciseByDay keys stored in Firestore
+  return new Date(timestamp).toISOString().split('T')[0];
 }
 
 function initAggregation(periodKeys: string[]) {
