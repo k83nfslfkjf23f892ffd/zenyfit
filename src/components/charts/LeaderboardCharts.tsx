@@ -109,9 +109,7 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   const { isHolding: isHoldingArea, handlers: areaHandlers, lastTooltipRef: areaTooltipRef } = useHoldToReveal();
-  const { isHolding: isHoldingBar, handlers: barHandlers, lastTooltipRef: barTooltipRef } = useHoldToReveal('bar');
   const stickyAreaProps = useStickyTooltip(areaTooltipRef, isHoldingArea);
-  const stickyBarProps = useStickyTooltip(barTooltipRef, isHoldingBar);
   const [scope, setScope] = useState<'personal' | 'community'>(() => {
     if (typeof window !== 'undefined') {
       return getSavedFilters().scope;
@@ -162,7 +160,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
       }
 
       const response = await fetch(
-        `/api/leaderboard/stats?scope=${newScope}&range=${newRange}`,
+        `/api/leaderboard/stats?scope=${newScope}&range=${newRange}&tzOffset=${-new Date().getTimezoneOffset()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
@@ -369,7 +367,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
             <CardTitle className="text-sm font-medium">By Exercise</CardTitle>
           </CardHeader>
           <CardContent>
-            <div {...barHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
+            <div>
               <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.slice(0, 6).length * 40)}>
                 <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
@@ -388,17 +386,11 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={70}
                   />
-                  <Tooltip active={(isHoldingBar && barTooltipRef.current) ? true : undefined} content={(props) => {
-                    const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
-                    return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
-                  }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
+                  <Tooltip content={(props) => <CustomTooltip active={props.active} payload={props.payload as CustomTooltipProps['payload']} label={props.label} />} />
                   <Bar
                     dataKey="reps"
                     radius={[0, 4, 4, 0]}
                     fill="rgb(var(--primary))"
-                    fillOpacity={isHoldingBar ? 0.3 : 1}
-                    activeBar={isHoldingBar ? { fillOpacity: 1 } : false}
-                    style={holdTransition}
                     animationDuration={400}
                   >
                     {data.exerciseTotals.slice(0, 6).map((entry) => (

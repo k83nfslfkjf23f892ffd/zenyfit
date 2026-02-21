@@ -4,6 +4,7 @@ import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { exerciseLogSchema } from '@shared/schema';
 import { XP_RATES, ESTIMATED_SECONDS_PER_UNIT, calculateLevel } from '@shared/constants';
 import { trackReads, trackWrites } from '@/lib/firestore-metrics';
+import { invalidateCache } from '@/lib/api-cache';
 import { FieldValue } from 'firebase-admin/firestore';
 
 /**
@@ -272,6 +273,13 @@ export async function POST(request: NextRequest) {
       console.error('Challenge update failed:', challengeError);
       challengeUpdateFailed = true;
     }
+
+    // Invalidate server caches so next leaderboard/stats request fetches fresh data
+    invalidateCache('/api/leaderboard/stats', userId);
+    invalidateCache('/api/leaderboard/stats', '_community');
+    invalidateCache('/api/leaderboard/trend', userId);
+    invalidateCache('/api/leaderboard', userId);
+    invalidateCache('/api/profile/stats', userId);
 
     return NextResponse.json(
       {

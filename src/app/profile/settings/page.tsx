@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { LIMITS, APP_URL } from '@shared/constants';
@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showQrCode, setShowQrCode] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,6 +68,33 @@ export default function SettingsPage() {
       fetchInviteCodes();
     }
   }, [user, firebaseUser, fetchInviteCodes]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as unknown as { prompt: () => void; userChoice: Promise<{ outcome: string }> });
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) {
+      toast.info('Tap your browser menu → "Add to Home Screen" to install');
+      return;
+    }
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    }
+  };
 
   const handleGenerateCode = async () => {
     if (inviteCodes.length >= LIMITS.inviteCodes) {
@@ -334,6 +363,22 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Install App */}
+        {!isInstalled && (
+          <Card>
+            <CardContent className="pt-6">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={handleInstall}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Install App
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Log Out */}
         <Card>
