@@ -41,7 +41,7 @@ function getTimeRange(range: string, tzOffsetMinutes: number) {
   return { startTime, dateFormat, numPeriods, now };
 }
 
-function generatePeriodKeys(dateFormat: string, numPeriods: number, now: Date, tzOffsetMinutes: number): string[] {
+function generatePeriodKeys(dateFormat: string, numPeriods: number, now: Date): string[] {
   const periodKeys: string[] = [];
   if (dateFormat === 'halfhour') {
     for (let i = 0; i < 48; i++) {
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
 
     const { db } = getAdminInstances();
     const { startTime, dateFormat, numPeriods, now } = getTimeRange(range, tzOffsetMinutes);
-    const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now, tzOffsetMinutes);
+    const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now);
 
     const agg = initAggregation(periodKeys);
 

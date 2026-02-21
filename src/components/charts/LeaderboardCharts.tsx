@@ -139,8 +139,9 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
       const cached = getCachedData(newScope, newRange);
       if (cached) {
         setData(cached.data);
-        // Stale cache: show cached data, don't auto-refetch (server cache handles freshness)
-        return;
+        // Fresh cache: no need to hit the server
+        if (!cached.isStale) return;
+        // Stale cache: show immediately but fall through to background-refresh from server
       }
     }
 
