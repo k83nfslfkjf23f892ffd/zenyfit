@@ -259,6 +259,55 @@
 
 ---
 
+## UX INVESTIGATION — SPRINT BACKLOG
+
+*Full UX audit identifying gaps between app philosophy and current implementation.*
+
+### Sprint 1 — Onboarding & First Impressions
+- [ ] Welcome flow for new users (no tour/guidance currently)
+- [ ] "Log your first workout" CTA on empty dashboard
+- [ ] Simplified first-run dashboard experience
+
+### Sprint 2 — Daily Engagement
+- [ ] Daily goals widget ("50 push-ups today" with progress bar)
+- [ ] Streak visibility on /log page (currently only in dashboard widget)
+- [ ] Session total persists across navigation (currently lost when leaving /log)
+- [ ] Rest timer after logging a set (users leave app during rest)
+- [ ] XP estimate on quick-add buttons (show "+60 XP" not just "+20 reps")
+
+### Sprint 3 — Social Proof
+- [ ] Activity feed ticker ("alex just logged 50 push-ups")
+- [ ] Leaderboard rank change arrows (↑↓) + "you're 50 XP from overtaking #4" nudges
+- [ ] Challenge live activity feed ("bob just logged 20 reps, now #2!")
+- [ ] Challenge "winning line" calculation (leader pace vs. your pace)
+- [ ] Challenge "mathematically possible?" indicator
+
+### Sprint 4 — Social Layer
+- [ ] Friend/follow system (foundation for all social features)
+- [ ] Public user profiles
+- [ ] Friend comparison stats
+- [ ] Profile quick-preview overlay on leaderboard tap
+
+### Sprint 5 — Gamification Depth
+- [ ] Achievement progress bars ("5/10 workouts" on locked achievements)
+- [ ] Context-aware celebrations (personal bests, streak milestones, rank changes)
+- [ ] Personal best detection on workout log
+- [ ] "What's New" → personal milestone feed ("You reached Level 10!")
+
+### Sprint 6 — Challenge Enhancement
+- [ ] Challenge creation templates + goal/duration recommendations
+- [ ] Challenge comments/reactions
+- [ ] Push notification when someone passes you in a challenge
+- [ ] Challenge filtering (by exercise type, duration, difficulty)
+- [ ] 1v1 direct challenges
+
+### UX Polish (any sprint)
+- [ ] Empty state illustrations + encouraging messages + clear CTAs
+- [ ] Swipe-to-dismiss modals
+- [ ] Swipeable leaderboard tabs
+
+---
+
 ## PLANNED FEATURES
 
 ### Social Feed

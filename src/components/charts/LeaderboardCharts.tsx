@@ -109,7 +109,7 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   const { isHolding: isHoldingArea, handlers: areaHandlers, lastTooltipRef: areaTooltipRef } = useHoldToReveal();
-  const { isHolding: isHoldingBar, handlers: barHandlers, lastTooltipRef: barTooltipRef } = useHoldToReveal();
+  const { isHolding: isHoldingBar, handlers: barHandlers, lastTooltipRef: barTooltipRef } = useHoldToReveal('bar');
   const stickyAreaProps = useStickyTooltip(areaTooltipRef, isHoldingArea);
   const stickyBarProps = useStickyTooltip(barTooltipRef, isHoldingBar);
   const [scope, setScope] = useState<'personal' | 'community'>(() => {

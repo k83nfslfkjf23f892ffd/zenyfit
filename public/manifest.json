@@ -26,25 +26,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "shortcuts": [
-    {
-      "name": "Log Workout",
-      "short_name": "Log",
-      "url": "/log",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Leaderboard",
-      "short_name": "Ranks",
-      "url": "/leaderboard",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Challenges",
-      "short_name": "Challenges",
-      "url": "/challenges",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
-    }
   ]
 }

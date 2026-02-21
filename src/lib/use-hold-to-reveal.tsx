@@ -5,7 +5,11 @@ import { useState, useCallback, useRef } from 'react';
  * Returns isHolding state and event handlers to spread on a wrapper div.
  * Tooltip should be hidden when not holding, visible when holding.
  */
-export function useHoldToReveal() {
+/**
+ * mode: 'line' — Y snaps to chart center when outside bounds (only X matters for data selection)
+ * mode: 'bar'  — Y clamped with small inset when outside bounds (Y determines which bar is active)
+ */
+export function useHoldToReveal(mode: 'line' | 'bar' = 'line') {
   const [isHolding, setIsHolding] = useState(false);
   // Keep track of the last tooltip props so tooltip persists when finger slides outside chart
   const lastTooltipRef = useRef<{ active: boolean; payload: unknown[]; label: string } | null>(null);
@@ -20,17 +24,33 @@ export function useHoldToReveal() {
     const wrapper = e.currentTarget as HTMLElement;
     const rechartsWrapper = wrapper.querySelector('.recharts-wrapper') as HTMLElement | null;
 
-    // Forward global pointer moves to Recharts with X clamped to chart bounds
-    const onMove = (moveEvent: PointerEvent) => {
+    // Helper to compute clamped coordinates and dispatch a synthetic mousemove to Recharts.
+    // line mode: snap Y to center when outside — only X matters for time-series data selection,
+    //   and clamping to the exact edge causes Recharts to deactivate the tooltip.
+    // bar mode: clamp Y with small inset — Y determines which bar is active.
+    const dispatch = (clientX: number, clientY: number) => {
       if (!rechartsWrapper) return;
       const rect = rechartsWrapper.getBoundingClientRect();
-      const clampedX = Math.max(rect.left + 1, Math.min(rect.right - 1, moveEvent.clientX));
+      const clampedX = Math.max(rect.left + 1, Math.min(rect.right - 1, clientX));
+      let clampedY: number;
+      if (mode === 'bar') {
+        clampedY = Math.max(rect.top + 4, Math.min(rect.bottom - 4, clientY));
+      } else {
+        const centerY = (rect.top + rect.bottom) / 2;
+        clampedY = clientY >= rect.top && clientY <= rect.bottom ? clientY : centerY;
+      }
       rechartsWrapper.dispatchEvent(new MouseEvent('mousemove', {
         clientX: clampedX,
-        clientY: Math.max(rect.top, Math.min(rect.bottom, moveEvent.clientY)),
+        clientY: clampedY,
         bubbles: true,
       }));
     };
+
+    // Immediately activate tooltip at the touch position — without this, holding
+    // still (no pointermove) never dispatches a mousemove and tooltip never shows.
+    dispatch(e.clientX, e.clientY);
+
+    const onMove = (moveEvent: PointerEvent) => dispatch(moveEvent.clientX, moveEvent.clientY);
 
     const onUp = () => {
       stop();

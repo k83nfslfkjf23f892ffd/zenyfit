@@ -104,6 +104,10 @@ export default function LogPage() {
     return 'pullups';
   });
 
+  // Variation dropdown open state
+  const [variationDropdownOpen, setVariationDropdownOpen] = useState(false);
+  const variationDropdownRef = useRef<HTMLDivElement>(null);
+
   // Session total per exercise type (persisted to sessionStorage)
   const [sessionTotal, setSessionTotal] = useState(0);
 
@@ -218,6 +222,18 @@ export default function LogPage() {
     sessionStorage.setItem(key, sessionTotal.toString());
   }, [sessionTotal, selectedBaseType]);
 
+  // Close variation dropdown on outside click
+  useEffect(() => {
+    if (!variationDropdownOpen) return;
+    const handler = (e: PointerEvent) => {
+      if (variationDropdownRef.current && !variationDropdownRef.current.contains(e.target as Node)) {
+        setVariationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [variationDropdownOpen]);
+
   // Clear timeouts on unmount
   useEffect(() => {
     return () => {
@@ -286,12 +302,22 @@ export default function LogPage() {
   // Load pending offline workouts on mount and merge into recent logs
   useEffect(() => {
     let cancelled = false;
+    // Generation counter — only the latest loadPending call may update state
+    let generation = 0;
 
     async function loadPending() {
+      const myGeneration = ++generation;
       try {
         const pending = await getPendingWorkouts();
-        if (cancelled || pending.length === 0) return;
-        const offlineEntries: RecentWorkout[] = pending.map(pw => {
+        // Discard if cancelled or a newer call has already started
+        if (cancelled || myGeneration !== generation) return;
+        if (pending.length === 0) {
+          setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
+          return;
+        }
+        // Sort newest-first to match online workout order
+        const sorted = [...pending].sort((a, b) => b.queuedAt - a.queuedAt);
+        const offlineEntries: RecentWorkout[] = sorted.map(pw => {
           const total = pw.amount * pw.sets;
           const xpRate = XP_RATES[pw.type as keyof typeof XP_RATES] || 0;
           return {
@@ -303,7 +329,6 @@ export default function LogPage() {
           };
         });
         setRecentWorkouts(prev => {
-          // Avoid duplicates — remove any existing offline entries, then prepend fresh ones
           const withoutOffline = prev.filter(w => !w.id.startsWith('offline_'));
           return [...offlineEntries, ...withoutOffline];
         });
@@ -317,9 +342,8 @@ export default function LogPage() {
     // Subscribe to pending count changes (sync completion)
     const unsubscribe = onPendingCountChange((count) => {
       if (count === 0) {
-        // All offline workouts synced — remove offline entries and refresh from API
-        setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
-        fetchRecentWorkouts(true);
+        // All offline workouts synced — reload from API (loadPending will clear offline entries)
+        loadPending().then(() => fetchRecentWorkouts(true));
       } else {
         // Re-load pending to update the list (e.g. partial sync)
         loadPending();
@@ -742,19 +766,37 @@ export default function LogPage() {
               <div className="flex items-center justify-between gap-2">
                 {/* Exercise name with variant dropdown */}
                 {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
-                  <div className="relative flex-1">
-                    <select
-                      value={selectedVariation}
-                      onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                      className="w-full font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none transition-all duration-200"
+                  <div className="relative flex-1" ref={variationDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setVariationDropdownOpen(o => !o)}
+                      className="w-full flex items-center justify-between gap-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 text-foreground text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
-                      {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                        <option key={variation} value={variation}>
-                          {EXERCISE_INFO[variation]?.label || variation}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/60 pointer-events-none" />
+                      <span className="truncate">{EXERCISE_INFO[selectedVariation]?.label || selectedVariation}</span>
+                      <ChevronDown className={`h-4 w-4 text-foreground/60 shrink-0 transition-transform duration-200 ${variationDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {variationDropdownOpen && (
+                      <ul className="absolute top-full left-0 mt-1 z-50 w-full bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
+                        {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                          <li key={variation}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedVariation(variation as ExerciseType);
+                                setVariationDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                                variation === selectedVariation
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {EXERCISE_INFO[variation as ExerciseType]?.label || variation}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ) : (
                   <div className="flex-1 font-semibold">{exerciseLabel}</div>
