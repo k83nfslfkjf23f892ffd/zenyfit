@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart,
   Bar,
+  Cell,
   AreaChart,
   Area,
   XAxis,
@@ -387,15 +388,19 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={70}
                   />
-                  <Tooltip content={(props) => <CustomTooltip active={props.active} payload={props.payload as CustomTooltipProps['payload']} label={props.label} />} />
+                  <Tooltip
+                    content={(props) => <CustomTooltip active={props.active} payload={props.payload as CustomTooltipProps['payload']} label={props.label} />}
+                    wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}
+                  />
                   <Bar
                     dataKey="reps"
                     radius={[0, 4, 4, 0]}
                     fill="rgb(var(--primary))"
+                    background={false}
                     animationDuration={400}
                   >
                     {data.exerciseTotals.slice(0, 6).map((entry) => (
-                      <rect
+                      <Cell
                         key={entry.type}
                         fill={EXERCISE_COLORS[entry.type] || DEFAULT_COLOR}
                       />
