@@ -365,20 +365,18 @@ export default function SettingsPage() {
         </Card>
 
         {/* Install App */}
-        {!isInstalled && (
-          <Card>
-            <CardContent className="pt-6">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={handleInstall}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Install App
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleInstall}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isInstalled ? 'App installed — reinstall' : 'Install App'}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Log Out */}
         <Card>

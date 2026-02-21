@@ -134,7 +134,7 @@ export const WeeklyActivityWidget = memo(function WeeklyActivityWidget() {
       <CardContent>
         <div {...handlers}>
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={data} barCategoryGap="25%">
+          <BarChart data={data} barCategoryGap="25%" style={{ background: 'transparent' }}>
             <XAxis
               dataKey="day"
               axisLine={false}

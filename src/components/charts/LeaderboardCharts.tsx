@@ -378,7 +378,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
           <CardContent>
             <div>
               <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.slice(0, 6).length * 40)}>
-                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={28}>
+                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={28} style={{ background: 'transparent' }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
                   <XAxis
                     type="number"
