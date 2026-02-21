@@ -13,7 +13,7 @@ import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil, Chevro
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
-import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange } from '@/lib/offline-queue';
+import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange, isOfflineQueueAvailable } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -28,7 +28,8 @@ interface LastWorkout {
 interface RecentWorkout {
   id: string;
   type: string;
-  amount: number;
+  amount: number;       // per-set amount (for grouped) or total (for ungrouped)
+  sets?: number;        // number of sets (shown as "3×10 reps" when > 1)
   xpEarned: number;
   timestamp: number;
 }
@@ -58,6 +59,29 @@ function setCache<T>(key: string, data: T) {
   } catch {
     // Ignore errors
   }
+}
+
+// Group consecutive same-type API log entries (e.g. 3x10 pushups → single "3×10 reps" entry)
+// Logs are sorted newest-first; sets created within 30s of each other are grouped.
+function groupApiLogs(logs: RecentWorkout[]): RecentWorkout[] {
+  const result: RecentWorkout[] = [];
+  for (const log of logs) {
+    const prev = result[result.length - 1];
+    if (
+      prev &&
+      !prev.id.startsWith('offline_') &&
+      prev.type === log.type &&
+      prev.amount === log.amount &&
+      Math.abs(prev.timestamp - log.timestamp) < 30_000
+    ) {
+      prev.sets = (prev.sets || 1) + 1;
+      prev.xpEarned += log.xpEarned;
+      prev.timestamp = Math.min(prev.timestamp, log.timestamp);
+    } else {
+      result.push({ ...log, sets: 1 });
+    }
+  }
+  return result;
 }
 
 // Time ago helper
@@ -159,8 +183,15 @@ export default function LogPage() {
   const isHangType = selectedBaseType === 'hangs';
 
   // Get the actual exercise type to log
+  // Ensures the variation belongs to the current base type (prevents stale variation after tab switch)
   const getActiveExercise = (): ExerciseType => {
-    if (isCalisthenics) return selectedVariation;
+    if (isCalisthenics) {
+      const baseConfig = CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType];
+      if (baseConfig && !(baseConfig.variations as readonly string[]).includes(selectedVariation)) {
+        return baseConfig.variations[0] as ExerciseType;
+      }
+      return selectedVariation;
+    }
     return selectedBaseType as ExerciseType;
   };
 
@@ -216,11 +247,14 @@ export default function LogPage() {
     setSessionTotal(saved ? parseInt(saved, 10) : 0);
   }, [selectedBaseType, isCalisthenics, selectedVariation]);
 
-  // Persist session total to sessionStorage when it changes
+  // Persist session total to sessionStorage when it changes.
+  // Only depends on sessionTotal — avoids writing stale value when switching tabs.
+  const selectedBaseTypeRef = useRef(selectedBaseType);
+  selectedBaseTypeRef.current = selectedBaseType;
   useEffect(() => {
-    const key = getSessionStorageKey(selectedBaseType);
+    const key = getSessionStorageKey(selectedBaseTypeRef.current);
     sessionStorage.setItem(key, sessionTotal.toString());
-  }, [sessionTotal, selectedBaseType]);
+  }, [sessionTotal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close variation dropdown on outside click
   useEffect(() => {
@@ -273,7 +307,7 @@ export default function LogPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const workouts = data.logs || [];
+        const workouts = groupApiLogs(data.logs || []);
         // Preserve any offline-queued entries that haven't synced yet
         setRecentWorkouts(prev => {
           const offlineEntries = prev.filter(w => w.id.startsWith('offline_'));
@@ -323,7 +357,8 @@ export default function LogPage() {
           return {
             id: pw.id,
             type: pw.type,
-            amount: total,
+            amount: pw.amount,
+            sets: pw.sets > 1 ? pw.sets : undefined,
             xpEarned: Math.floor(total * xpRate),
             timestamp: pw.queuedAt,
           };
@@ -430,6 +465,11 @@ export default function LogPage() {
 
     // Queue offline immediately if no network — avoids getIdToken() failure on expired tokens
     if (!navigator.onLine) {
+      if (!isOfflineQueueAvailable()) {
+        toast.error('Offline workouts not supported in private browsing — please connect to the internet');
+        setLogging(false);
+        return;
+      }
       try {
         await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
         const totalAmount = logAmount * logSets;
@@ -442,7 +482,8 @@ export default function LogPage() {
         const offlineEntry: RecentWorkout = {
           id: offlineId,
           type: activeExercise,
-          amount: totalAmount,
+          amount: logAmount,
+          sets: logSets > 1 ? logSets : undefined,
           xpEarned,
           timestamp: Date.now(),
         };
@@ -539,6 +580,10 @@ export default function LogPage() {
     } catch (error) {
       // Detect network errors — queue for offline sync
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        if (!isOfflineQueueAvailable()) {
+          toast.error('Workout failed — offline saving not supported in private browsing');
+          return;
+        }
         try {
           await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
           const totalAmount = logAmount * logSets;
@@ -551,7 +596,8 @@ export default function LogPage() {
           const offlineEntry: RecentWorkout = {
             id: offlineId,
             type: activeExercise,
-            amount: totalAmount,
+            amount: logAmount,
+            sets: logSets > 1 ? logSets : undefined,
             xpEarned,
             timestamp: Date.now(),
           };
@@ -1050,7 +1096,10 @@ export default function LogPage() {
                           )}
                         </div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit}{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
+                          {workout.sets && workout.sets > 1
+                            ? `${workout.sets}×${workout.amount} ${unit}`
+                            : `${workout.amount} ${unit}`
+                          }{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
                         </div>
                       </div>
                       {deleteMode && (

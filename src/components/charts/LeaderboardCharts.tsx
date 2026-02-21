@@ -134,6 +134,13 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   // AbortController ref to cancel in-flight requests
   const abortRef = useRef<AbortController | null>(null);
 
+  // Mounted ref to guard state updates after unmount
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   const fetchStats = useCallback(async (newScope: string, newRange: string, skipCache = false) => {
     // Try cache first (unless skipCache is true)
     if (!skipCache) {
@@ -151,13 +158,13 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
-    setError(null);
+    if (mountedRef.current) setLoading(true);
+    if (mountedRef.current) setError(null);
 
     try {
       const token = await firebaseUserRef.current?.getIdToken();
       if (!token) {
-        setError('Not authenticated');
+        if (mountedRef.current) setError('Not authenticated');
         return;
       }
 
@@ -171,22 +178,22 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
       if (response.ok) {
         const newData = await response.json();
-        setData(newData);
+        if (mountedRef.current) setData(newData);
         setCachedData(newScope, newRange, newData);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        if (!getCachedData(newScope, newRange)) {
+        if (mountedRef.current && !getCachedData(newScope, newRange)) {
           setError(errorData.details || errorData.error || 'Failed to load');
         }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Error fetching stats:', err);
-      if (!getCachedData(newScope, newRange)) {
+      if (mountedRef.current && !getCachedData(newScope, newRange)) {
         setError('Network error');
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []); // No dependencies — uses refs for mutable state
 

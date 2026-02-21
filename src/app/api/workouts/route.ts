@@ -37,6 +37,18 @@ export async function POST(request: NextRequest) {
     // Parse and validate request body
     const body = await request.json();
 
+    // Idempotency check — prevent duplicate XP if offline sync retries after network split
+    const idempotencyKey = typeof body._idempotencyKey === 'string' ? body._idempotencyKey : null;
+    if (idempotencyKey) {
+      const dedupRef = db.collection('users').doc(userId).collection('_dedup').doc(idempotencyKey);
+      const dedupDoc = await dedupRef.get();
+      trackReads('workouts', 1, userId);
+      if (dedupDoc.exists) {
+        // Already processed — return success without re-logging
+        return NextResponse.json({ success: true, duplicate: true }, { status: 200 });
+      }
+    }
+
     // Allow offline-synced workouts to provide their original timestamp
     const now = Date.now();
     const loggedAt = typeof body.loggedAt === 'number' && body.loggedAt > 0 && body.loggedAt <= now
@@ -223,6 +235,14 @@ export async function POST(request: NextRequest) {
       [`xpByDay.${workoutDate}`]: FieldValue.increment(totalXpEarned),
       totalXp: FieldValue.increment(totalXpEarned),
     }, { merge: true });
+
+    // Store idempotency key before committing (so duplicate retries are caught)
+    if (idempotencyKey) {
+      batch.set(
+        db.collection('users').doc(userId).collection('_dedup').doc(idempotencyKey),
+        { createdAt: FieldValue.serverTimestamp() }
+      );
+    }
 
     await batch.commit();
     trackWrites('workouts', sets + 1, userId); // sets exercise_log docs + 1 user update
