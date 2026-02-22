@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart,
   Bar,
+  Cell,
   AreaChart,
   Area,
   XAxis,
@@ -85,7 +86,7 @@ interface CustomTooltipProps {
 }
 
 function CustomTooltip({ active, payload, label, formatter }: CustomTooltipProps) {
-  if (!active || !payload) return null;
+  if (!active || !payload || !payload[0]) return null;
 
   return (
     <div className="bg-surface rounded-lg px-3 py-2 shadow-lg border border-border">
@@ -109,9 +110,7 @@ function setCachedData(scope: string, range: string, data: ChartData) {
 
 export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   const { isHolding: isHoldingArea, handlers: areaHandlers, lastTooltipRef: areaTooltipRef } = useHoldToReveal();
-  const { isHolding: isHoldingBar, handlers: barHandlers, lastTooltipRef: barTooltipRef } = useHoldToReveal();
   const stickyAreaProps = useStickyTooltip(areaTooltipRef, isHoldingArea);
-  const stickyBarProps = useStickyTooltip(barTooltipRef, isHoldingBar);
   const [scope, setScope] = useState<'personal' | 'community'>(() => {
     if (typeof window !== 'undefined') {
       return getSavedFilters().scope;
@@ -135,14 +134,22 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
   // AbortController ref to cancel in-flight requests
   const abortRef = useRef<AbortController | null>(null);
 
+  // Mounted ref to guard state updates after unmount
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   const fetchStats = useCallback(async (newScope: string, newRange: string, skipCache = false) => {
     // Try cache first (unless skipCache is true)
     if (!skipCache) {
       const cached = getCachedData(newScope, newRange);
       if (cached) {
         setData(cached.data);
-        // Stale cache: show cached data, don't auto-refetch (server cache handles freshness)
-        return;
+        // Fresh cache: no need to hit the server
+        if (!cached.isStale) return;
+        // Stale cache: show immediately but fall through to background-refresh from server
       }
     }
 
@@ -151,18 +158,18 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
-    setError(null);
+    if (mountedRef.current) setLoading(true);
+    if (mountedRef.current) setError(null);
 
     try {
       const token = await firebaseUserRef.current?.getIdToken();
       if (!token) {
-        setError('Not authenticated');
+        if (mountedRef.current) setError('Not authenticated');
         return;
       }
 
       const response = await fetch(
-        `/api/leaderboard/stats?scope=${newScope}&range=${newRange}`,
+        `/api/leaderboard/stats?scope=${newScope}&range=${newRange}&tzOffset=${-new Date().getTimezoneOffset()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
@@ -171,22 +178,22 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
 
       if (response.ok) {
         const newData = await response.json();
-        setData(newData);
+        if (mountedRef.current) setData(newData);
         setCachedData(newScope, newRange, newData);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        if (!getCachedData(newScope, newRange)) {
+        if (mountedRef.current && !getCachedData(newScope, newRange)) {
           setError(errorData.details || errorData.error || 'Failed to load');
         }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Error fetching stats:', err);
-      if (!getCachedData(newScope, newRange)) {
+      if (mountedRef.current && !getCachedData(newScope, newRange)) {
         setError('Network error');
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []); // No dependencies — uses refs for mutable state
 
@@ -339,7 +346,7 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={35}
                   />
-                  <Tooltip content={(props) => {
+                  <Tooltip active={(isHoldingArea && areaTooltipRef.current) ? true : undefined} content={(props) => {
                     const p = stickyAreaProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                     return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} formatter={formatPeriod} />;
                   }} wrapperStyle={tooltipVisibility(isHoldingArea)} cursor={isHoldingArea ? <HighlightCursor /> : false} />
@@ -369,9 +376,9 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
             <CardTitle className="text-sm font-medium">By Exercise</CardTitle>
           </CardHeader>
           <CardContent>
-            <div {...barHandlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
+            <div>
               <ResponsiveContainer width="100%" height={Math.max(150, data.exerciseTotals.slice(0, 6).length * 40)}>
-                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={20}>
+                <BarChart data={data.exerciseTotals.slice(0, 6)} layout="vertical" barSize={28} style={{ background: 'transparent' }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" horizontal={false} />
                   <XAxis
                     type="number"
@@ -388,21 +395,19 @@ export function LeaderboardCharts({ firebaseUser }: LeaderboardChartsProps) {
                     tickLine={false}
                     width={70}
                   />
-                  <Tooltip content={(props) => {
-                    const p = stickyBarProps(props as { active?: boolean; payload?: unknown[]; label?: string });
-                    return <CustomTooltip active={p.active} payload={p.payload as CustomTooltipProps['payload']} label={p.label} />;
-                  }} wrapperStyle={tooltipVisibility(isHoldingBar)} cursor={false} />
+                  <Tooltip
+                    content={(props) => <CustomTooltip active={props.active} payload={props.payload as CustomTooltipProps['payload']} label={props.label} />}
+                    wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}
+                  />
                   <Bar
                     dataKey="reps"
                     radius={[0, 4, 4, 0]}
                     fill="rgb(var(--primary))"
-                    fillOpacity={isHoldingBar ? 0.3 : 1}
-                    activeBar={isHoldingBar ? { fillOpacity: 1 } : false}
-                    style={holdTransition}
+                    background={false}
                     animationDuration={400}
                   >
                     {data.exerciseTotals.slice(0, 6).map((entry) => (
-                      <rect
+                      <Cell
                         key={entry.type}
                         fill={EXERCISE_COLORS[entry.type] || DEFAULT_COLOR}
                       />

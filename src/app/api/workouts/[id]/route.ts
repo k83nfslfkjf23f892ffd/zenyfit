@@ -81,6 +81,8 @@ export async function DELETE(
     const newLevel = calculateLevel(newXp);
 
     // Check if any other workouts remain for the deleted workout's day
+    // TODO: Streak dates use UTC which may differ from user's local day.
+    // Fix requires storing user timezone preference. See issues.md.
     const deletedDate = new Date(logData.timestamp).toISOString().split('T')[0];
     const dayStart = new Date(deletedDate + 'T00:00:00Z').getTime();
     const dayEnd = dayStart + 24 * 60 * 60 * 1000;
@@ -187,7 +189,7 @@ export async function DELETE(
     invalidateCache('/api/profile/stats', userId);
     invalidateCache('/api/achievements', userId);
 
-    // Update challenge progress (non-blocking)
+    // Update challenge progress using transactions to prevent race conditions
     try {
       const now = Date.now();
       const challengesSnapshot = await db
@@ -196,29 +198,30 @@ export async function DELETE(
         .where('endDate', '>', now)
         .get();
 
-      const challengeUpdates: Promise<unknown>[] = [];
+      const challengeUpdates: Promise<void>[] = [];
 
       for (const challengeDoc of challengesSnapshot.docs) {
         const challengeData = challengeDoc.data();
 
         if (challengeData.type === type) {
-          const participants = challengeData.participants || [];
-          const participantIndex = participants.findIndex(
-            (p: { userId: string }) => p.userId === userId
+          challengeUpdates.push(
+            db.runTransaction(async (transaction) => {
+              const freshDoc = await transaction.get(challengeDoc.ref);
+              if (!freshDoc.exists) return;
+              const freshData = freshDoc.data()!;
+              const participants = freshData.participants || [];
+              const idx = participants.findIndex(
+                (p: { userId: string }) => p.userId === userId
+              );
+              if (idx !== -1) {
+                participants[idx].progress = Math.max(
+                  0,
+                  (participants[idx].progress || 0) - amount
+                );
+                transaction.update(challengeDoc.ref, { participants });
+              }
+            })
           );
-
-          if (participantIndex !== -1) {
-            participants[participantIndex].progress = Math.max(
-              0,
-              (participants[participantIndex].progress || 0) - amount
-            );
-
-            challengeUpdates.push(
-              challengeDoc.ref.update({
-                participants,
-              })
-            );
-          }
         }
       }
 

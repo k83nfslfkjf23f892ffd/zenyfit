@@ -8,6 +8,7 @@ import { getAdminInstances } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
 const METRICS_DOC = '_system/metrics';
+const METRICS_ENABLED = process.env.ENABLE_FIRESTORE_METRICS === 'true';
 
 // Sanitize route name for use as Firestore field path segment
 function sanitizeRoute(route: string): string {
@@ -35,6 +36,7 @@ async function ensureDoc() {
 
 /** Track Firestore document reads for a route (fire-and-forget) */
 export function trackReads(route: string, count: number, userId?: string) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   const updates: Record<string, unknown> = {
     [`routes.${key}.reads`]: FieldValue.increment(count),
@@ -63,6 +65,7 @@ export function trackReads(route: string, count: number, userId?: string) {
 
 /** Track Firestore document writes for a route (fire-and-forget) */
 export function trackWrites(route: string, count: number, userId?: string) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   const updates: Record<string, unknown> = {
     [`routes.${key}.writes`]: FieldValue.increment(count),
@@ -88,6 +91,7 @@ export function trackWrites(route: string, count: number, userId?: string) {
 
 /** Track a cache hit (fire-and-forget) */
 export function trackCacheHit(route: string, userId?: string) {
+  if (!METRICS_ENABLED) return;
   const key = sanitizeRoute(route);
   const updates: Record<string, unknown> = {
     [`routes.${key}.cacheHits`]: FieldValue.increment(1),

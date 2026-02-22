@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Activity, Calendar, TrendingUp, Award } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -44,7 +44,7 @@ const statCards = [
   { key: 'achievementsCount', label: 'Achievements', icon: Award },
 ] as const;
 
-export function StatsGridWidget() {
+export const StatsGridWidget = memo(function StatsGridWidget() {
   const { user, firebaseUser } = useAuth();
   const userTotalSets = user?.totalWorkoutSets ?? 0;
   const [stats, setStats] = useState<Stats>(() => {
@@ -161,4 +161,4 @@ export function StatsGridWidget() {
       })}
     </div>
   );
-}
+});

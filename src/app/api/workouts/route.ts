@@ -4,6 +4,7 @@ import { rateLimitByUser, RATE_LIMITS } from '@/lib/rate-limit';
 import { exerciseLogSchema } from '@shared/schema';
 import { XP_RATES, ESTIMATED_SECONDS_PER_UNIT, calculateLevel } from '@shared/constants';
 import { trackReads, trackWrites } from '@/lib/firestore-metrics';
+import { invalidateCache } from '@/lib/api-cache';
 import { FieldValue } from 'firebase-admin/firestore';
 
 /**
@@ -35,6 +36,18 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json();
+
+    // Idempotency check — prevent duplicate XP if offline sync retries after network split
+    const idempotencyKey = typeof body._idempotencyKey === 'string' ? body._idempotencyKey : null;
+    if (idempotencyKey) {
+      const dedupRef = db.collection('users').doc(userId).collection('_dedup').doc(idempotencyKey);
+      const dedupDoc = await dedupRef.get();
+      trackReads('workouts', 1, userId);
+      if (dedupDoc.exists) {
+        // Already processed — return success without re-logging
+        return NextResponse.json({ success: true, duplicate: true }, { status: 200 });
+      }
+    }
 
     // Allow offline-synced workouts to provide their original timestamp
     const now = Date.now();
@@ -223,6 +236,14 @@ export async function POST(request: NextRequest) {
       totalXp: FieldValue.increment(totalXpEarned),
     }, { merge: true });
 
+    // Store idempotency key before committing (so duplicate retries are caught)
+    if (idempotencyKey) {
+      batch.set(
+        db.collection('users').doc(userId).collection('_dedup').doc(idempotencyKey),
+        { createdAt: FieldValue.serverTimestamp() }
+      );
+    }
+
     await batch.commit();
     trackWrites('workouts', sets + 1, userId); // sets exercise_log docs + 1 user update
 
@@ -238,65 +259,47 @@ export async function POST(request: NextRequest) {
         .get();
       trackReads('workouts', challengesSnapshot.docs.length, userId);
 
-      // Update matching challenges
-      const challengeUpdates: Promise<unknown>[] = [];
+      // Update matching challenges using transactions to prevent race conditions
+      const challengeUpdates: Promise<void>[] = [];
 
       for (const challengeDoc of challengesSnapshot.docs) {
         const challengeData = challengeDoc.data();
 
-        // Check if challenge type matches the exercise type
         if (challengeData.type === type) {
-          // Update participant's progress
-          const participants = challengeData.participants || [];
-          const participantIndex = participants.findIndex(
-            (p: { userId: string }) => p.userId === userId
+          challengeUpdates.push(
+            db.runTransaction(async (transaction) => {
+              const freshDoc = await transaction.get(challengeDoc.ref);
+              if (!freshDoc.exists) return;
+              const freshData = freshDoc.data()!;
+              const participants = freshData.participants || [];
+              const idx = participants.findIndex(
+                (p: { userId: string }) => p.userId === userId
+              );
+              if (idx !== -1) {
+                participants[idx].progress =
+                  (participants[idx].progress || 0) + totalAmount;
+                transaction.update(challengeDoc.ref, { participants });
+              }
+            })
           );
-
-          if (participantIndex !== -1) {
-            participants[participantIndex].progress =
-              (participants[participantIndex].progress || 0) + totalAmount;
-
-            challengeUpdates.push(
-              challengeDoc.ref.update({
-                participants,
-              })
-            );
-          }
         }
       }
 
-      // Wait for all challenge updates to complete
       await Promise.all(challengeUpdates);
       if (challengeUpdates.length > 0) {
         trackWrites('workouts', challengeUpdates.length, userId);
       }
     } catch (challengeError) {
-      // Log but don't fail the workout — retry once
-      console.error('Challenge update failed, retrying once:', challengeError);
-      try {
-        const retrySnapshot = await db
-          .collection('challenges')
-          .where('participantIds', 'array-contains', userId)
-          .where('endDate', '>', Date.now())
-          .where('type', '==', type)
-          .get();
-        trackReads('workouts', retrySnapshot.docs.length, userId);
-
-        for (const challengeDoc of retrySnapshot.docs) {
-          const challengeData = challengeDoc.data();
-          const participants = challengeData.participants || [];
-          const idx = participants.findIndex((p: { userId: string }) => p.userId === userId);
-          if (idx !== -1) {
-            participants[idx].progress = (participants[idx].progress || 0) + totalAmount;
-            await challengeDoc.ref.update({ participants });
-            trackWrites('workouts', 1, userId);
-          }
-        }
-      } catch (retryError) {
-        console.error('Challenge update retry also failed:', retryError);
-        challengeUpdateFailed = true;
-      }
+      console.error('Challenge update failed:', challengeError);
+      challengeUpdateFailed = true;
     }
+
+    // Invalidate server caches so next leaderboard/stats request fetches fresh data
+    invalidateCache('/api/leaderboard/stats', userId);
+    invalidateCache('/api/leaderboard/stats', '_community');
+    invalidateCache('/api/leaderboard/trend', userId);
+    invalidateCache('/api/leaderboard', userId);
+    invalidateCache('/api/profile/stats', userId);
 
     return NextResponse.json(
       {

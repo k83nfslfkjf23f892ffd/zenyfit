@@ -60,11 +60,13 @@ async function syncPendingWorkouts() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          signal: AbortSignal.timeout(30_000),
           body: JSON.stringify({
             type: workout.type,
             amount: workout.amount,
             sets: workout.sets,
             loggedAt: workout.queuedAt,
+            _idempotencyKey: workout.id,
           }),
         });
 

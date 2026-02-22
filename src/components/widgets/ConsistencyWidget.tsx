@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarDays, Info } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -84,7 +84,7 @@ function extractHeatmapData(stats: ProfileStatsData): HeatmapData {
   return { activityMap, totalWorkouts, activeDays, estimatedExerciseSeconds: stats.estimatedExerciseSeconds || 0 };
 }
 
-export function ConsistencyWidget() {
+export const ConsistencyWidget = memo(function ConsistencyWidget() {
   const { firebaseUser } = useAuth();
   const [showInfo, setShowInfo] = useState(false);
   const [data, setData] = useState<HeatmapData | null>(() => {
@@ -286,4 +286,4 @@ export function ConsistencyWidget() {
       </CardContent>
     </Card>
   );
-}
+});

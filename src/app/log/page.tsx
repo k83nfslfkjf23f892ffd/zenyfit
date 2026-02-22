@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil } from 'lucide-react';
+import { Loader2, Plus, Undo2, X, ArrowUp, Circle, Minus, Trash2, Pencil, ChevronDown } from 'lucide-react';
 import { EXERCISE_INFO, XP_RATES, CALISTHENICS_PRESETS, HANG_PRESETS, CALISTHENICS_BASE_TYPES, formatSecondsAsMinutes } from '@shared/constants';
 import { EXERCISE_TYPES } from '@shared/schema';
 import { invalidateWorkoutCaches } from '@/lib/client-cache';
-import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange } from '@/lib/offline-queue';
+import { queueWorkout, getPendingWorkouts, removePendingWorkout, onPendingCountChange, isOfflineQueueAvailable } from '@/lib/offline-queue';
 
 type ExerciseType = typeof EXERCISE_TYPES[number];
 type BaseExerciseType = keyof typeof CALISTHENICS_BASE_TYPES;
@@ -28,7 +28,8 @@ interface LastWorkout {
 interface RecentWorkout {
   id: string;
   type: string;
-  amount: number;
+  amount: number;       // per-set amount (for grouped) or total (for ungrouped)
+  sets?: number;        // number of sets (shown as "3×10 reps" when > 1)
   xpEarned: number;
   timestamp: number;
 }
@@ -58,6 +59,29 @@ function setCache<T>(key: string, data: T) {
   } catch {
     // Ignore errors
   }
+}
+
+// Group consecutive same-type API log entries (e.g. 3x10 pushups → single "3×10 reps" entry)
+// Logs are sorted newest-first; sets created within 30s of each other are grouped.
+function groupApiLogs(logs: RecentWorkout[]): RecentWorkout[] {
+  const result: RecentWorkout[] = [];
+  for (const log of logs) {
+    const prev = result[result.length - 1];
+    if (
+      prev &&
+      !prev.id.startsWith('offline_') &&
+      prev.type === log.type &&
+      prev.amount === log.amount &&
+      Math.abs(prev.timestamp - log.timestamp) < 30_000
+    ) {
+      prev.sets = (prev.sets || 1) + 1;
+      prev.xpEarned += log.xpEarned;
+      prev.timestamp = Math.min(prev.timestamp, log.timestamp);
+    } else {
+      result.push({ ...log, sets: 1 });
+    }
+  }
+  return result;
 }
 
 // Time ago helper
@@ -103,6 +127,10 @@ export default function LogPage() {
     }
     return 'pullups';
   });
+
+  // Variation dropdown open state
+  const [variationDropdownOpen, setVariationDropdownOpen] = useState(false);
+  const variationDropdownRef = useRef<HTMLDivElement>(null);
 
   // Session total per exercise type (persisted to sessionStorage)
   const [sessionTotal, setSessionTotal] = useState(0);
@@ -155,8 +183,15 @@ export default function LogPage() {
   const isHangType = selectedBaseType === 'hangs';
 
   // Get the actual exercise type to log
+  // Ensures the variation belongs to the current base type (prevents stale variation after tab switch)
   const getActiveExercise = (): ExerciseType => {
-    if (isCalisthenics) return selectedVariation;
+    if (isCalisthenics) {
+      const baseConfig = CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType];
+      if (baseConfig && !(baseConfig.variations as readonly string[]).includes(selectedVariation)) {
+        return baseConfig.variations[0] as ExerciseType;
+      }
+      return selectedVariation;
+    }
     return selectedBaseType as ExerciseType;
   };
 
@@ -212,11 +247,26 @@ export default function LogPage() {
     setSessionTotal(saved ? parseInt(saved, 10) : 0);
   }, [selectedBaseType, isCalisthenics, selectedVariation]);
 
-  // Persist session total to sessionStorage when it changes
+  // Persist session total to sessionStorage when it changes.
+  // Only depends on sessionTotal — avoids writing stale value when switching tabs.
+  const selectedBaseTypeRef = useRef(selectedBaseType);
+  selectedBaseTypeRef.current = selectedBaseType;
   useEffect(() => {
-    const key = getSessionStorageKey(selectedBaseType);
+    const key = getSessionStorageKey(selectedBaseTypeRef.current);
     sessionStorage.setItem(key, sessionTotal.toString());
-  }, [sessionTotal, selectedBaseType]);
+  }, [sessionTotal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close variation dropdown on outside click
+  useEffect(() => {
+    if (!variationDropdownOpen) return;
+    const handler = (e: PointerEvent) => {
+      if (variationDropdownRef.current && !variationDropdownRef.current.contains(e.target as Node)) {
+        setVariationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [variationDropdownOpen]);
 
   // Clear timeouts on unmount
   useEffect(() => {
@@ -257,7 +307,7 @@ export default function LogPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const workouts = data.logs || [];
+        const workouts = groupApiLogs(data.logs || []);
         // Preserve any offline-queued entries that haven't synced yet
         setRecentWorkouts(prev => {
           const offlineEntries = prev.filter(w => w.id.startsWith('offline_'));
@@ -286,24 +336,34 @@ export default function LogPage() {
   // Load pending offline workouts on mount and merge into recent logs
   useEffect(() => {
     let cancelled = false;
+    // Generation counter — only the latest loadPending call may update state
+    let generation = 0;
 
     async function loadPending() {
+      const myGeneration = ++generation;
       try {
         const pending = await getPendingWorkouts();
-        if (cancelled || pending.length === 0) return;
-        const offlineEntries: RecentWorkout[] = pending.map(pw => {
+        // Discard if cancelled or a newer call has already started
+        if (cancelled || myGeneration !== generation) return;
+        if (pending.length === 0) {
+          setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
+          return;
+        }
+        // Sort newest-first to match online workout order
+        const sorted = [...pending].sort((a, b) => b.queuedAt - a.queuedAt);
+        const offlineEntries: RecentWorkout[] = sorted.map(pw => {
           const total = pw.amount * pw.sets;
           const xpRate = XP_RATES[pw.type as keyof typeof XP_RATES] || 0;
           return {
             id: pw.id,
             type: pw.type,
-            amount: total,
+            amount: pw.amount,
+            sets: pw.sets > 1 ? pw.sets : undefined,
             xpEarned: Math.floor(total * xpRate),
             timestamp: pw.queuedAt,
           };
         });
         setRecentWorkouts(prev => {
-          // Avoid duplicates — remove any existing offline entries, then prepend fresh ones
           const withoutOffline = prev.filter(w => !w.id.startsWith('offline_'));
           return [...offlineEntries, ...withoutOffline];
         });
@@ -317,9 +377,8 @@ export default function LogPage() {
     // Subscribe to pending count changes (sync completion)
     const unsubscribe = onPendingCountChange((count) => {
       if (count === 0) {
-        // All offline workouts synced — remove offline entries and refresh from API
-        setRecentWorkouts(prev => prev.filter(w => !w.id.startsWith('offline_')));
-        fetchRecentWorkouts(true);
+        // All offline workouts synced — reload from API (loadPending will clear offline entries)
+        loadPending().then(() => fetchRecentWorkouts(true));
       } else {
         // Re-load pending to update the list (e.g. partial sync)
         loadPending();
@@ -406,6 +465,11 @@ export default function LogPage() {
 
     // Queue offline immediately if no network — avoids getIdToken() failure on expired tokens
     if (!navigator.onLine) {
+      if (!isOfflineQueueAvailable()) {
+        toast.error('Offline workouts not supported in private browsing — please connect to the internet');
+        setLogging(false);
+        return;
+      }
       try {
         await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
         const totalAmount = logAmount * logSets;
@@ -418,7 +482,8 @@ export default function LogPage() {
         const offlineEntry: RecentWorkout = {
           id: offlineId,
           type: activeExercise,
-          amount: totalAmount,
+          amount: logAmount,
+          sets: logSets > 1 ? logSets : undefined,
           xpEarned,
           timestamp: Date.now(),
         };
@@ -515,6 +580,10 @@ export default function LogPage() {
     } catch (error) {
       // Detect network errors — queue for offline sync
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        if (!isOfflineQueueAvailable()) {
+          toast.error('Workout failed — offline saving not supported in private browsing');
+          return;
+        }
         try {
           await queueWorkout({ type: activeExercise, amount: logAmount, sets: logSets });
           const totalAmount = logAmount * logSets;
@@ -527,7 +596,8 @@ export default function LogPage() {
           const offlineEntry: RecentWorkout = {
             id: offlineId,
             type: activeExercise,
-            amount: totalAmount,
+            amount: logAmount,
+            sets: logSets > 1 ? logSets : undefined,
             xpEarned,
             timestamp: Date.now(),
           };
@@ -742,17 +812,38 @@ export default function LogPage() {
               <div className="flex items-center justify-between gap-2">
                 {/* Exercise name with variant dropdown */}
                 {isCalisthenics && CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.length > 1 ? (
-                  <select
-                    value={selectedVariation}
-                    onChange={(e) => setSelectedVariation(e.target.value as ExerciseType)}
-                    className="flex-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer text-foreground appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23888%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] transition-all duration-200"
-                  >
-                    {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
-                      <option key={variation} value={variation}>
-                        {EXERCISE_INFO[variation]?.label || variation}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1" ref={variationDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setVariationDropdownOpen(o => !o)}
+                      className="w-full flex items-center justify-between gap-1 font-semibold bg-surface border border-border rounded-lg px-2 py-1 text-foreground text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <span className="truncate">{EXERCISE_INFO[selectedVariation]?.label || selectedVariation}</span>
+                      <ChevronDown className={`h-4 w-4 text-foreground/60 shrink-0 transition-transform duration-200 ${variationDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {variationDropdownOpen && (
+                      <ul className="absolute top-full left-0 mt-1 z-50 w-full bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
+                        {CALISTHENICS_BASE_TYPES[selectedBaseType as BaseExerciseType]?.variations.map((variation) => (
+                          <li key={variation}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedVariation(variation as ExerciseType);
+                                setVariationDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                                variation === selectedVariation
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              {EXERCISE_INFO[variation as ExerciseType]?.label || variation}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex-1 font-semibold">{exerciseLabel}</div>
                 )}
@@ -779,10 +870,10 @@ export default function LogPage() {
               <div className="text-5xl font-bold tracking-tight gradient-text">
                 {sessionTotal}
               </div>
-              <div className="text-sm text-foreground/50 mt-1">
+              <div className="text-sm text-foreground/60 mt-1">
                 {getUnitLabel()}
                 {isHangType && sessionTotal >= 60 && (
-                  <span className="text-foreground/30 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
+                  <span className="text-foreground/40 ml-1">({formatSecondsAsMinutes(sessionTotal)})</span>
                 )}
                 {activeXpRate > 0 && (
                   <span className="text-primary ml-2 font-medium">
@@ -797,7 +888,7 @@ export default function LogPage() {
                     setSessionTotal(0);
                     toast.success('Session cleared');
                   }}
-                  className="mt-1 text-xs text-foreground/30 hover:text-foreground/60 transition-colors"
+                  className="mt-1 text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
                 >
                   Clear session
                 </button>
@@ -927,7 +1018,7 @@ export default function LogPage() {
                 </div>
               )}
 
-              <p className="text-xs text-foreground/30 mt-2 text-center">
+              <p className="text-xs text-foreground/40 mt-2 text-center">
                 Tap to log • Long press for sets
               </p>
             </div>
@@ -964,7 +1055,7 @@ export default function LogPage() {
             </div>
             {loadingRecent ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/25" />
               </div>
             ) : recentWorkouts.length === 0 ? (
               <p className="text-sm text-foreground/40 text-center py-6">
@@ -1005,11 +1096,14 @@ export default function LogPage() {
                           )}
                         </div>
                         <div className="text-xs text-foreground/40">
-                          {workout.amount} {unit}{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
+                          {workout.sets && workout.sets > 1
+                            ? `${workout.sets}×${workout.amount} ${unit}`
+                            : `${workout.amount} ${unit}`
+                          }{workout.xpEarned > 0 ? ` • +${workout.xpEarned} XP` : ''} • {timeAgo}
                         </div>
                       </div>
                       {deleteMode && (
-                        <Trash2 className="h-4 w-4 text-foreground/30" />
+                        <Trash2 className="h-4 w-4 text-foreground/25" />
                       )}
                     </div>
                   );
@@ -1031,7 +1125,7 @@ export default function LogPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold">Log Sets</h3>
-            <p className="text-sm text-foreground/50 mb-5">
+            <p className="text-sm text-foreground/60 mb-5">
               {reps} {getUnitLabel()} per set
             </p>
 
@@ -1089,7 +1183,7 @@ export default function LogPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-2">Delete Workout?</h3>
-            <p className="text-sm text-foreground/50 mb-4">
+            <p className="text-sm text-foreground/60 mb-4">
               Are you sure you want to delete this workout?
             </p>
 
@@ -1097,7 +1191,7 @@ export default function LogPage() {
               <div className="font-medium">
                 {EXERCISE_INFO[workoutToDelete.type]?.label || workoutToDelete.type}
               </div>
-              <div className="text-sm text-foreground/50">
+              <div className="text-sm text-foreground/60">
                 {workoutToDelete.amount} {EXERCISE_INFO[workoutToDelete.type]?.unit || 'reps'}{workoutToDelete.xpEarned > 0 ? ` • +${workoutToDelete.xpEarned} XP` : ''}
               </div>
             </div>

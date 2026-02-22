@@ -14,16 +14,31 @@ export interface PendingWorkout {
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
+let _idbAvailable: boolean | null = null;
+
+/** True if IndexedDB is available in this browser context. False in private browsing/Safari. */
+export function isOfflineQueueAvailable(): boolean {
+  if (_idbAvailable !== null) return _idbAvailable;
+  _idbAvailable = typeof indexedDB !== 'undefined' && indexedDB !== null;
+  return _idbAvailable;
+}
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        }
-      },
-    });
+    try {
+      dbPromise = openDB(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        },
+      });
+      // Eagerly check so isOfflineQueueAvailable reflects reality
+      dbPromise.catch(() => { _idbAvailable = false; dbPromise = null; });
+    } catch {
+      _idbAvailable = false;
+      return Promise.reject(new Error('IndexedDB unavailable'));
+    }
   }
   return dbPromise;
 }

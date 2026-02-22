@@ -26,59 +26,58 @@ export async function POST(
     const userId = decodedToken.uid;
     const { db } = getAdminInstances();
 
-    // Get user data
+    // Get user data (outside transaction — doesn't need atomicity)
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const userData = userDoc.data()!;
 
-    // Get challenge
     const challengeRef = db.collection('challenges').doc(challengeId);
-    const challengeDoc = await challengeRef.get();
 
-    if (!challengeDoc.exists) {
-      return NextResponse.json({ error: 'Challenge not found' }, { status: 404 });
-    }
+    // Use transaction to atomically check + join (prevents duplicate joins from concurrent requests)
+    const result = await db.runTransaction(async (transaction) => {
+      const challengeDoc = await transaction.get(challengeRef);
 
-    const challengeData = challengeDoc.data()!;
+      if (!challengeDoc.exists) {
+        return { error: 'Challenge not found', status: 404 };
+      }
 
-    // Check if challenge is public
-    if (!challengeData.isPublic) {
-      return NextResponse.json(
-        { error: 'This challenge is not public' },
-        { status: 403 }
-      );
-    }
+      const challengeData = challengeDoc.data()!;
 
-    // Check if challenge has ended
-    if (challengeData.endDate < Date.now()) {
-      return NextResponse.json(
-        { error: 'This challenge has ended' },
-        { status: 400 }
-      );
-    }
+      if (!challengeData.isPublic) {
+        return { error: 'This challenge is not public', status: 403 };
+      }
 
-    // Check if user is already a participant
-    if (challengeData.participantIds?.includes(userId)) {
-      return NextResponse.json(
-        { error: 'You are already a participant' },
-        { status: 400 }
-      );
-    }
+      if (challengeData.endDate < Date.now()) {
+        return { error: 'This challenge has ended', status: 400 };
+      }
 
-    // Add user to participants
-    const newParticipant = {
-      userId,
-      username: userData.username,
-      avatar: userData.avatar || '',
-      progress: 0,
-    };
+      if (challengeData.participantIds?.includes(userId)) {
+        return { error: 'You are already a participant', status: 400 };
+      }
 
-    await challengeRef.update({
-      participants: [...(challengeData.participants || []), newParticipant],
-      participantIds: [...(challengeData.participantIds || []), userId],
+      const newParticipant = {
+        userId,
+        username: userData.username,
+        avatar: userData.avatar || '',
+        progress: 0,
+      };
+
+      transaction.update(challengeRef, {
+        participants: [...(challengeData.participants || []), newParticipant],
+        participantIds: [...(challengeData.participantIds || []), userId],
+      });
+
+      return { success: true };
     });
+
+    if ('error' in result) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status }
+      );
+    }
 
     return NextResponse.json(
       { success: true, message: 'Successfully joined challenge' },

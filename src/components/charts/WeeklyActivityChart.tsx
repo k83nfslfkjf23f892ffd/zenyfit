@@ -56,7 +56,7 @@ export function WeeklyActivityChart({
       <CardContent>
         <div {...handlers}>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
+          <BarChart data={data} style={{ background: 'transparent' }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey="day"

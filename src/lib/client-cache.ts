@@ -131,7 +131,27 @@ export function invalidateWorkoutCaches(): void {
     localStorage.removeItem(CACHE_KEYS.statsGrid);
     localStorage.removeItem(CACHE_KEYS.rankings);
     localStorage.removeItem(CACHE_KEYS.chartData);
+    localStorage.removeItem(CACHE_KEYS.challenges);
     localStorage.removeItem(CACHE_KEYS.challengeProgress);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Clear all zenyfit_* localStorage keys.
+ * Call this on logout to prevent cross-user data leakage.
+ */
+export function clearAllCache(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('zenyfit_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   } catch {
     // Ignore storage errors
   }

@@ -8,17 +8,19 @@ import { trackReads, trackCacheHit } from '@/lib/firestore-metrics';
 // Get calisthenics exercise types
 const CALISTHENICS_TYPES: readonly string[] = EXERCISE_CATEGORIES.calisthenics.exercises;
 
-function getTimeRange(range: string) {
+function getTimeRange(range: string, tzOffsetMinutes: number) {
   const now = new Date();
+  const tzOffsetMs = tzOffsetMinutes * 60 * 1000;
   let startTime: number;
   let dateFormat: 'halfhour' | 'day';
   let numPeriods: number;
 
   switch (range) {
     case 'daily': {
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-      startTime = todayStart.getTime();
+      // Local midnight = UTC midnight shifted by tzOffset
+      const localNow = new Date(now.getTime() + tzOffsetMs);
+      const localDateStr = localNow.toISOString().split('T')[0];
+      startTime = new Date(localDateStr + 'T00:00:00Z').getTime() - tzOffsetMs;
       dateFormat = 'halfhour';
       numPeriods = 48;
       break;
@@ -50,21 +52,24 @@ function generatePeriodKeys(dateFormat: string, numPeriods: number, now: Date): 
   } else {
     for (let i = 0; i < numPeriods; i++) {
       const time = now.getTime() - (numPeriods - 1 - i) * 24 * 60 * 60 * 1000;
-      const date = new Date(time);
-      periodKeys.push(date.toISOString().split('T')[0]);
+      // Use UTC date — exerciseByDay in pre-aggregated Firestore docs is keyed by UTC date.
+      // If we used local dates here, they'd mismatch the UTC keys and skip data entirely.
+      periodKeys.push(new Date(time).toISOString().split('T')[0]);
     }
   }
   return periodKeys;
 }
 
-function getPeriodKey(timestamp: number, dateFormat: string): string {
-  const date = new Date(timestamp);
+function getPeriodKey(timestamp: number, dateFormat: string, tzOffsetMinutes: number): string {
   if (dateFormat === 'halfhour') {
-    const hour = date.getHours();
-    const minute = date.getMinutes() < 30 ? '00' : '30';
+    // Daily: shift to local time so the half-hour label matches the user's clock
+    const localDate = new Date(timestamp + tzOffsetMinutes * 60 * 1000);
+    const hour = localDate.getUTCHours();
+    const minute = localDate.getUTCMinutes() < 30 ? '00' : '30';
     return `${hour}:${minute}`;
   }
-  return date.toISOString().split('T')[0];
+  // Weekly/monthly: use UTC date to match exerciseByDay keys stored in Firestore
+  return new Date(timestamp).toISOString().split('T')[0];
 }
 
 function initAggregation(periodKeys: string[]) {
@@ -86,6 +91,7 @@ function processLogs(
   docs: FirebaseFirestore.QueryDocumentSnapshot[],
   agg: ReturnType<typeof initAggregation>,
   dateFormat: string,
+  tzOffsetMinutes: number,
 ) {
   docs.forEach(doc => {
     const data = doc.data();
@@ -93,7 +99,7 @@ function processLogs(
     if (!CALISTHENICS_TYPES.includes(type)) return;
 
     const amount = data.amount || 0;
-    const periodKey = getPeriodKey(data.timestamp, dateFormat);
+    const periodKey = getPeriodKey(data.timestamp, dateFormat, tzOffsetMinutes);
 
     agg.repsByExercise[type] = (agg.repsByExercise[type] || 0) + amount;
 
@@ -175,19 +181,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope') || 'community';
     const range = searchParams.get('range') || 'weekly';
+    const tzOffset = parseInt(searchParams.get('tzOffset') || '0', 10);
+    const tzOffsetMinutes = isNaN(tzOffset) ? 0 : Math.max(-840, Math.min(840, tzOffset));
     const userId = decodedToken.uid;
 
     // Server cache — community data shared across users, personal per-user
+    // Include tzOffset in cache key so different timezones don't share cached data
+    // Skip caching for daily range: data changes throughout the day as users log workouts,
+    // and in-memory cache isn't shared across Vercel instances so invalidation is unreliable.
     const cacheUser = scope === 'community' ? '_community' : userId;
-    const cacheParams = `${scope}_${range}`;
-    const cached = getCached('/api/leaderboard/stats', cacheUser, cacheParams);
-    if (cached) {
-      trackCacheHit('leaderboard/stats', userId);
-      return NextResponse.json(cached, { status: 200 });
+    const cacheParams = `${scope}_${range}_tz${tzOffsetMinutes}`;
+    if (range !== 'daily') {
+      const cached = getCached('/api/leaderboard/stats', cacheUser, cacheParams);
+      if (cached) {
+        trackCacheHit('leaderboard/stats', userId);
+        return NextResponse.json(cached, { status: 200 });
+      }
     }
 
     const { db } = getAdminInstances();
-    const { startTime, dateFormat, numPeriods, now } = getTimeRange(range);
+    const { startTime, dateFormat, numPeriods, now } = getTimeRange(range, tzOffsetMinutes);
     const periodKeys = generatePeriodKeys(dateFormat, numPeriods, now);
 
     const agg = initAggregation(periodKeys);
@@ -210,7 +223,7 @@ export async function GET(request: NextRequest) {
 
       const logsSnapshot = await query.get();
       trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
-      processLogs(logsSnapshot.docs, agg, dateFormat);
+      processLogs(logsSnapshot.docs, agg, dateFormat, tzOffsetMinutes);
     } else {
       // Weekly/monthly: read from pre-aggregated docs (2-4 reads instead of 2000-5000)
       const currentMonth = now.toISOString().slice(0, 7);
@@ -276,12 +289,14 @@ export async function GET(request: NextRequest) {
 
         const logsSnapshot = await query.get();
         trackReads('leaderboard/stats', logsSnapshot.docs.length, userId);
-        processLogs(logsSnapshot.docs, agg, dateFormat);
+        processLogs(logsSnapshot.docs, agg, dateFormat, tzOffsetMinutes);
       }
     }
 
     const responseData = formatResponse(agg, periodKeys, scope, range);
-    setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);
+    if (range !== 'daily') {
+      setCache('/api/leaderboard/stats', cacheUser, responseData, undefined, cacheParams);
+    }
     return NextResponse.json(responseData, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -7,7 +7,6 @@ import { useState, useCallback, useRef } from 'react';
  */
 export function useHoldToReveal() {
   const [isHolding, setIsHolding] = useState(false);
-  // Keep track of the last tooltip props so tooltip persists when finger slides outside chart
   const lastTooltipRef = useRef<{ active: boolean; payload: unknown[]; label: string } | null>(null);
 
   const stop = useCallback(() => {
@@ -15,11 +14,34 @@ export function useHoldToReveal() {
     lastTooltipRef.current = null;
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((e: React.PointerEvent) => {
     setIsHolding(true);
-    // Listen globally so lifting finger outside the chart still dismisses
+    const wrapper = e.currentTarget as HTMLElement;
+    const rechartsWrapper = wrapper.querySelector('.recharts-wrapper') as HTMLElement | null;
+
+    // Dispatch a synthetic mousemove to Recharts at the given position,
+    // clamped to just inside the chart bounds so Recharts activates the tooltip.
+    const dispatch = (clientX: number, clientY: number) => {
+      if (!rechartsWrapper) return;
+      const rect = rechartsWrapper.getBoundingClientRect();
+      const clampedX = Math.max(rect.left + 1, Math.min(rect.right - 1, clientX));
+      const centerY = (rect.top + rect.bottom) / 2;
+      const clampedY = clientY >= rect.top && clientY <= rect.bottom ? clientY : centerY;
+      rechartsWrapper.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: clampedX,
+        clientY: clampedY,
+        bubbles: true,
+      }));
+    };
+
+    // Immediately activate tooltip at touch position on pointerdown.
+    dispatch(e.clientX, e.clientY);
+
     const onUp = () => {
       stop();
+      if (rechartsWrapper) {
+        rechartsWrapper.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      }
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
@@ -41,6 +63,7 @@ export function useHoldToReveal() {
 export function tooltipVisibility(isHolding: boolean): React.CSSProperties {
   return {
     opacity: isHolding ? 1 : 0,
+    visibility: isHolding ? 'visible' as const : undefined,
     transition: 'none',
     pointerEvents: isHolding ? 'auto' as const : 'none' as const,
   };
@@ -64,9 +87,6 @@ export function HighlightCursor({ points, height }: { points?: Array<{ x: number
     />
   );
 }
-
-/** Cursor config for Bar charts when holding — highlights the active bar area */
-export const barHighlightCursor = { fill: 'rgb(var(--foreground) / 0.06)', rx: 6 };
 
 /** Active dot style for Line/Area charts when holding */
 export function holdActiveDot(color: string) {

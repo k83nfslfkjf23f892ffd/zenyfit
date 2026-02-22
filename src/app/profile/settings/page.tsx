@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft } from 'lucide-react';
+import { Loader2, Copy, Plus, Palette, Check, Clock, Users, LogOut, Share2, QrCode, ArrowLeft, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { LIMITS, APP_URL } from '@shared/constants';
@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [generating, setGenerating] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showQrCode, setShowQrCode] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,6 +68,33 @@ export default function SettingsPage() {
       fetchInviteCodes();
     }
   }, [user, firebaseUser, fetchInviteCodes]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as unknown as { prompt: () => void; userChoice: Promise<{ outcome: string }> });
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) {
+      toast.info('Tap your browser menu → "Add to Home Screen" to install');
+      return;
+    }
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    }
+  };
 
   const handleGenerateCode = async () => {
     if (inviteCodes.length >= LIMITS.inviteCodes) {
@@ -176,11 +205,11 @@ export default function SettingsPage() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5 text-foreground/40" />
+            <ArrowLeft className="h-5 w-5 text-foreground/60" />
           </Button>
           <div>
             <h1 className="text-xl font-bold">Settings</h1>
-            <p className="text-sm text-foreground/50">Manage your account</p>
+            <p className="text-sm text-foreground/60">Manage your account</p>
           </div>
         </div>
 
@@ -225,13 +254,13 @@ export default function SettingsPage() {
           <CardContent className="space-y-3">
             {/* Status summary */}
             <div className="flex items-center justify-between text-sm p-3 rounded-xl bg-surface border border-border">
-              <span className="text-foreground/50">Codes generated</span>
+              <span className="text-foreground/60">Codes generated</span>
               <span className="font-semibold">{inviteCodes.length} / {LIMITS.inviteCodes}</span>
             </div>
 
             {loadingCodes ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/25" />
               </div>
             ) : (
               <>
@@ -259,7 +288,7 @@ export default function SettingsPage() {
 
                         {/* QR Code Display */}
                         {showQrCode === invite.code && !invite.used && (
-                          <div className="mt-3 flex justify-center p-4 bg-white rounded-lg">
+                          <div className="mt-3 flex justify-center p-4 bg-white rounded-lg border border-border">
                             <QRCodeSVG
                               value={`${APP_URL}/signup?invite=${invite.code}`}
                               size={160}
@@ -282,27 +311,27 @@ export default function SettingsPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setShowQrCode(showQrCode === invite.code ? null : invite.code)}
-                                className="h-7 text-xs"
+                                className="h-9 text-xs"
                               >
-                                <QrCode className="mr-1 h-3 w-3" />
+                                <QrCode className="mr-1 h-3.5 w-3.5" />
                                 QR
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => copyInviteUrl(invite.code)}
-                                className="h-7 text-xs"
+                                className="h-9 text-xs"
                               >
-                                <Copy className="mr-1 h-3 w-3" />
+                                <Copy className="mr-1 h-3.5 w-3.5" />
                                 Copy
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => shareInvite(invite.code)}
-                                className="h-7 text-xs"
+                                className="h-9 text-xs"
                               >
-                                <Share2 className="mr-1 h-3 w-3" />
+                                <Share2 className="mr-1 h-3.5 w-3.5" />
                                 Share
                               </Button>
                             </div>
@@ -335,12 +364,26 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Install App */}
+        <Card>
+          <CardContent className="pt-6">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleInstall}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isInstalled ? 'App installed — reinstall' : 'Install App'}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Log Out */}
         <Card>
           <CardContent className="pt-6">
             {showLogoutConfirm ? (
               <div className="space-y-3">
-                <p className="text-sm text-foreground/50">
+                <p className="text-sm text-foreground/60">
                   Are you sure you want to log out?
                 </p>
                 <div className="flex gap-2">

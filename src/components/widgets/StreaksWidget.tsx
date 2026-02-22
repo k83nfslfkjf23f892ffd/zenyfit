@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Flame, Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -15,7 +15,7 @@ function getMotivationalText(streak: number): string {
   return 'Legendary dedication!';
 }
 
-export function StreaksWidget() {
+export const StreaksWidget = memo(function StreaksWidget() {
   const { user, firebaseUser } = useAuth();
   const [streakData, setStreakData] = useState<{
     currentStreak: number;
@@ -131,4 +131,4 @@ export function StreaksWidget() {
       </CardContent>
     </Card>
   );
-}
+});

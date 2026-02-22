@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -71,10 +71,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
   const [loadingChallenge, setLoadingChallenge] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [joining, setJoining] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullDistance, setPullDistance] = useState(0);
-  const touchStartY = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     params.then((p) => {
@@ -173,34 +169,6 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  // Pull-to-refresh handlers
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchChallenge();
-    setRefreshing(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop <= 5) {
-      touchStartY.current = e.touches[0].clientY;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop <= 5 && !refreshing) {
-      const touchY = e.touches[0].clientY;
-      const distance = Math.max(0, Math.min(80, touchY - touchStartY.current));
-      setPullDistance(distance);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (pullDistance >= 40 && !refreshing) {
-      handleRefresh();
-    }
-    setPullDistance(0);
-  };
-
   // Don't block render for auth loading - show cached content immediately
   if (!loading && !user) {
     return null;
@@ -227,36 +195,7 @@ export default function ChallengeDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <AppLayout>
-      <div
-        ref={containerRef}
-        className="space-y-5"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Pull-to-refresh indicator */}
-        {(pullDistance > 0 || refreshing) && (
-          <div
-            className="flex justify-center items-center py-2"
-            style={{ height: refreshing ? 40 : Math.min(pullDistance, 50) }}
-          >
-            <div
-              className={`rounded-full border-2 p-1 transition-colors ${
-                pullDistance >= 40 || refreshing
-                  ? 'border-primary text-primary'
-                  : 'border-foreground/10 text-foreground/30'
-              }`}
-            >
-              <Loader2
-                className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`}
-                style={{
-                  opacity: refreshing ? 1 : Math.min(pullDistance / 40, 1),
-                  transform: refreshing ? 'none' : `rotate(${pullDistance * 4}deg)`
-                }}
-              />
-            </div>
-          </div>
-        )}
+      <div className="space-y-5">
 
         {/* Back button */}
         <Button variant="ghost" size="icon" onClick={() => router.back()}>

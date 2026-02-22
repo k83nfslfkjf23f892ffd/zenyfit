@@ -259,6 +259,55 @@
 
 ---
 
+## UX INVESTIGATION — SPRINT BACKLOG
+
+*Full UX audit identifying gaps between app philosophy and current implementation.*
+
+### Sprint 1 — Onboarding & First Impressions
+- [ ] Welcome flow for new users (no tour/guidance currently)
+- [ ] "Log your first workout" CTA on empty dashboard
+- [ ] Simplified first-run dashboard experience
+
+### Sprint 2 — Daily Engagement
+- [ ] Daily goals widget ("50 push-ups today" with progress bar)
+- [ ] Streak visibility on /log page (currently only in dashboard widget)
+- [ ] Session total persists across navigation (currently lost when leaving /log)
+- [ ] Rest timer after logging a set (users leave app during rest)
+- [ ] XP estimate on quick-add buttons (show "+60 XP" not just "+20 reps")
+
+### Sprint 3 — Social Proof
+- [ ] Activity feed ticker ("alex just logged 50 push-ups")
+- [ ] Leaderboard rank change arrows (↑↓) + "you're 50 XP from overtaking #4" nudges
+- [ ] Challenge live activity feed ("bob just logged 20 reps, now #2!")
+- [ ] Challenge "winning line" calculation (leader pace vs. your pace)
+- [ ] Challenge "mathematically possible?" indicator
+
+### Sprint 4 — Social Layer
+- [ ] Friend/follow system (foundation for all social features)
+- [ ] Public user profiles
+- [ ] Friend comparison stats
+- [ ] Profile quick-preview overlay on leaderboard tap
+
+### Sprint 5 — Gamification Depth
+- [ ] Achievement progress bars ("5/10 workouts" on locked achievements)
+- [ ] Context-aware celebrations (personal bests, streak milestones, rank changes)
+- [ ] Personal best detection on workout log
+- [ ] "What's New" → personal milestone feed ("You reached Level 10!")
+
+### Sprint 6 — Challenge Enhancement
+- [ ] Challenge creation templates + goal/duration recommendations
+- [ ] Challenge comments/reactions
+- [ ] Push notification when someone passes you in a challenge
+- [ ] Challenge filtering (by exercise type, duration, difficulty)
+- [ ] 1v1 direct challenges
+
+### UX Polish (any sprint)
+- [ ] Empty state illustrations + encouraging messages + clear CTAs
+- [ ] Swipe-to-dismiss modals
+- [ ] Swipeable leaderboard tabs
+
+---
+
 ## PLANNED FEATURES
 
 ### Social Feed
@@ -465,8 +514,80 @@
 
 ---
 
+## AUDIT FINDINGS (v2.8.1)
+
+*From comprehensive codebase audit. Items fixed in v2.8.1 marked with ~~strikethrough~~.*
+
+### ~~Race Condition: Challenge Join~~ (Fixed v2.8.1)
+- **Location:** `src/app/api/challenges/[id]/join/route.ts`
+- **Problem:** Non-atomic array spread to add participant. Concurrent joins could overwrite each other.
+- **Fix:** Wrapped in `db.runTransaction()` — read + duplicate check + update all happen atomically.
+
+### ~~Race Condition: Challenge Progress Updates~~ (Fixed v2.8.1)
+- **Location:** `src/app/api/workouts/route.ts`, `src/app/api/workouts/[id]/route.ts`
+- **Problem:** Read-modify-write on participants array without transaction. Concurrent workouts overwrote each other's progress.
+- **Fix:** Each challenge progress update now uses `db.runTransaction()`. Removed manual retry block (transactions have built-in retries).
+
+### ~~Firestore Metrics Overhead~~ (Fixed v2.8.1)
+- **Location:** `src/lib/firestore-metrics.ts`
+- **Problem:** `trackReads/trackWrites/trackCacheHit` fired on every API call, adding ~2000 extra Firestore writes/day.
+- **Fix:** Gated behind `ENABLE_FIRESTORE_METRICS=true` env var. Disabled by default in production.
+
+### ~~Small Touch Targets in Settings~~ (Fixed v2.8.1)
+- **Location:** `src/app/profile/settings/page.tsx`
+- **Problem:** QR/Copy/Share buttons were `h-7` (28px), below 44px minimum.
+- **Fix:** Changed to `h-9` with slightly larger icons.
+
+### ~~QR Code Theme Border~~ (Fixed v2.8.1)
+- **Location:** `src/app/profile/settings/page.tsx`
+- **Problem:** QR container had `bg-white` with no border, jarring in dark themes.
+- **Fix:** Added `border border-border` for theme-aware boundary.
+
+### ~~Select Dropdown Arrow Not Theme-Aware~~ (Fixed v2.8.1)
+- **Location:** `src/app/log/page.tsx`
+- **Problem:** Hardcoded `stroke="#888"` in SVG data URL. Arrow invisible in dark themes.
+- **Fix:** Replaced with `ChevronDown` lucide icon that inherits `text-foreground`.
+
+### ~~Text Opacity Inconsistency (Partial)~~ (Fixed v2.8.1)
+- **Location:** `src/app/log/page.tsx`, `src/app/profile/settings/page.tsx`
+- **Problem:** Mix of `/30`, `/40`, `/50`, `/60` opacities with no system.
+- **Fix:** Standardized in these 2 files: secondary `/60`, tertiary `/40`, disabled `/25`. Full codebase sweep deferred.
+
+### Streak Timezone Limitation
+- **Status:** Open (documented with TODO)
+- **Location:** `src/app/api/workouts/[id]/route.ts`
+- **Problem:** Streak dates use UTC which may differ from user's local day. A user in PST logging at 11 PM sees their workout counted as the next day.
+- **Fix:** Requires storing user timezone preference. See TODO in code.
+
+### Stale Avatars in Challenge Documents
+- **Status:** Open
+- **Location:** `src/app/api/challenges/[id]/route.ts`
+- **Problem:** Challenge stores avatar at join time. If user changes avatar, old one shows in challenges.
+- **Fix:** Already resolved at read time (avatars fetched fresh), but stale data persists in Firestore.
+
+### Missing Transaction: Admin XP Recalculation
+- **Status:** Open
+- **Location:** `src/app/api/admin/recalculate-xp/route.ts`
+- **Problem:** Updates user XP and logs in a loop without atomic transaction. Process crash mid-loop causes inconsistency.
+- **Fix:** Use batch writes or transactions per user.
+
+### Admin Stats Expensive Queries
+- **Status:** Open
+- **Location:** `src/app/api/admin/stats/route.ts`
+- **Problem:** Scans 15,000+ documents (10K recent workouts + 5K for active users) per admin stats request.
+- **Fix:** Use pre-aggregated counters instead of scanning all documents.
+
+### Challenge Update Latency on Workout Log
+- **Status:** Open
+- **Location:** `src/app/api/workouts/route.ts`
+- **Problem:** After logging a workout, queries and updates all matching active challenges. If user is in 10 challenges, adds 500ms-2s latency.
+- **Fix:** Move challenge updates to background/async processing.
+
+---
+
 ## RECENTLY COMPLETED
 
+- v2.8.1: Race condition fixes (challenge join + progress updates use Firestore transactions), metrics gated behind env var, UI polish (touch targets, QR border, themed dropdown arrow, opacity standardization)
 - v2.4.5: Dashboard widget customization fixes — hidden widgets no longer show on dashboard, new widgets added to visible area (before hidden section), drag-and-drop between visible/hidden zones updates visibility
 - v2.4.5: Revolut-style chart highlight, pre-aggregate exercise breakdowns + community stats, server cache for leaderboard/stats
 - v2.4.0: Workout Streaks — current/longest streak tracking, auto-update on log/delete, migration for existing users, new StreaksWidget on dashboard

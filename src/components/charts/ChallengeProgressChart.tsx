@@ -190,7 +190,7 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div {...handlers}>
+        <div {...handlers} className="select-none [&_*]:select-none [-webkit-tap-highlight-color:transparent] cursor-default">
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={progress}>
             <CartesianGrid
@@ -223,6 +223,7 @@ export function ChallengeProgressChart({ challengeId, firebaseUser }: ChallengeP
               }}
             />
             <Tooltip
+              active={(isHolding && lastTooltipRef.current) ? true : undefined}
               content={(props) => {
                 const p = stickyProps(props as { active?: boolean; payload?: unknown[]; label?: string });
                 return <ChallengeTooltip active={p.active} payload={p.payload as ChallengeTooltipProps['payload']} label={p.label} unit={unit} />;

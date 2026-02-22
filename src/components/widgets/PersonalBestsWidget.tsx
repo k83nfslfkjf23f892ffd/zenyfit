@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -15,7 +15,7 @@ interface ProfileStatsData {
 
 const CACHE_TTL = CACHE_TTLS.profileStats;
 
-export function PersonalBestsWidget() {
+export const PersonalBestsWidget = memo(function PersonalBestsWidget() {
   const { firebaseUser } = useAuth();
   const [personalBests, setPersonalBests] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
@@ -116,4 +116,4 @@ export function PersonalBestsWidget() {
       </CardContent>
     </Card>
   );
-}
+});

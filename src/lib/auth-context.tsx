@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useRef } fro
 import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { initializeFirebase, getFirebaseInstances } from '@/lib/firebase-client';
+import { clearAllCache } from '@/lib/client-cache';
 import type { User } from '@shared/schema';
 
 const USER_CACHE_KEY = 'zenyfit_user_cache';
@@ -155,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOutUser = async () => {
     const { auth } = getFirebaseInstances();
     setCachedUser(null);
+    clearAllCache();
     await signOut(auth);
   };
 
